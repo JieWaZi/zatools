@@ -1,4 +1,4 @@
-module github.com/ryan/go-skills
+module zatools
 
 go 1.25.8
 

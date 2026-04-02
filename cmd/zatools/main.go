@@ -6,10 +6,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ryan/go-skills/cmd/zatools/skill"
-	"github.com/ryan/go-skills/internal/ui"
 	"github.com/spf13/cobra"
 	"os"
+	"zatools/cmd/zatools/skill"
+	"zatools/internal/ui"
 )
 
 var showLogoOnce sync.Once

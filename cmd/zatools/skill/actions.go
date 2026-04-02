@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ryan/go-skills/internal/agents"
-	"github.com/ryan/go-skills/internal/skill"
-	"github.com/ryan/go-skills/internal/ui"
+	"zatools/internal/agents"
+	"zatools/internal/skill"
+	"zatools/internal/ui"
 )
 
 // AddOptions 描述 `skill add` 的命令参数。

@@ -1,8 +1,8 @@
 package skill
 
 import (
-	"github.com/ryan/go-skills/internal/ui"
 	"github.com/spf13/cobra"
+	"zatools/internal/ui"
 )
 
 // NewSkillCmd 构建 `skill` 子命令及其所有管理动作。

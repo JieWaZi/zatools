@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/ryan/go-skills/internal/ui"
 	"github.com/spf13/cobra"
+	"zatools/internal/ui"
 )
 
 func newCompletionCmd(root *cobra.Command) *cobra.Command {
