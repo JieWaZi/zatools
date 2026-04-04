@@ -1,2 +1,7 @@
 .idea
 cmd/zatools/zatools
+skills-lock.json
+.agents
+.codex
+.claude
+dist/

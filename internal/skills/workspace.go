@@ -1,5 +1,5 @@
-// Package skill 提供技能来源解析、项目定位、锁文件读写和安装同步等核心能力。
-package skill
+// Package skills 提供技能来源解析、项目定位、锁文件读写和安装同步等核心能力。
+package skills
 
 import (
 	"fmt"

@@ -1,13 +1,16 @@
-package skill
+package skillcmd
 
 import (
 	"github.com/spf13/cobra"
+
+	"zatools/internal/app/skillapp"
 	"zatools/internal/ui"
 )
 
-// NewSkillCmd 构建 `skill` 子命令及其所有管理动作。
-func NewSkillCmd() *cobra.Command {
+// NewCommand 构建 `skill` 子命令及其所有管理动作。
+func NewCommand() *cobra.Command {
 	copy := ui.Messages()
+	service := skillapp.NewService()
 	skillCmd := &cobra.Command{
 		Use:           "skill",
 		Short:         copy.SkillShort,
@@ -18,19 +21,19 @@ func NewSkillCmd() *cobra.Command {
 		},
 	}
 
-	skillCmd.AddCommand(newSkillAddCmd())
-	skillCmd.AddCommand(newSkillListCmd())
-	skillCmd.AddCommand(newSkillInitCmd())
-	skillCmd.AddCommand(newSkillRemoveCmd())
-	skillCmd.AddCommand(newSkillCheckCmd())
-	skillCmd.AddCommand(newSkillUpdateCmd())
+	skillCmd.AddCommand(newSkillAddCmd(service))
+	skillCmd.AddCommand(newSkillListCmd(service))
+	skillCmd.AddCommand(newSkillInitCmd(service))
+	skillCmd.AddCommand(newSkillRemoveCmd(service))
+	skillCmd.AddCommand(newSkillCheckCmd(service))
+	skillCmd.AddCommand(newSkillUpdateCmd(service))
 	return skillCmd
 }
 
 // newSkillAddCmd 构建安装技能包的命令。
-func newSkillAddCmd() *cobra.Command {
+func newSkillAddCmd(service *skillapp.Service) *cobra.Command {
 	copy := ui.Messages()
-	var opts AddOptions
+	var opts skillapp.AddOptions
 
 	cmd := &cobra.Command{
 		Use:   "add <source>",
@@ -38,7 +41,7 @@ func newSkillAddCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.ScopeProvided = cmd.Flags().Changed("global")
-			return Add(newCommandContext(), args[0], opts)
+			return service.Add(cmd.Context(), args[0], opts)
 		},
 	}
 	cmd.Flags().BoolVarP(&opts.Global, "global", "g", false, copy.FlagInstallGlobally)
@@ -50,7 +53,7 @@ func newSkillAddCmd() *cobra.Command {
 }
 
 // newSkillListCmd 构建已安装技能列表命令。
-func newSkillListCmd() *cobra.Command {
+func newSkillListCmd(service *skillapp.Service) *cobra.Command {
 	copy := ui.Messages()
 	var global bool
 	cmd := &cobra.Command{
@@ -58,7 +61,7 @@ func newSkillListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   copy.ListShort,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return List(newCommandContext(), global)
+			return service.List(cmd.Context(), global)
 		},
 	}
 	cmd.Flags().BoolVarP(&global, "global", "g", false, copy.FlagListGlobal)
@@ -66,7 +69,7 @@ func newSkillListCmd() *cobra.Command {
 }
 
 // newSkillInitCmd 构建技能模板初始化命令。
-func newSkillInitCmd() *cobra.Command {
+func newSkillInitCmd(service *skillapp.Service) *cobra.Command {
 	copy := ui.Messages()
 	cmd := &cobra.Command{
 		Use:   "init [name]",
@@ -77,16 +80,16 @@ func newSkillInitCmd() *cobra.Command {
 			if len(args) > 0 {
 				name = args[0]
 			}
-			return Init(name)
+			return service.Init(cmd.Context(), name)
 		},
 	}
 	return cmd
 }
 
 // newSkillRemoveCmd 构建移除技能命令。
-func newSkillRemoveCmd() *cobra.Command {
+func newSkillRemoveCmd(service *skillapp.Service) *cobra.Command {
 	copy := ui.Messages()
-	var opts RemoveOptions
+	var opts skillapp.RemoveOptions
 
 	cmd := &cobra.Command{
 		Use:     "remove [skills...]",
@@ -94,7 +97,7 @@ func newSkillRemoveCmd() *cobra.Command {
 		Short:   copy.RemoveShort,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.SkillNames = append(opts.SkillNames[:0], args...)
-			return Remove(newCommandContext(), opts)
+			return service.Remove(cmd.Context(), opts)
 		},
 	}
 	cmd.Flags().BoolVarP(&opts.Global, "global", "g", false, copy.FlagRemoveGlobal)
@@ -105,14 +108,14 @@ func newSkillRemoveCmd() *cobra.Command {
 }
 
 // newSkillCheckCmd 构建检查更新命令。
-func newSkillCheckCmd() *cobra.Command {
+func newSkillCheckCmd(service *skillapp.Service) *cobra.Command {
 	copy := ui.Messages()
 	var global bool
 	cmd := &cobra.Command{
 		Use:   "check",
 		Short: copy.CheckShort,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return Check(newCommandContext(), global)
+			return service.Check(cmd.Context(), global)
 		},
 	}
 	cmd.Flags().BoolVarP(&global, "global", "g", false, copy.FlagCheckGlobal)
@@ -120,14 +123,14 @@ func newSkillCheckCmd() *cobra.Command {
 }
 
 // newSkillUpdateCmd 构建批量更新技能命令。
-func newSkillUpdateCmd() *cobra.Command {
+func newSkillUpdateCmd(service *skillapp.Service) *cobra.Command {
 	copy := ui.Messages()
 	var global bool
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: copy.UpdateShort,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return Update(newCommandContext(), global)
+			return service.Update(cmd.Context(), global)
 		},
 	}
 	cmd.Flags().BoolVarP(&global, "global", "g", false, copy.FlagUpdateGlobal)

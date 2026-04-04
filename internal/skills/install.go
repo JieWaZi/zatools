@@ -1,4 +1,4 @@
-package skill
+package skills
 
 import (
 	"crypto/sha256"
@@ -14,30 +14,49 @@ import (
 )
 
 // InstalledSkill 记录已经安装到本地或全局的技能元数据。
+// 这份结构会被写入锁文件，作为 list/check/update/remove 的事实来源。
 type InstalledSkill struct {
-	Name         string            `json:"name"`
-	Description  string            `json:"description"`
-	Path         string            `json:"path"`
-	Source       string            `json:"source"`
-	SourceType   string            `json:"source_type"`
-	SourceSubdir string            `json:"source_subdir,omitempty"`
-	Hash         string            `json:"hash"`
-	Agents       []string          `json:"agents,omitempty"`
-	AgentPaths   map[string]string `json:"agent_paths,omitempty"`
-	InstalledAt  time.Time         `json:"installed_at"`
+	// Name 是技能展示名，同时也是锁文件中的逻辑主键。
+	Name string `json:"name"`
+	// Description 是安装时记录下来的描述，便于 list 直接展示。
+	Description string `json:"description"`
+	// Path 是主安装副本所在的绝对路径。
+	// 当只安装到一个 agent 时，其它地方通常也直接复用这个字段。
+	Path string `json:"path"`
+	// Source 是最初的来源输入，用于后续重新解析来源检查更新。
+	Source string `json:"source"`
+	// SourceType 是解析后的来源类型，主要用于展示和兼容历史数据。
+	SourceType string `json:"source_type"`
+	// SourceSubdir 是技能相对仓库根目录的位置。
+	// update/check 会据此直接定位到仓库中的具体技能目录，而不是重新全仓扫描。
+	SourceSubdir string `json:"source_subdir,omitempty"`
+	// Hash 是安装目录内容哈希，用来判断来源是否有变更。
+	Hash string `json:"hash"`
+	// Agents 记录当前技能同步到了哪些 agent。
+	Agents []string `json:"agents,omitempty"`
+	// AgentPaths 记录每个 agent 实际落盘的目录。
+	AgentPaths map[string]string `json:"agent_paths,omitempty"`
+	// InstalledAt 是安装完成时间，统一记录为 UTC。
+	InstalledAt time.Time `json:"installed_at"`
 }
 
 // LockFile 表示锁文件的序列化结构。
+// 当前以技能名作为 map key，意味着同一作用域下同名技能会互相覆盖。
 type LockFile struct {
 	Skills map[string]InstalledSkill `json:"skills"`
 }
 
 // CheckResult 表示单个技能的更新检查结果。
 type CheckResult struct {
-	Skill         InstalledSkill
-	Status        string
-	LatestHash    string
-	Message       string
+	// Skill 是锁文件中的已安装记录。
+	Skill InstalledSkill
+	// Status 是检查状态，例如 current、outdated、source-error。
+	Status string
+	// LatestHash 是来源当前内容的哈希；仅检查成功时有意义。
+	LatestHash string
+	// Message 保存错误说明或补充信息。
+	Message string
+	// MatchedSource 预留给多来源匹配场景；当前流程尚未写入该字段。
 	MatchedSource string
 }
 
@@ -85,6 +104,7 @@ func EnsureDir(path string) error {
 }
 
 // CopyDir 递归复制整个目录；如果目标已存在则先清空再写入。
+// 这里保留符号链接本身，而不是把链接目标内容拍平复制。
 func CopyDir(src, dst string) error {
 	if err := os.RemoveAll(dst); err != nil {
 		return fmt.Errorf("clear destination %s: %w", dst, err)
@@ -117,6 +137,7 @@ func CopyDir(src, dst string) error {
 }
 
 // HashDir 计算目录内所有文件内容的稳定哈希，用于检测更新。
+// 哈希同时包含相对路径和文件内容，避免“内容相同但文件结构不同”时被误判为未变化。
 func HashDir(root string) (string, error) {
 	root, err := filepath.Abs(root)
 	if err != nil {
@@ -196,6 +217,7 @@ func SanitizeName(name string) string {
 }
 
 // InstallSkill 把技能复制到目标目录，并返回安装记录。
+// SourceSubdir 会尽量落成“相对仓库根目录的技能目录”，这样 update/check 可以直接命中该技能。
 func InstallSkill(skillsDir string, source Source, skill Skill) (InstalledSkill, error) {
 	targetDir := filepath.Join(skillsDir, SanitizeName(skill.Name))
 	if err := CopyDir(skill.Dir, targetDir); err != nil {
@@ -227,6 +249,7 @@ func InstallSkill(skillsDir string, source Source, skill Skill) (InstalledSkill,
 }
 
 // SyncInstalledSkill 把主安装目录同步到其它代理对应的技能目录。
+// 这样可以保证多个 agent 安装的是同一份已落盘内容，避免每个 agent 都单独从来源重新复制。
 func SyncInstalledSkill(canonicalPath string, skillName string, targets map[string]string) (map[string]string, error) {
 	paths := make(map[string]string, len(targets))
 	for agent, dir := range targets {
