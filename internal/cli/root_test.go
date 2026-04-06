@@ -24,6 +24,9 @@ func TestNewRootCmdIncludesExpectedSubcommands(t *testing.T) {
 	if sub, _, err := cmd.Find([]string{"skill"}); err != nil || sub == nil {
 		t.Fatalf("root command missing skill subcommand: %v", err)
 	}
+	if sub, _, err := cmd.Find([]string{"rule"}); err != nil || sub == nil {
+		t.Fatalf("root command missing rule subcommand: %v", err)
+	}
 	if sub, _, err := cmd.Find([]string{"completion"}); err != nil || sub == nil {
 		t.Fatalf("root command missing completion subcommand: %v", err)
 	}

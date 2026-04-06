@@ -2,20 +2,13 @@ package skillapp
 
 import (
 	"context"
-	"os"
 
-	"zatools/internal/skills"
+	common "zatools/internal/app/common"
 )
-
-// Runtime 保存一次 CLI 执行中可复用的环境信息。
-type Runtime struct {
-	Workspace *skills.Workspace
-	IsTTY     bool
-}
 
 // Service 编排技能安装、查询和移除等应用层流程。
 type Service struct {
-	runtime Runtime
+	runtime common.Runtime
 }
 
 // AddOptions 描述 `skill add` 的命令参数。
@@ -48,32 +41,17 @@ type RemoveOptions struct {
 
 // NewService 构建使用当前终端环境的应用服务。
 func NewService() *Service {
-	return NewServiceWithRuntime(detectRuntime())
+	return NewServiceWithRuntime(common.DetectRuntime())
 }
 
 // NewServiceWithRuntime 允许测试或上层装配自定义运行环境。
-func NewServiceWithRuntime(runtime Runtime) *Service {
+func NewServiceWithRuntime(runtime common.Runtime) *Service {
 	return &Service{runtime: runtime}
 }
 
 // Runtime 返回服务正在使用的运行环境副本。
-func (s *Service) Runtime() Runtime {
+func (s *Service) Runtime() common.Runtime {
 	return s.runtime
-}
-
-func detectRuntime() Runtime {
-	cwd, err := os.Getwd()
-	if err != nil {
-		cwd = "."
-	}
-
-	info, err := os.Stdout.Stat()
-	isTTY := err == nil && (info.Mode()&os.ModeCharDevice) != 0
-
-	return Runtime{
-		Workspace: skills.NewWorkspace(cwd),
-		IsTTY:     isTTY,
-	}
 }
 
 // Init 在目标目录中创建一份新的 SKILL.md 模板。

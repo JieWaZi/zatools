@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"zatools/internal/skills"
 )
 
 func TestSupportedReturnsCopy(t *testing.T) {
@@ -49,6 +51,22 @@ func TestLookupDisplayNamesAndResolveSkillsDir(t *testing.T) {
 		t.Fatalf("ResolveSkillsDir(global) = %q, want %q", globalDir, want)
 	}
 
+	ruleDir, err := ResolveInstallDir("cursor", skills.RuleAsset, false, "/repo")
+	if err != nil {
+		t.Fatalf("ResolveInstallDir(rule) error = %v", err)
+	}
+	if want := filepath.Join("/repo", ".cursor/rules"); ruleDir != want {
+		t.Fatalf("ResolveInstallDir(rule) = %q, want %q", ruleDir, want)
+	}
+
+	claudeRuleDir, err := ResolveInstallDir("claude", skills.RuleAsset, false, "/repo")
+	if err != nil {
+		t.Fatalf("ResolveInstallDir(claude rule) error = %v", err)
+	}
+	if want := filepath.Join("/repo", ".claude/rules"); claudeRuleDir != want {
+		t.Fatalf("ResolveInstallDir(claude rule) = %q, want %q", claudeRuleDir, want)
+	}
+
 	names := DisplayNames([]string{"codex", "unknown", "claude"})
 	if want := []string{"Codex", "Claude Code"}; !reflect.DeepEqual(names, want) {
 		t.Fatalf("DisplayNames = %#v, want %#v", names, want)
@@ -60,5 +78,8 @@ func TestResolveSkillsDirRejectsUnknownAgent(t *testing.T) {
 
 	if _, err := ResolveSkillsDir("unknown", false, "/repo"); err == nil {
 		t.Fatal("expected error for unsupported agent")
+	}
+	if _, err := ResolveInstallDir("codex", skills.RuleAsset, false, "/repo"); err == nil {
+		t.Fatal("expected error for unsupported rule asset")
 	}
 }

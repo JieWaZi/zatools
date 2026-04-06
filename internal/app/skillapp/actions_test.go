@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	common "zatools/internal/app/common"
 	"zatools/internal/skills"
 	"zatools/internal/ui"
 )
@@ -76,7 +77,7 @@ func TestSelectSkillsResolveAgentsScopeAndRemoveNames(t *testing.T) {
 		t.Fatalf("resolveInstallTargets = %#v, global=%v, proceed=%v", agentKeys, global, proceed)
 	}
 
-	names, err := service.resolveRemoveNames([]skills.InstalledSkill{{Name: "b"}, {Name: "a"}}, RemoveOptions{All: true})
+	names, err := service.resolveRemoveNames([]skills.InstalledAsset{{Name: "b"}, {Name: "a"}}, RemoveOptions{All: true})
 	if err != nil {
 		t.Fatalf("resolveRemoveNames(all) error = %v", err)
 	}
@@ -122,7 +123,7 @@ func TestCheckInstalledSkillsAndInstallForAgents(t *testing.T) {
 	}
 
 	lock := skills.LockFile{
-		Skills: map[string]skills.InstalledSkill{
+		Skills: map[string]skills.InstalledAsset{
 			"broken": {
 				Name:   "broken",
 				Source: "://bad",
@@ -153,7 +154,7 @@ func TestCheckInstalledSkillsAndInstallForAgents(t *testing.T) {
 
 	statusByName := map[string]string{}
 	for _, result := range results {
-		statusByName[result.Skill.Name] = result.Status
+		statusByName[result.Asset.Name] = result.Status
 	}
 	if statusByName["broken"] != "invalid-source" || statusByName["current"] != "current" || statusByName["outdated"] != "outdated" {
 		t.Fatalf("checkInstalledSkills statuses = %#v", statusByName)
@@ -186,7 +187,7 @@ func TestFormattingAndPathHelpers(t *testing.T) {
 	service := newTestService(t)
 	t.Setenv("HOME", filepath.Join(service.runtime.Workspace.ProjectDir(), "home"))
 
-	summary := formatSourceSummary(skills.Source{
+	summary := common.FormatSourceSummary(skills.Source{
 		Type:     "github",
 		RepoURL:  "https://github.com/a/b.git",
 		Ref:      "main",
@@ -197,30 +198,30 @@ func TestFormattingAndPathHelpers(t *testing.T) {
 		t.Fatalf("formatSourceSummary = %q", summary)
 	}
 
-	got := shortenPath(filepath.Join(service.runtime.Workspace.ProjectDir(), "dir", "file"), service.runtime.Workspace.ProjectDir())
+	got := common.ShortenPath(filepath.Join(service.runtime.Workspace.ProjectDir(), "dir", "file"), service.runtime.Workspace.ProjectDir())
 	if got != "dir/file" {
 		t.Fatalf("shortenPath(project) = %q", got)
 	}
 
-	if rel, ok := relativeToRoot(filepath.Join(service.runtime.Workspace.ProjectDir(), "a"), service.runtime.Workspace.ProjectDir(), "."); !ok || rel != "a" {
+	if rel, ok := common.RelativeToRoot(filepath.Join(service.runtime.Workspace.ProjectDir(), "a"), service.runtime.Workspace.ProjectDir(), "."); !ok || rel != "a" {
 		t.Fatalf("relativeToRoot = %q, %v", rel, ok)
 	}
-	if _, ok := relativeToRoot("/tmp", "/var", "."); ok {
+	if _, ok := common.RelativeToRoot("/tmp", "/var", "."); ok {
 		t.Fatal("relativeToRoot should reject path outside root")
 	}
 
-	normalized, err := normalizeAgents([]string{"cursor", "claude-code", "cursor", "codex"})
+	normalized, err := common.NormalizeAgentKeys([]string{"cursor", "claude-code", "cursor", "codex"}, skills.SkillAsset, ui.Messages().UnsupportedAgentFmt)
 	if err != nil {
 		t.Fatalf("normalizeAgents error = %v", err)
 	}
 	if want := []string{"claude", "codex", "cursor"}; !reflect.DeepEqual(normalized, want) {
 		t.Fatalf("normalizeAgents = %#v, want %#v", normalized, want)
 	}
-	if _, err := normalizeAgents([]string{"bad"}); err == nil {
+	if _, err := common.NormalizeAgentKeys([]string{"bad"}, skills.SkillAsset, ui.Messages().UnsupportedAgentFmt); err == nil {
 		t.Fatal("expected normalizeAgents to reject unsupported agent")
 	}
 
-	dirs, err := resolveAgentDirectories([]string{"codex", "cursor"}, false, service.runtime.Workspace.ProjectDir())
+	dirs, err := common.ResolveAgentDirectories(skills.SkillAsset, []string{"codex", "cursor"}, false, service.runtime.Workspace.ProjectDir())
 	if err != nil {
 		t.Fatalf("resolveAgentDirectories error = %v", err)
 	}
@@ -250,12 +251,12 @@ func TestFormattingAndPathHelpers(t *testing.T) {
 func TestCollectionAndRemovalHelpers(t *testing.T) {
 	service := newTestService(t)
 	lock := skills.LockFile{
-		Skills: map[string]skills.InstalledSkill{
+		Skills: map[string]skills.InstalledAsset{
 			"b": {Name: "b"},
 			"a": {Name: "a"},
 		},
 	}
-	sorted := sortedInstalledSkills(lock)
+	sorted := common.SortedInstalledAssets(lock, skills.SkillAsset)
 	if got := []string{sorted[0].Name, sorted[1].Name}; !reflect.DeepEqual(got, []string{"a", "b"}) {
 		t.Fatalf("sortedInstalledSkills names = %#v", got)
 	}
@@ -265,7 +266,7 @@ func TestCollectionAndRemovalHelpers(t *testing.T) {
 		t.Fatalf("findDiscoveredSkill = %#v, %v", found, ok)
 	}
 
-	entry := skills.InstalledSkill{Name: "demo", Agents: []string{"cursor", "codex"}}
+	entry := skills.InstalledAsset{Name: "demo", Agents: []string{"cursor", "codex"}}
 	roots, err := service.resolveInstalledPathRoots(entry, false)
 	if err != nil {
 		t.Fatalf("resolveInstalledPathRoots error = %v", err)
@@ -278,23 +279,23 @@ func TestCollectionAndRemovalHelpers(t *testing.T) {
 	target := filepath.Join(allowedRoot, "demo")
 	mustWriteFileApp(t, filepath.Join(target, "file.txt"), "data")
 
-	if err := validateInstalledPath(target, []string{allowedRoot}); err != nil {
+	if err := common.ValidateInstalledPath(target, []string{allowedRoot}); err != nil {
 		t.Fatalf("validateInstalledPath(valid) error = %v", err)
 	}
-	if err := removeInstalledPath(target, []string{allowedRoot}); err != nil {
+	if err := common.RemoveInstalledPath(target, []string{allowedRoot}); err != nil {
 		t.Fatalf("removeInstalledPath error = %v", err)
 	}
 	if _, err := os.Stat(target); !os.IsNotExist(err) {
 		t.Fatalf("expected %q to be removed, stat err = %v", target, err)
 	}
 
-	if err := validateInstalledPath(allowedRoot, []string{allowedRoot}); err == nil {
+	if err := common.ValidateInstalledPath(allowedRoot, []string{allowedRoot}); err == nil {
 		t.Fatal("expected validateInstalledPath to reject root removal")
 	}
-	if err := validateInstalledPath(filepath.Join(t.TempDir(), "other"), []string{allowedRoot}); err == nil {
+	if err := common.ValidateInstalledPath(filepath.Join(t.TempDir(), "other"), []string{allowedRoot}); err == nil {
 		t.Fatal("expected validateInstalledPath to reject unexpected path")
 	}
-	if err := removeInstalledPath("", []string{allowedRoot}); err != nil {
+	if err := common.RemoveInstalledPath("", []string{allowedRoot}); err != nil {
 		t.Fatalf("removeInstalledPath(empty) error = %v", err)
 	}
 }
@@ -304,7 +305,7 @@ func newTestService(t *testing.T) *Service {
 
 	projectDir := t.TempDir()
 	t.Setenv("HOME", filepath.Join(projectDir, "home"))
-	return NewServiceWithRuntime(Runtime{
+	return NewServiceWithRuntime(common.Runtime{
 		Workspace: skills.NewWorkspace(projectDir),
 		IsTTY:     false,
 	})
@@ -382,9 +383,9 @@ func TestServiceLifecycleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadLock error = %v", err)
 	}
-	entry, ok := lock.Skills["demo"]
+	entry, ok := lock.Entries(skills.SkillAsset)["demo"]
 	if !ok {
-		t.Fatalf("lock skills = %#v, want demo entry", lock.Skills)
+		t.Fatalf("lock skills = %#v, want demo entry", lock.Entries(skills.SkillAsset))
 	}
 
 	if err := captureStdout(t, func() error {
@@ -411,7 +412,7 @@ func TestServiceLifecycleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadLock(updated) error = %v", err)
 	}
-	if updatedLock.Skills["demo"].Hash == entry.Hash {
+	if updatedLock.Entries(skills.SkillAsset)["demo"].Hash == entry.Hash {
 		t.Fatal("expected Service.Update to refresh installed hash")
 	}
 
@@ -428,8 +429,8 @@ func TestServiceLifecycleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadLock(final) error = %v", err)
 	}
-	if len(finalLock.Skills) != 0 {
-		t.Fatalf("final lock skills = %#v, want empty", finalLock.Skills)
+	if len(finalLock.Entries(skills.SkillAsset)) != 0 {
+		t.Fatalf("final lock skills = %#v, want empty", finalLock.Entries(skills.SkillAsset))
 	}
 	if _, err := os.Stat(entry.Path); !os.IsNotExist(err) {
 		t.Fatalf("expected installed path to be removed, stat err = %v", err)
@@ -457,8 +458,8 @@ func TestServiceEmptyFlowsAndListOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadLock error = %v", err)
 	}
-	if len(lock.Skills) != 0 {
-		t.Fatalf("list-only lock skills = %#v, want empty", lock.Skills)
+	if len(lock.Entries(skills.SkillAsset)) != 0 {
+		t.Fatalf("list-only lock skills = %#v, want empty", lock.Entries(skills.SkillAsset))
 	}
 
 	for name, fn := range map[string]func() error{
@@ -495,13 +496,13 @@ func TestAdditionalHelperBranches(t *testing.T) {
 		t.Fatalf("resolveRemoveNames(yes) = %#v err=%v", names, err)
 	}
 
-	if ok, err := confirmInstall(true); err != nil || !ok {
+	if ok, err := common.ConfirmInstall(true, ui.Messages().PromptInstallNow); err != nil || !ok {
 		t.Fatalf("confirmInstall(true) = ok=%v err=%v", ok, err)
 	}
 
 	t.Setenv("HOME", filepath.Join(service.runtime.Workspace.ProjectDir(), "home"))
 	homePath := filepath.Join(os.Getenv("HOME"), "bin", "zatools")
-	if got := shortenPath(homePath, "/unrelated"); !strings.HasPrefix(got, "~/") {
+	if got := common.ShortenPath(homePath, "/unrelated"); !strings.HasPrefix(got, "~/") {
 		t.Fatalf("shortenPath(home) = %q", got)
 	}
 }

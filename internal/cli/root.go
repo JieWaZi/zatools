@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	rulecmd "zatools/internal/cli/rule"
 	skillcmd "zatools/internal/cli/skill"
 	"zatools/internal/ui"
 )
@@ -37,6 +38,7 @@ func NewRootCmd() *cobra.Command {
 	})
 	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
 	rootCmd.AddCommand(skillcmd.NewCommand())
+	rootCmd.AddCommand(rulecmd.NewCommand())
 	rootCmd.AddCommand(newCompletionCmd(rootCmd))
 	ui.ApplyHelpLocalization(rootCmd)
 	return rootCmd

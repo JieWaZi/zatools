@@ -138,6 +138,44 @@ func TestParseSkillFileRejectsMissingFrontmatter(t *testing.T) {
 	}
 }
 
+func TestParseSkillFileFallsBackToDirectoryNameWhenNameMissing(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "skill-stocktake", "SKILL.md")
+	mustWriteFile(t, path, "---\ndescription: stocktake skill\n---\n")
+
+	got, err := ParseSkillFile(path)
+	if err != nil {
+		t.Fatalf("ParseSkillFile error = %v", err)
+	}
+	if got.Name != "skill-stocktake" {
+		t.Fatalf("ParseSkillFile name = %q, want %q", got.Name, "skill-stocktake")
+	}
+	if got.Description != "stocktake skill" {
+		t.Fatalf("ParseSkillFile description = %q, want %q", got.Description, "stocktake skill")
+	}
+}
+
+func TestParseSkillFileFallsBackWhenDescriptionMissing(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "skill-stocktake", "SKILL.md")
+	mustWriteFile(t, path, "---\nname: skill-stocktake\n---\n")
+
+	got, err := ParseSkillFile(path)
+	if err != nil {
+		t.Fatalf("ParseSkillFile error = %v", err)
+	}
+	if got.Name != "skill-stocktake" {
+		t.Fatalf("ParseSkillFile name = %q, want %q", got.Name, "skill-stocktake")
+	}
+	if got.Description != fallbackSkillDescription {
+		t.Fatalf("ParseSkillFile description = %q, want %q", got.Description, fallbackSkillDescription)
+	}
+}
+
 func TestResolveSourceLocalAndSearchRoot(t *testing.T) {
 	t.Parallel()
 

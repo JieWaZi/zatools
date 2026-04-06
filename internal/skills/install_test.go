@@ -21,9 +21,10 @@ func TestLoadLockAndSaveLockRoundTrip(t *testing.T) {
 	}
 
 	want := LockFile{
-		Skills: map[string]InstalledSkill{
+		Skills: map[string]InstalledAsset{
 			"demo": {Name: "demo", Description: "desc", Path: "/tmp/demo"},
 		},
+		Rules: map[string]InstalledAsset{},
 	}
 	if err := SaveLock(lockPath, want); err != nil {
 		t.Fatalf("SaveLock error = %v", err)
@@ -93,6 +94,67 @@ func TestCopyDirHashDirInstallAndSync(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(path, "nested", "data.txt")); err != nil {
 			t.Fatalf("synced file missing in %q: %v", path, err)
 		}
+	}
+}
+
+func TestInstallAssetStoresStableLocalSourceAndSelectedFiles(t *testing.T) {
+	t.Parallel()
+
+	workdir := t.TempDir()
+	sourceDir := filepath.Join(workdir, "shared-rules")
+	mustWriteFile(t, filepath.Join(sourceDir, "team.md"), "# Team\n")
+	mustWriteFile(t, filepath.Join(sourceDir, "nested", "ignore.md"), "# Ignore\n")
+
+	source, err := ParseSource(sourceDir)
+	if err != nil {
+		t.Fatalf("ParseSource(local) error = %v", err)
+	}
+
+	installRoot := filepath.Join(t.TempDir(), "install-root")
+	entry, err := InstallAsset(installRoot, source, InstallSpec{
+		Name:               "root-rules",
+		SourcePath:         sourceDir,
+		TargetRelativePath: "root-rules",
+		SourceRelativePath: ".",
+		SourceFiles:        []string{"team.md"},
+	})
+	if err != nil {
+		t.Fatalf("InstallAsset(selected) error = %v", err)
+	}
+
+	if entry.Source != sourceDir {
+		t.Fatalf("InstallAsset source = %q, want %q", entry.Source, sourceDir)
+	}
+	if !reflect.DeepEqual(entry.SourceFiles, []string{"team.md"}) {
+		t.Fatalf("InstallAsset source_files = %#v, want [team.md]", entry.SourceFiles)
+	}
+	if _, err := os.Stat(filepath.Join(entry.Path, "team.md")); err != nil {
+		t.Fatalf("selected file missing after install: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(entry.Path, "nested", "ignore.md")); !os.IsNotExist(err) {
+		t.Fatalf("unexpected nested file copied, stat err = %v", err)
+	}
+}
+
+func TestHashSelectedFilesIgnoresUnselectedSiblings(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "team.md"), "# Team v1\n")
+	mustWriteFile(t, filepath.Join(root, "other.md"), "# Other v1\n")
+
+	hashA, err := HashSelectedFiles(root, []string{"team.md"})
+	if err != nil {
+		t.Fatalf("HashSelectedFiles(first) error = %v", err)
+	}
+
+	mustWriteFile(t, filepath.Join(root, "other.md"), "# Other v2\n")
+	hashB, err := HashSelectedFiles(root, []string{"team.md"})
+	if err != nil {
+		t.Fatalf("HashSelectedFiles(second) error = %v", err)
+	}
+	if hashA != hashB {
+		t.Fatalf("HashSelectedFiles changed after unrelated edit: %q != %q", hashA, hashB)
 	}
 }
 
@@ -183,5 +245,40 @@ func TestLoadLockRejectsInvalidJSON(t *testing.T) {
 	_, err := LoadLock(lockPath)
 	if err == nil || !strings.Contains(err.Error(), "invalid") {
 		t.Fatalf("LoadLock invalid JSON error = %v, want parse failure", err)
+	}
+}
+
+func TestSaveLockOmitsUnusedInstalledAssetFields(t *testing.T) {
+	t.Parallel()
+
+	lockPath := filepath.Join(t.TempDir(), LockFileName)
+	lock := LockFile{
+		Skills: map[string]InstalledAsset{
+			"demo": {
+				Name:         "demo",
+				Description:  "desc",
+				Path:         "/tmp/demo",
+				Source:       "owner/repo",
+				SourceSubdir: "skills/demo",
+				Hash:         "hash",
+			},
+		},
+		Rules: map[string]InstalledAsset{},
+	}
+
+	if err := SaveLock(lockPath, lock); err != nil {
+		t.Fatalf("SaveLock error = %v", err)
+	}
+
+	data, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("ReadFile(lock) error = %v", err)
+	}
+
+	text := string(data)
+	for _, forbidden := range []string{`"kind"`, `"source_type"`, `"installed_at"`} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("lock file unexpectedly contains %s: %s", forbidden, text)
+		}
 	}
 }

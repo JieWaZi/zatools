@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	common "zatools/internal/app/common"
 	"zatools/internal/platform/agents"
 	"zatools/internal/skills"
 	"zatools/internal/ui"
@@ -23,7 +24,7 @@ func (s *Service) Add(ctx context.Context, sourceArg string, opts AddOptions) er
 	if err != nil {
 		return err
 	}
-	spinner.Stop(fmt.Sprintf("%s: %s", copy.SourceLabel, formatSourceSummary(source)))
+	spinner.Stop(fmt.Sprintf("%s: %s", copy.SourceLabel, common.FormatSourceSummary(source)))
 
 	if source.Type == "local" {
 		spinner.Start(copy.StepValidateLocalPath)
@@ -85,7 +86,7 @@ func (s *Service) Add(ctx context.Context, sourceArg string, opts AddOptions) er
 	fmt.Println()
 	ui.Note(copy.TitleInstallSummary, s.buildInstallSummary(source, selected, selectedAgents, opts.Global))
 
-	confirmed, err := confirmInstall(opts.Yes)
+	confirmed, err := common.ConfirmInstall(opts.Yes, copy.PromptInstallNow)
 	if err != nil {
 		return err
 	}
@@ -103,13 +104,14 @@ func (s *Service) Add(ctx context.Context, sourceArg string, opts AddOptions) er
 	}
 
 	ui.Step(copy.StepInstallingSkills)
+	entries := lock.Entries(skills.SkillAsset)
 	for _, selectedSkill := range selected {
 		// 每个技能都会重新生成安装记录，并覆盖锁文件中同名条目，保证路径和哈希是最新状态。
 		entry, err := s.installForAgents(source, selectedSkill, selectedAgents, opts.Global)
 		if err != nil {
 			return err
 		}
-		lock.Skills[entry.Name] = entry
+		entries[entry.Name] = entry
 	}
 
 	if err := skills.SaveLock(lockPath, lock); err != nil {
@@ -134,7 +136,7 @@ func (s *Service) List(_ context.Context, global bool) error {
 		return err
 	}
 
-	installed := sortedInstalledSkills(lock)
+	installed := common.SortedInstalledAssets(lock, skills.SkillAsset)
 	if len(installed) == 0 {
 		fmt.Printf("%s%s%s\n", ui.Dim, fmt.Sprintf(copy.NoScopeSkillsFmt, ui.ScopeText(global)), ui.Reset)
 		return nil
@@ -149,7 +151,7 @@ func (s *Service) List(_ context.Context, global bool) error {
 	}
 	fmt.Printf("%s%s%s\n\n", ui.Bold, title, ui.Reset)
 	for _, entry := range installed {
-		fmt.Printf("%s%s%s %s%s%s\n", ui.Cyan, entry.Name, ui.Reset, ui.Dim, shortenPath(entry.Path, displayBase), ui.Reset)
+		fmt.Printf("%s%s%s %s%s%s\n", ui.Cyan, entry.Name, ui.Reset, ui.Dim, common.ShortenPath(entry.Path, displayBase), ui.Reset)
 		if entry.Description != "" {
 			fmt.Printf("  %s\n", entry.Description)
 		}
@@ -168,7 +170,7 @@ func (s *Service) List(_ context.Context, global bool) error {
 					continue
 				}
 				if agent, ok := agents.Lookup(agentKey); ok {
-					fmt.Printf("  %s%s:%s %s\n", ui.Dim, agent.DisplayName, ui.Reset, shortenPath(path, displayBase))
+					fmt.Printf("  %s%s:%s %s\n", ui.Dim, agent.DisplayName, ui.Reset, common.ShortenPath(path, displayBase))
 				}
 			}
 		}
@@ -188,12 +190,13 @@ func (s *Service) Remove(_ context.Context, opts RemoveOptions) error {
 	if err != nil {
 		return err
 	}
-	if len(lock.Skills) == 0 {
+	entries := lock.Entries(skills.SkillAsset)
+	if len(entries) == 0 {
 		fmt.Printf("%s%s%s\n", ui.Dim, copy.NoSkillsToRemove, ui.Reset)
 		return nil
 	}
 
-	installed := sortedInstalledSkills(lock)
+	installed := common.SortedInstalledAssets(lock, skills.SkillAsset)
 
 	names, err := s.resolveRemoveNames(installed, opts)
 	if err != nil {
@@ -205,7 +208,7 @@ func (s *Service) Remove(_ context.Context, opts RemoveOptions) error {
 	}
 
 	for _, name := range names {
-		entry, ok := lock.Skills[name]
+		entry, ok := entries[name]
 		if !ok {
 			return fmt.Errorf(copy.SkillNotInstalledFmt, name)
 		}
@@ -213,16 +216,15 @@ func (s *Service) Remove(_ context.Context, opts RemoveOptions) error {
 		if err != nil {
 			return err
 		}
-		// 先清理各 agent 的同步副本，再清理主安装目录，兼容新旧锁文件字段差异。
 		for _, path := range entry.AgentPaths {
-			if err := removeInstalledPath(path, allowedRoots); err != nil {
+			if err := common.RemoveInstalledPath(path, allowedRoots); err != nil {
 				return err
 			}
 		}
-		if err := removeInstalledPath(entry.Path, allowedRoots); err != nil {
+		if err := common.RemoveInstalledPath(entry.Path, allowedRoots); err != nil {
 			return err
 		}
-		delete(lock.Skills, name)
+		delete(entries, name)
 		fmt.Printf(copy.RemovedFmt, ui.Green, ui.Reset, name)
 	}
 
@@ -250,7 +252,7 @@ func (s *Service) Check(ctx context.Context, global bool) error {
 		if result.Status != "current" {
 			color = ui.Yellow
 		}
-		fmt.Printf("%s%s%s %s\n", color, result.Skill.Name, ui.Reset, ui.StatusText(result.Status))
+		fmt.Printf("%s%s%s %s\n", color, result.Asset.Name, ui.Reset, ui.StatusText(result.Status))
 		if result.Message != "" {
 			fmt.Printf("  %s%s%s\n", ui.Dim, result.Message, ui.Reset)
 		}
@@ -275,6 +277,7 @@ func (s *Service) Update(ctx context.Context, global bool) error {
 	}
 
 	updated := 0
+	entries := lock.Entries(skills.SkillAsset)
 	for _, result := range results {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -284,12 +287,12 @@ func (s *Service) Update(ctx context.Context, global bool) error {
 		}
 		// 更新时基于锁文件里记录的来源重新解析并重新安装，
 		// 这样可以复用 add 的安装路径、哈希计算和多 agent 同步逻辑。
-		source, err := skills.ParseSource(result.Skill.Source)
+		source, err := skills.ParseSource(result.Asset.Source)
 		if err != nil {
 			return err
 		}
-		if result.Skill.SourceSubdir != "" {
-			source.Subpath = result.Skill.SourceSubdir
+		if result.Asset.SourceSubdir != "" {
+			source.Subpath = result.Asset.SourceSubdir
 		}
 		resolved, err := skills.ResolveSource(ctx, source)
 		if err != nil {
@@ -305,15 +308,15 @@ func (s *Service) Update(ctx context.Context, global bool) error {
 			_ = resolved.Cleanup()
 			return err
 		}
-		selectedSkill, ok := findDiscoveredSkill(discovered, result.Skill.Name)
+		selectedSkill, ok := findDiscoveredSkill(discovered, result.Asset.Name)
 		if !ok {
 			_ = resolved.Cleanup()
-			return fmt.Errorf(copy.SourceNoLongerContainsFmt, result.Skill.Source, result.Skill.Name)
+			return fmt.Errorf(copy.SourceNoLongerContainsFmt, result.Asset.Source, result.Asset.Name)
 		}
-		agentKeys := result.Skill.Agents
-		if len(agentKeys) == 0 {
-			// 兼容旧锁文件：历史记录里没有 Agents 字段时，默认只回填到 codex。
-			agentKeys = []string{"codex"}
+		agentKeys, err := common.RequiredAgentKeys(result.Asset)
+		if err != nil {
+			_ = resolved.Cleanup()
+			return err
 		}
 		entry, err := s.installForAgents(source, selectedSkill, agentKeys, global)
 		cleanupErr := resolved.Cleanup()
@@ -323,7 +326,7 @@ func (s *Service) Update(ctx context.Context, global bool) error {
 		if err != nil {
 			return err
 		}
-		lock.Skills[entry.Name] = entry
+		entries[entry.Name] = entry
 		updated++
 		fmt.Printf(copy.UpdatedFmt, ui.Green, ui.Reset, entry.Name)
 	}
@@ -458,8 +461,8 @@ func (s *Service) resolveInstallTargets(opts AddOptions) ([]string, bool, bool, 
 func (s *Service) resolveAgents(opts AddOptions) ([]string, bool, error) {
 	copy := ui.Messages()
 	if len(opts.Agents) > 0 {
-		agents, err := normalizeAgents(opts.Agents)
-		return agents, true, err
+		agentKeys, err := common.NormalizeAgentKeys(opts.Agents, skills.SkillAsset, copy.UnsupportedAgentFmt)
+		return agentKeys, true, err
 	}
 	if opts.Yes || !s.runtime.IsTTY {
 		// 无交互时选择全部内置代理，确保一次安装即可覆盖常见使用环境。
@@ -486,8 +489,8 @@ func (s *Service) resolveAgents(opts AddOptions) ([]string, bool, error) {
 	if cancelled {
 		return nil, false, nil
 	}
-	agents, err := normalizeAgents(selected)
-	return agents, true, err
+	agentKeys, err := common.NormalizeAgentKeys(selected, skills.SkillAsset, copy.UnsupportedAgentFmt)
+	return agentKeys, true, err
 }
 
 // resolveScope 决定技能写入项目目录还是用户主目录下的全局目录。
@@ -524,7 +527,7 @@ func (s *Service) resolveScope(opts AddOptions, agentKeys []string) (bool, bool,
 }
 
 // resolveRemoveNames 决定 remove 命令最终删除哪些技能。
-func (s *Service) resolveRemoveNames(installed []skills.InstalledSkill, opts RemoveOptions) ([]string, error) {
+func (s *Service) resolveRemoveNames(installed []skills.InstalledAsset, opts RemoveOptions) ([]string, error) {
 	copy := ui.Messages()
 	if opts.All {
 		names := make([]string, 0, len(installed))
@@ -576,13 +579,13 @@ func (s *Service) checkInstalledSkills(ctx context.Context, global bool) ([]skil
 	}
 
 	var results []skills.CheckResult
-	for _, entry := range sortedInstalledSkills(lock) {
+	for _, entry := range common.SortedInstalledAssets(lock, skills.SkillAsset) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		source, err := skills.ParseSource(entry.Source)
 		if err != nil {
-			results = append(results, skills.CheckResult{Skill: entry, Status: "invalid-source", Message: err.Error()})
+			results = append(results, skills.CheckResult{Asset: entry, Status: "invalid-source", Message: err.Error()})
 			continue
 		}
 		if entry.SourceSubdir != "" {
@@ -590,20 +593,20 @@ func (s *Service) checkInstalledSkills(ctx context.Context, global bool) ([]skil
 		}
 		resolved, err := skills.ResolveSource(ctx, source)
 		if err != nil {
-			results = append(results, skills.CheckResult{Skill: entry, Status: "source-error", Message: err.Error()})
+			results = append(results, skills.CheckResult{Asset: entry, Status: "source-error", Message: err.Error()})
 			continue
 		}
 		searchRoot, err := resolved.SearchRoot()
 		if err != nil {
 			_ = resolved.Cleanup()
-			results = append(results, skills.CheckResult{Skill: entry, Status: "source-error", Message: err.Error()})
+			results = append(results, skills.CheckResult{Asset: entry, Status: "source-error", Message: err.Error()})
 			continue
 		}
 		// 哈希基于来源目录当前内容计算；与锁文件记录的安装哈希不同则判定为 outdated。
 		hash, hashErr := skills.HashDir(searchRoot)
 		_ = resolved.Cleanup()
 		if hashErr != nil {
-			results = append(results, skills.CheckResult{Skill: entry, Status: "hash-error", Message: hashErr.Error()})
+			results = append(results, skills.CheckResult{Asset: entry, Status: "hash-error", Message: hashErr.Error()})
 			continue
 		}
 		status := "current"
@@ -611,7 +614,7 @@ func (s *Service) checkInstalledSkills(ctx context.Context, global bool) ([]skil
 			status = "outdated"
 		}
 		results = append(results, skills.CheckResult{
-			Skill:      entry,
+			Asset:      entry,
 			Status:     status,
 			LatestHash: hash,
 		})
@@ -635,41 +638,17 @@ func printAvailableSkills(found []skills.Skill) error {
 	return nil
 }
 
-// confirmInstall 在交互模式下给用户最后一次确认机会。
-func confirmInstall(skip bool) (bool, error) {
-	copy := ui.Messages()
-	if skip {
-		return true, nil
-	}
-
-	confirm, cancelled, err := ui.SelectOne(ui.SelectOneOptions{
-		Message: copy.PromptInstallNow,
-		Items: []ui.Option{
-			{Value: "install", Label: copy.InstallLabel},
-			{Value: "cancel", Label: copy.CancelLabel},
-		},
-	})
-	if err != nil {
-		return false, err
-	}
-	if cancelled || confirm != "install" {
-		fmt.Printf("%s%s%s\n", ui.Dim, copy.InstallationCancelled, ui.Reset)
-		return false, nil
-	}
-	return true, nil
-}
-
 // installForAgents 先安装到主 agent，再把结果同步到其它 agent 目录。
 // 这样可以只做一次“从来源复制到本地并生成元数据”的工作，其余目录都从主副本同步。
-func (s *Service) installForAgents(source skills.Source, selectedSkill skills.Skill, agentKeys []string, global bool) (skills.InstalledSkill, error) {
-	targetDirs, err := resolveAgentDirectories(agentKeys, global, s.runtime.Workspace.ProjectDir())
+func (s *Service) installForAgents(source skills.Source, selectedSkill skills.Skill, agentKeys []string, global bool) (skills.InstalledAsset, error) {
+	targetDirs, err := common.ResolveAgentDirectories(skills.SkillAsset, agentKeys, global, s.runtime.Workspace.ProjectDir())
 	if err != nil {
-		return skills.InstalledSkill{}, err
+		return skills.InstalledAsset{}, err
 	}
 	primaryAgent := agentKeys[0]
 	entry, err := skills.InstallSkill(targetDirs[primaryAgent], source, selectedSkill)
 	if err != nil {
-		return skills.InstalledSkill{}, err
+		return skills.InstalledAsset{}, err
 	}
 
 	agentPaths := map[string]string{primaryAgent: entry.Path}
@@ -683,7 +662,7 @@ func (s *Service) installForAgents(source skills.Source, selectedSkill skills.Sk
 		}
 		synced, err := skills.SyncInstalledSkill(entry.Path, entry.Name, remaining)
 		if err != nil {
-			return skills.InstalledSkill{}, err
+			return skills.InstalledAsset{}, err
 		}
 		for key, path := range synced {
 			agentPaths[key] = path
@@ -697,10 +676,11 @@ func (s *Service) installForAgents(source skills.Source, selectedSkill skills.Sk
 
 // printInstallResults 输出安装完成后的逐技能结果和各 agent 对应路径。
 func (s *Service) printInstallResults(lock skills.LockFile, selected []skills.Skill) {
+	entries := lock.Entries(skills.SkillAsset)
 	fmt.Println()
 	fmt.Print(ui.InstalledSkillsText(len(selected)))
 	for _, selectedSkill := range selected {
-		entry := lock.Skills[selectedSkill.Name]
+		entry := entries[selectedSkill.Name]
 		fmt.Printf("%s✓%s %s\n", ui.Green, ui.Reset, entry.Name)
 		for _, agentKey := range entry.Agents {
 			path := entry.AgentPaths[agentKey]
@@ -711,36 +691,15 @@ func (s *Service) printInstallResults(lock skills.LockFile, selected []skills.Sk
 				continue
 			}
 			if agent, ok := agents.Lookup(agentKey); ok {
-				fmt.Printf("  %s→%s %s: %s\n", ui.Dim, ui.Reset, agent.DisplayName, shortenPath(path, s.runtime.Workspace.ProjectDir()))
+				fmt.Printf("  %s→%s %s: %s\n", ui.Dim, ui.Reset, agent.DisplayName, common.ShortenPath(path, s.runtime.Workspace.ProjectDir()))
 			}
 		}
 	}
 }
 
-// formatSourceSummary 把来源信息格式化为人类可读摘要，用于步骤提示和安装确认。
-func formatSourceSummary(source skills.Source) string {
-	location := source.RepoURL
-	if source.Type == "local" {
-		location = source.LocalDir
-	}
-
-	var extra []string
-	if source.Ref != "" {
-		extra = append(extra, "@ "+ui.Yellow+source.Ref+ui.Reset)
-	}
-	if source.Subpath != "" {
-		extra = append(extra, "("+source.Subpath+")")
-	}
-
-	if len(extra) == 0 {
-		return location
-	}
-	return location + " " + strings.Join(extra, " ")
-}
-
 // describeScopeTargets 返回给定 scope 下各 agent 的实际安装目录摘要。
 func (s *Service) describeScopeTargets(agentKeys []string, global bool) (string, error) {
-	targetDirs, err := resolveAgentDirectories(agentKeys, global, s.runtime.Workspace.ProjectDir())
+	targetDirs, err := common.ResolveAgentDirectories(skills.SkillAsset, agentKeys, global, s.runtime.Workspace.ProjectDir())
 	if err != nil {
 		return "", err
 	}
@@ -749,7 +708,7 @@ func (s *Service) describeScopeTargets(agentKeys []string, global bool) (string,
 	seen := map[string]bool{}
 	for _, agentKey := range agentKeys {
 		path := targetDirs[agentKey]
-		short := shortenPath(path, s.runtime.Workspace.ProjectDir())
+		short := common.ShortenPath(path, s.runtime.Workspace.ProjectDir())
 		if short == "" || seen[short] {
 			continue
 		}
@@ -769,7 +728,7 @@ func (s *Service) buildInstallSummary(source skills.Source, selected []skills.Sk
 	scope := ui.ScopeText(global)
 
 	lines := []string{
-		fmt.Sprintf("  %s%s:%s %s", ui.Dim, copy.SourceLabel, ui.Reset, formatSourceSummary(source)),
+		fmt.Sprintf("  %s%s:%s %s", ui.Dim, copy.SourceLabel, ui.Reset, common.FormatSourceSummary(source)),
 		fmt.Sprintf("  %s%s:%s %s", ui.Dim, copy.ScopeLabel, ui.Reset, scope),
 		fmt.Sprintf("  %s%s:%s %s", ui.Dim, copy.ProjectDirLabel, ui.Reset, s.runtime.Workspace.ProjectDir()),
 		fmt.Sprintf("  %s%s:%s %s", ui.Dim, copy.AgentsLabel, ui.Reset, strings.Join(agents.DisplayNames(agentKeys), ", ")),
@@ -783,31 +742,6 @@ func (s *Service) buildInstallSummary(source skills.Source, selected []skills.Sk
 	return lines
 }
 
-// shortenPath 优先把绝对路径缩写成相对当前项目目录或 home 目录的可读形式。
-func shortenPath(fullPath, cwd string) string {
-	if cwd != "" {
-		if rel, ok := relativeToRoot(fullPath, cwd, "."); ok {
-			return rel
-		}
-	}
-	home, _ := os.UserHomeDir()
-	if home != "" {
-		if rel, ok := relativeToRoot(fullPath, home, "~"); ok {
-			return rel
-		}
-	}
-	return fullPath
-}
-
-func sortedInstalledSkills(lock skills.LockFile) []skills.InstalledSkill {
-	installed := make([]skills.InstalledSkill, 0, len(lock.Skills))
-	for _, entry := range lock.Skills {
-		installed = append(installed, entry)
-	}
-	sort.Slice(installed, func(i, j int) bool { return installed[i].Name < installed[j].Name })
-	return installed
-}
-
 func findDiscoveredSkill(found []skills.Skill, name string) (skills.Skill, bool) {
 	for _, discovered := range found {
 		if discovered.Name == name {
@@ -817,116 +751,6 @@ func findDiscoveredSkill(found []skills.Skill, name string) (skills.Skill, bool)
 	return skills.Skill{}, false
 }
 
-func (s *Service) resolveInstalledPathRoots(entry skills.InstalledSkill, global bool) ([]string, error) {
-	agentKeys := append([]string(nil), entry.Agents...)
-	if len(agentKeys) == 0 {
-		for _, agent := range agents.Supported() {
-			agentKeys = append(agentKeys, agent.Key)
-		}
-	}
-
-	targetDirs, err := resolveAgentDirectories(agentKeys, global, s.runtime.Workspace.ProjectDir())
-	if err != nil {
-		return nil, err
-	}
-
-	roots := make([]string, 0, len(targetDirs))
-	for _, dir := range targetDirs {
-		roots = append(roots, dir)
-	}
-	sort.Strings(roots)
-	return roots, nil
-}
-
-func removeInstalledPath(path string, allowedRoots []string) error {
-	if strings.TrimSpace(path) == "" {
-		return nil
-	}
-	if err := validateInstalledPath(path, allowedRoots); err != nil {
-		return err
-	}
-	return os.RemoveAll(path)
-}
-
-func validateInstalledPath(path string, allowedRoots []string) error {
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return fmt.Errorf("resolve installed path %q: %w", path, err)
-	}
-	if filepath.Dir(absPath) == absPath {
-		return fmt.Errorf("refuse to remove root path %q", path)
-	}
-	for _, root := range allowedRoots {
-		rootPath, err := filepath.Abs(root)
-		if err != nil {
-			return fmt.Errorf("resolve install root %q: %w", root, err)
-		}
-		rel, err := filepath.Rel(rootPath, absPath)
-		if err != nil {
-			return fmt.Errorf("compare installed path %q with root %q: %w", path, root, err)
-		}
-		if rel == "." {
-			return fmt.Errorf("refuse to remove install root %q directly", path)
-		}
-		if rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			return nil
-		}
-	}
-	return fmt.Errorf("refuse to remove unexpected installed path %q", path)
-}
-
-func relativeToRoot(path, root, prefix string) (string, bool) {
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return "", false
-	}
-	absRoot, err := filepath.Abs(root)
-	if err != nil {
-		return "", false
-	}
-	rel, err := filepath.Rel(absRoot, absPath)
-	if err != nil {
-		return "", false
-	}
-	if rel == "." {
-		return prefix, true
-	}
-	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", false
-	}
-	return filepath.ToSlash(filepath.Join(prefix, rel)), true
-}
-
-// normalizeAgents 校验并标准化 agent 标识，同时去重后排序，保证锁文件输出稳定。
-func normalizeAgents(input []string) ([]string, error) {
-	copy := ui.Messages()
-	seen := map[string]bool{}
-	var out []string
-	for _, item := range input {
-		if item == "claude-code" {
-			item = "claude"
-		}
-		if _, ok := agents.Lookup(item); !ok {
-			return nil, fmt.Errorf(copy.UnsupportedAgentFmt, item)
-		}
-		if !seen[item] {
-			seen[item] = true
-			out = append(out, item)
-		}
-	}
-	sort.Strings(out)
-	return out, nil
-}
-
-// resolveAgentDirectories 把 agent 列表映射到实际落盘目录。
-func resolveAgentDirectories(agentKeys []string, global bool, cwd string) (map[string]string, error) {
-	dirs := make(map[string]string, len(agentKeys))
-	for _, key := range agentKeys {
-		dir, err := agents.ResolveSkillsDir(key, global, cwd)
-		if err != nil {
-			return nil, err
-		}
-		dirs[key] = dir
-	}
-	return dirs, nil
+func (s *Service) resolveInstalledPathRoots(entry skills.InstalledAsset, global bool) ([]string, error) {
+	return common.ResolveInstalledPathRoots(entry, skills.SkillAsset, global, s.runtime.Workspace.ProjectDir())
 }

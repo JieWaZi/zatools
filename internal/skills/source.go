@@ -72,6 +72,8 @@ type skillFrontmatter struct {
 	Description string `yaml:"description"`
 }
 
+const fallbackSkillDescription = "没有相关信息"
+
 var githubShorthandPattern = regexp.MustCompile(`^([^/\s]+)/([^/\s]+)(?:/(.+))?$`)
 var windowsAbsPattern = regexp.MustCompile(`^[a-zA-Z]:[/\\]`)
 
@@ -150,6 +152,13 @@ func ParseSource(input string) (Source, error) {
 	}
 
 	return Source{}, fmt.Errorf("unsupported source %q", input)
+}
+
+func stableSourceString(source Source) string {
+	if source.Type == "local" && source.LocalDir != "" {
+		return source.LocalDir
+	}
+	return source.Original
 }
 
 // ResolveSource 把来源解析成本地可访问目录；远端来源会先 clone 到临时目录。
@@ -309,13 +318,20 @@ func ParseSkillFile(path string) (Skill, error) {
 	if err := yaml.Unmarshal([]byte(strings.Join(lines, "\n")), &meta); err != nil {
 		return Skill{}, fmt.Errorf("%s: parse frontmatter: %w", path, err)
 	}
-	if strings.TrimSpace(meta.Name) == "" || strings.TrimSpace(meta.Description) == "" {
-		return Skill{}, fmt.Errorf("%s: frontmatter requires name and description", path)
+
+	name := strings.TrimSpace(meta.Name)
+	if name == "" {
+		name = filepath.Base(filepath.Dir(path))
+	}
+
+	description := strings.TrimSpace(meta.Description)
+	if description == "" {
+		description = fallbackSkillDescription
 	}
 
 	return Skill{
-		Name:        meta.Name,
-		Description: meta.Description,
+		Name:        name,
+		Description: description,
 	}, nil
 }
 
