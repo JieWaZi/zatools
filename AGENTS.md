@@ -32,8 +32,15 @@ Follow idiomatic Go:
 - Format with `gofmt`; do not hand-align spacing.
 - Keep package names short, lowercase, and singular where possible, for example `skills`, `cli`, `ui`.
 - Exported identifiers require Go doc comments.
+- New exported struct fields should also include concise field comments; do not leave newly added fields undocumented.
 - Prefer small functions and clear layer boundaries: `cmd -> internal/cli -> internal/app -> internal/skills`.
 - Use `context.Context` for blocking or cancelable operations.
+
+## Important Notes
+
+- All user-facing Chinese and English copy must be defined centrally in `internal/ui/i18n.go`; do not duplicate localized strings inside feature packages such as `internal/app/*` or `internal/cli/*`.
+- When adding a new command or asset type, wire its display text, prompts, flags, statuses, and count text through the shared i18n catalog first, then reference that catalog from the implementation.
+- Treat the two rules above as required review items for future changes.
 
 ## Testing Guidelines
 
