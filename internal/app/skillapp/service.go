@@ -4,6 +4,7 @@ import (
 	"context"
 
 	common "zatools/internal/app/common"
+	"zatools/internal/skills"
 )
 
 // Service 编排技能安装、查询和移除等应用层流程。
@@ -57,4 +58,14 @@ func (s *Service) Runtime() common.Runtime {
 // Init 在目标目录中创建一份新的 SKILL.md 模板。
 func (s *Service) Init(_ context.Context, name string) error {
 	return initSkill(name)
+}
+
+// CheckInstalled 返回当前作用域下已跟踪技能的检查结果，供其它命令复用。
+func (s *Service) CheckInstalled(ctx context.Context, global bool) ([]skills.CheckResult, error) {
+	return s.checkInstalledSkills(ctx, global)
+}
+
+// UpdateResults 根据给定检查结果应用过期技能更新，并返回实际更新数量。
+func (s *Service) UpdateResults(ctx context.Context, global bool, results []skills.CheckResult) (int, error) {
+	return s.updateResults(ctx, global, results)
 }

@@ -239,7 +239,7 @@ func (s *Service) Remove(_ context.Context, opts RemoveOptions) error {
 // Check 检查当前作用域下的技能是否有更新。
 func (s *Service) Check(ctx context.Context, global bool) error {
 	copy := ui.Messages()
-	results, err := s.checkInstalledSkills(ctx, global)
+	results, err := s.CheckInstalled(ctx, global)
 	if err != nil {
 		return err
 	}
@@ -263,60 +263,70 @@ func (s *Service) Check(ctx context.Context, global bool) error {
 // Update 更新当前作用域下所有已经过期的技能。
 func (s *Service) Update(ctx context.Context, global bool) error {
 	copy := ui.Messages()
-	results, err := s.checkInstalledSkills(ctx, global)
+	results, err := s.CheckInstalled(ctx, global)
 	if err != nil {
 		return err
 	}
-	lockPath, err := s.runtime.Workspace.LockFilePath(global)
+	updated, err := s.updateResults(ctx, global, results)
 	if err != nil {
 		return err
+	}
+	if updated == 0 {
+		fmt.Printf("%s%s%s\n", ui.Text, copy.AllUpToDate, ui.Reset)
+	}
+	return nil
+}
+
+func (s *Service) updateResults(ctx context.Context, global bool, results []skills.CheckResult) (int, error) {
+	copy := ui.Messages()
+	lockPath, err := s.runtime.Workspace.LockFilePath(global)
+	if err != nil {
+		return 0, err
 	}
 	lock, err := skills.LoadLock(lockPath)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	updated := 0
 	entries := lock.Entries(skills.SkillAsset)
 	for _, result := range results {
 		if err := ctx.Err(); err != nil {
-			return err
+			return 0, err
 		}
 		if result.Status != "outdated" {
 			continue
 		}
-		// 更新时基于锁文件里记录的来源重新解析并重新安装，
-		// 这样可以复用 add 的安装路径、哈希计算和多 agent 同步逻辑。
 		source, err := skills.ParseSource(result.Asset.Source)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		if result.Asset.SourceSubdir != "" {
 			source.Subpath = result.Asset.SourceSubdir
 		}
 		resolved, err := skills.ResolveSource(ctx, source)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		searchRoot, err := resolved.SearchRoot()
 		if err != nil {
 			_ = resolved.Cleanup()
-			return err
+			return 0, err
 		}
 		discovered, err := skills.Discover(searchRoot)
 		if err != nil {
 			_ = resolved.Cleanup()
-			return err
+			return 0, err
 		}
 		selectedSkill, ok := findDiscoveredSkill(discovered, result.Asset.Name)
 		if !ok {
 			_ = resolved.Cleanup()
-			return fmt.Errorf(copy.SourceNoLongerContainsFmt, result.Asset.Source, result.Asset.Name)
+			return 0, fmt.Errorf(copy.SourceNoLongerContainsFmt, result.Asset.Source, result.Asset.Name)
 		}
 		agentKeys, err := common.RequiredAgentKeys(result.Asset)
 		if err != nil {
 			_ = resolved.Cleanup()
-			return err
+			return 0, err
 		}
 		entry, err := s.installForAgents(source, selectedSkill, agentKeys, global)
 		cleanupErr := resolved.Cleanup()
@@ -324,19 +334,16 @@ func (s *Service) Update(ctx context.Context, global bool) error {
 			err = cleanupErr
 		}
 		if err != nil {
-			return err
+			return 0, err
 		}
 		entries[entry.Name] = entry
 		updated++
 		fmt.Printf(copy.UpdatedFmt, ui.Green, ui.Reset, entry.Name)
 	}
 	if err := skills.SaveLock(lockPath, lock); err != nil {
-		return err
+		return 0, err
 	}
-	if updated == 0 {
-		fmt.Printf("%s%s%s\n", ui.Text, copy.AllUpToDate, ui.Reset)
-	}
-	return nil
+	return updated, nil
 }
 
 // initSkill 在目标目录中创建一份新的 SKILL.md 模板。

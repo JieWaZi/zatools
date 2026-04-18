@@ -8,6 +8,52 @@ import (
 	"testing"
 )
 
+func TestParseSourceRecognizesBuiltinDevwikiLibrary(t *testing.T) {
+	t.Setenv("ZATOOLS_LANG", "en")
+
+	source, err := ParseSource("zatools/devwiki")
+	if err != nil {
+		t.Fatalf("ParseSource returned error: %v", err)
+	}
+
+	if source.Type != "builtin" {
+		t.Fatalf("Type = %q, want %q", source.Type, "builtin")
+	}
+	if source.Builtin != "devwiki" {
+		t.Fatalf("Builtin = %q, want %q", source.Builtin, "devwiki")
+	}
+	if source.Ref != "en" {
+		t.Fatalf("Ref = %q, want %q", source.Ref, "en")
+	}
+	if source.Original != "zatools/devwiki#en" {
+		t.Fatalf("Original = %q, want %q", source.Original, "zatools/devwiki#en")
+	}
+}
+
+func TestResolveSourceBuiltinDevwikiExtractsEmbeddedSkills(t *testing.T) {
+	t.Parallel()
+
+	source := NewBuiltinSource("devwiki", "zh")
+	resolved, err := ResolveSource(t.Context(), source)
+	if err != nil {
+		t.Fatalf("ResolveSource returned error: %v", err)
+	}
+	defer func() {
+		if cleanupErr := resolved.Cleanup(); cleanupErr != nil {
+			t.Fatalf("cleanup resolved source: %v", cleanupErr)
+		}
+	}()
+
+	searchRoot, err := resolved.SearchRoot()
+	if err != nil {
+		t.Fatalf("SearchRoot returned error: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(searchRoot, "qmd-sync", "SKILL.md")); err != nil {
+		t.Fatalf("missing builtin qmd-sync skill: %v", err)
+	}
+}
+
 func TestParseSourceRejectsUnsafeGitHubSubpath(t *testing.T) {
 	t.Parallel()
 

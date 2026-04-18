@@ -18,9 +18,12 @@ type Catalog struct {
 	RootShort                     string
 	SkillShort                    string
 	RuleShort                     string
+	DevwikiShort                  string
+	QMDShort                      string
 	AddShort                      string
 	ListShort                     string
 	InitShort                     string
+	DevwikiInitShort              string
 	RemoveShort                   string
 	CheckShort                    string
 	UpdateShort                   string
@@ -55,6 +58,9 @@ type Catalog struct {
 	FlagTargetRuleAgents          string
 	FlagRuleListOnly              string
 	FlagRemoveAllRules            string
+	FlagDevwikiAgent              string
+	FlagDevwikiLang               string
+	FlagDevwikiCodeDir            string
 	StepParsingSource             string
 	StepValidateLocalPath         string
 	StepCloneRepository           string
@@ -65,9 +71,13 @@ type Catalog struct {
 	StepInstallingSkills          string
 	StepDiscoveringRules          string
 	StepInstallingRules           string
+	StepCreatingDevwikiProject    string
+	StepInstallingDevwikiSkills   string
+	StepDownloadingQMDModels      string
 	TitleInstallSummary           string
 	TitleAvailableSkills          string
 	TitleAvailableRules           string
+	TitleDevwikiSummary           string
 	PromptSelectSkills            string
 	PromptSelectAgents            string
 	PromptSelectScope             string
@@ -76,6 +86,14 @@ type Catalog struct {
 	PromptSelectRules             string
 	PromptRemoveRules             string
 	PromptInstallRulesNow         string
+	PromptDevwikiProjectName      string
+	PromptDevwikiAgent            string
+	PromptDevwikiLang             string
+	PromptDevwikiCodeDirs         string
+	PromptDevwikiScope            string
+	PromptSelectDevwikiSkills     string
+	PromptSelectDevwikiUpdates    string
+	PromptCreateDevwikiNow        string
 	ProjectLabel                  string
 	GlobalLabel                   string
 	InstallLabel                  string
@@ -86,6 +104,9 @@ type Catalog struct {
 	AgentsLabel                   string
 	SkillsLabel                   string
 	RulesLabel                    string
+	DevwikiCodeDirsLabel          string
+	DevwikiInstalledSkillsFmt     string
+	DevwikiNoSkillsTracked        string
 	Cancelled                     string
 	InstallationCancelled         string
 	RemovalCancelled              string
@@ -99,6 +120,7 @@ type Catalog struct {
 	SingleSelectHelp              string
 	Done                          string
 	DoneReviewPermissions         string
+	QMDModelsReady                string
 	NoSkillsTracked               string
 	NoRulesTracked                string
 	AllUpToDate                   string
@@ -133,6 +155,10 @@ type Catalog struct {
 	AlreadyExistsFmt              string
 	UnsupportedAgentFmt           string
 	UnsupportedRuleAgentFmt       string
+	DevwikiUnsupportedLangFmt     string
+	DevwikiProjectNameRequired    string
+	DevwikiCodeDirRequired        string
+	DevwikiCodeDirNotDirectoryFmt string
 	InstallInHome                 string
 	InstallInProject              string
 	InstallInHomeWithPathsFmt     string
@@ -153,9 +179,12 @@ var catalogs = map[string]Catalog{
 		RootShort:                     "AI 工具命令行",
 		SkillShort:                    "管理 Agent 技能",
 		RuleShort:                     "管理 Agent 规则",
+		DevwikiShort:                  "创建和初始化 DevWiki 工程",
+		QMDShort:                      "使用 zatools 管理的环境执行 qmd",
 		AddShort:                      "安装技能包",
 		ListShort:                     "列出已安装技能",
 		InitShort:                     "创建新的 SKILL.md 模板",
+		DevwikiInitShort:              "生成 DevWiki 项目并安装所选 runtime skills",
 		RemoveShort:                   "删除已安装技能",
 		CheckShort:                    "检查技能是否有可用更新",
 		UpdateShort:                   "更新已安装技能",
@@ -190,6 +219,9 @@ var catalogs = map[string]Catalog{
 		FlagTargetRuleAgents:          "目标 Agent（cursor、claude）",
 		FlagRuleListOnly:              "仅列出规则，不执行安装",
 		FlagRemoveAllRules:            "删除全部已安装规则",
+		FlagDevwikiAgent:              "目标 runtime（codex、cursor、claude）",
+		FlagDevwikiLang:               "运行时语言（zh、en）",
+		FlagDevwikiCodeDir:            "代码目录，可重复传入",
 		StepParsingSource:             "解析来源...",
 		StepValidateLocalPath:         "校验本地路径...",
 		StepCloneRepository:           "克隆仓库...",
@@ -200,9 +232,13 @@ var catalogs = map[string]Catalog{
 		StepInstallingSkills:          "安装技能...",
 		StepDiscoveringRules:          "发现 rules...",
 		StepInstallingRules:           "安装 rules...",
+		StepCreatingDevwikiProject:    "创建 DevWiki 工程...",
+		StepInstallingDevwikiSkills:   "安装 DevWiki skills...",
+		StepDownloadingQMDModels:      "预热 QMD models...",
 		TitleInstallSummary:           "安装摘要",
 		TitleAvailableSkills:          "可用技能",
 		TitleAvailableRules:           "可用规则",
+		TitleDevwikiSummary:           "DevWiki 初始化摘要",
 		PromptSelectSkills:            "选择要安装的技能",
 		PromptSelectAgents:            "选择要安装到哪些 Agent",
 		PromptSelectScope:             "选择安装范围",
@@ -211,6 +247,14 @@ var catalogs = map[string]Catalog{
 		PromptSelectRules:             "选择要安装的规则",
 		PromptRemoveRules:             "选择要删除的规则",
 		PromptInstallRulesNow:         "现在安装已选规则？",
+		PromptDevwikiProjectName:      "DevWiki 项目名称",
+		PromptDevwikiAgent:            "选择 DevWiki runtime",
+		PromptDevwikiLang:             "选择语言",
+		PromptDevwikiCodeDirs:         "代码目录（逗号分隔）",
+		PromptDevwikiScope:            "选择 DevWiki skill 安装范围",
+		PromptSelectDevwikiSkills:     "选择要安装的 DevWiki skills",
+		PromptSelectDevwikiUpdates:    "选择要更新的 DevWiki skills",
+		PromptCreateDevwikiNow:        "现在创建这个 DevWiki 工程？",
 		ProjectLabel:                  "项目级",
 		GlobalLabel:                   "全局",
 		InstallLabel:                  "安装",
@@ -221,6 +265,9 @@ var catalogs = map[string]Catalog{
 		AgentsLabel:                   "Agent",
 		SkillsLabel:                   "技能",
 		RulesLabel:                    "Rules",
+		DevwikiCodeDirsLabel:          "代码目录",
+		DevwikiInstalledSkillsFmt:     "已安装 %d 个 DevWiki skills",
+		DevwikiNoSkillsTracked:        "锁文件中没有记录任何 DevWiki skills。",
 		Cancelled:                     "已取消",
 		InstallationCancelled:         "安装已取消",
 		RemovalCancelled:              "删除已取消",
@@ -234,6 +281,7 @@ var catalogs = map[string]Catalog{
 		SingleSelectHelp:              "↑↓ 移动，回车确认",
 		Done:                          "完成！",
 		DoneReviewPermissions:         "完成！  请在使用前检查技能内容；它们会以 Agent 的完整权限运行。",
+		QMDModelsReady:                "QMD models 已预热",
 		NoSkillsTracked:               "锁文件中没有记录任何技能。",
 		NoRulesTracked:                "锁文件中没有记录任何规则。",
 		AllUpToDate:                   "所有技能都已是最新。",
@@ -268,6 +316,10 @@ var catalogs = map[string]Catalog{
 		AlreadyExistsFmt:              "%s 已存在",
 		UnsupportedAgentFmt:           "不支持的 Agent %q",
 		UnsupportedRuleAgentFmt:       "规则目前仅支持安装到 cursor 或 claude，收到 agent: %q",
+		DevwikiUnsupportedLangFmt:     "不支持的语言 %q",
+		DevwikiProjectNameRequired:    "项目名称不能为空",
+		DevwikiCodeDirRequired:        "至少需要一个代码目录",
+		DevwikiCodeDirNotDirectoryFmt: "代码目录不是有效目录：%s",
 		InstallInHome:                 "安装到主目录",
 		InstallInProject:              "安装到当前项目",
 		InstallInHomeWithPathsFmt:     "安装到主目录（%s）",
@@ -286,9 +338,12 @@ var catalogs = map[string]Catalog{
 		RootShort:                     "AI tools CLI",
 		SkillShort:                    "Manage agent skills",
 		RuleShort:                     "Manage agent rules",
+		DevwikiShort:                  "Create and initialize DevWiki projects",
+		QMDShort:                      "Run qmd with zatools-managed environment",
 		AddShort:                      "Add a skill package",
 		ListShort:                     "List installed skills",
 		InitShort:                     "Create a new SKILL.md template",
+		DevwikiInitShort:              "Generate a DevWiki project and install selected runtime skills",
 		RemoveShort:                   "Remove installed skills",
 		CheckShort:                    "Check for available skill updates",
 		UpdateShort:                   "Update installed skills",
@@ -323,6 +378,9 @@ var catalogs = map[string]Catalog{
 		FlagTargetRuleAgents:          "Target agents (cursor, claude)",
 		FlagRuleListOnly:              "List rules without installing",
 		FlagRemoveAllRules:            "Remove all installed rules",
+		FlagDevwikiAgent:              "Target runtime (codex, cursor, claude)",
+		FlagDevwikiLang:               "Runtime language (zh, en)",
+		FlagDevwikiCodeDir:            "Code directory, repeatable",
 		StepParsingSource:             "Parsing source...",
 		StepValidateLocalPath:         "Validating local path...",
 		StepCloneRepository:           "Cloning repository...",
@@ -333,9 +391,13 @@ var catalogs = map[string]Catalog{
 		StepInstallingSkills:          "Installing skills...",
 		StepDiscoveringRules:          "Discovering rules...",
 		StepInstallingRules:           "Installing rules...",
+		StepCreatingDevwikiProject:    "Creating DevWiki project...",
+		StepInstallingDevwikiSkills:   "Installing DevWiki skills...",
+		StepDownloadingQMDModels:      "Warming qmd models...",
 		TitleInstallSummary:           "Installation Summary",
 		TitleAvailableSkills:          "Available Skills",
 		TitleAvailableRules:           "Available Rules",
+		TitleDevwikiSummary:           "DevWiki Init Summary",
 		PromptSelectSkills:            "Select skills to install",
 		PromptSelectAgents:            "Which agents do you want to install to?",
 		PromptSelectScope:             "Select installation scope",
@@ -344,6 +406,14 @@ var catalogs = map[string]Catalog{
 		PromptSelectRules:             "Select rules to install",
 		PromptRemoveRules:             "Select rules to remove",
 		PromptInstallRulesNow:         "Install selected rules now?",
+		PromptDevwikiProjectName:      "DevWiki project name",
+		PromptDevwikiAgent:            "Select DevWiki runtime",
+		PromptDevwikiLang:             "Select language",
+		PromptDevwikiCodeDirs:         "Code directories (comma-separated)",
+		PromptDevwikiScope:            "Select DevWiki skill install scope",
+		PromptSelectDevwikiSkills:     "Select DevWiki skills to install",
+		PromptSelectDevwikiUpdates:    "Select DevWiki skills to update",
+		PromptCreateDevwikiNow:        "Create this DevWiki project now?",
 		ProjectLabel:                  "Project",
 		GlobalLabel:                   "Global",
 		InstallLabel:                  "Install",
@@ -354,6 +424,9 @@ var catalogs = map[string]Catalog{
 		AgentsLabel:                   "Agents",
 		SkillsLabel:                   "Skills",
 		RulesLabel:                    "Rules",
+		DevwikiCodeDirsLabel:          "Code Directories",
+		DevwikiInstalledSkillsFmt:     "Installed %d DevWiki skills",
+		DevwikiNoSkillsTracked:        "No DevWiki skills are tracked in the lock file.",
 		Cancelled:                     "Cancelled",
 		InstallationCancelled:         "Installation cancelled",
 		RemovalCancelled:              "Removal cancelled",
@@ -367,6 +440,7 @@ var catalogs = map[string]Catalog{
 		SingleSelectHelp:              "↑↓ move, enter confirm",
 		Done:                          "Done!",
 		DoneReviewPermissions:         "Done!  Review skills before use; they run with full agent permissions.",
+		QMDModelsReady:                "qmd models warmed",
 		NoSkillsTracked:               "No skills tracked in lock file.",
 		NoRulesTracked:                "No rules tracked in lock file.",
 		AllUpToDate:                   "All skills are up to date",
@@ -401,6 +475,10 @@ var catalogs = map[string]Catalog{
 		AlreadyExistsFmt:              "%s already exists",
 		UnsupportedAgentFmt:           "unsupported agent %q",
 		UnsupportedRuleAgentFmt:       "rules currently support only the cursor and claude agents, got: %q",
+		DevwikiUnsupportedLangFmt:     "unsupported language %q",
+		DevwikiProjectNameRequired:    "project name is required",
+		DevwikiCodeDirRequired:        "at least one code directory is required",
+		DevwikiCodeDirNotDirectoryFmt: "code directory is not a directory: %s",
 		InstallInHome:                 "Install in home directory",
 		InstallInProject:              "Install in current project",
 		InstallInHomeWithPathsFmt:     "Install in home directory (%s)",

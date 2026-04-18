@@ -15,6 +15,9 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"zatools/internal/devwiki"
+	"zatools/internal/ui"
 )
 
 // Source 表示一条技能来源配置。
@@ -35,6 +38,9 @@ type Source struct {
 	// Ref 是用户指定的远端引用名，例如分支、标签或提交哈希。
 	// ResolveSource 会尽量把仓库定位到这个引用对应的内容。
 	Ref string
+	// Builtin 是内置库标识，例如 devwiki。
+	// 仅 Type=builtin 时使用。
+	Builtin string
 	// Subpath 是仓库中技能所在的子目录。
 	// 它表示“搜索技能时从仓库根往下进入的相对路径”，不是最终安装目录。
 	Subpath string
@@ -77,6 +83,8 @@ const fallbackSkillDescription = "没有相关信息"
 var githubShorthandPattern = regexp.MustCompile(`^([^/\s]+)/([^/\s]+)(?:/(.+))?$`)
 var windowsAbsPattern = regexp.MustCompile(`^[a-zA-Z]:[/\\]`)
 
+const builtinSourceNamespace = "zatools"
+
 var sourceAliases = map[string]string{
 	"coinbase/agentWallet": "coinbase/agentic-wallet-skills",
 }
@@ -95,6 +103,10 @@ func ParseSource(input string) (Source, error) {
 
 	if alias, ok := sourceAliases[input]; ok {
 		input = alias
+	}
+
+	if builtin, ok, err := parseBuiltinSource(input, ref); ok || err != nil {
+		return builtin, err
 	}
 
 	if isLocalPath(input) {
@@ -154,6 +166,21 @@ func ParseSource(input string) (Source, error) {
 	return Source{}, fmt.Errorf("unsupported source %q", input)
 }
 
+// NewBuiltinSource 构造一个稳定的内置库来源描述。
+func NewBuiltinSource(library string, variant string) Source {
+	library = strings.TrimSpace(library)
+	if variant == "" {
+		variant = ui.CurrentLang()
+	}
+	base := builtinSourceNamespace + "/" + library
+	return Source{
+		Original: appendFragmentRef(base, variant),
+		Type:     "builtin",
+		Ref:      variant,
+		Builtin:  library,
+	}
+}
+
 func stableSourceString(source Source) string {
 	if source.Type == "local" && source.LocalDir != "" {
 		return source.LocalDir
@@ -166,6 +193,10 @@ func stableSourceString(source Source) string {
 func ResolveSource(ctx context.Context, source Source) (ResolvedSource, error) {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+
+	if source.Type == "builtin" {
+		return resolveBuiltinSource(source)
 	}
 
 	if source.Type == "local" {
@@ -200,6 +231,30 @@ func ResolveSource(ctx context.Context, source Source) (ResolvedSource, error) {
 		RootDir: tempDir,
 		cleanup: func() error { return os.RemoveAll(tempDir) },
 	}, nil
+}
+
+func resolveBuiltinSource(source Source) (ResolvedSource, error) {
+	switch source.Builtin {
+	case "devwiki":
+		variant := source.Ref
+		if variant == "" {
+			variant = ui.CurrentLang()
+		}
+		root, cleanup, err := devwiki.ExtractBuiltinSkills(variant)
+		if err != nil {
+			return ResolvedSource{}, err
+		}
+		return ResolvedSource{
+			Source:  source,
+			RootDir: root,
+			cleanup: func() error {
+				cleanup()
+				return nil
+			},
+		}, nil
+	default:
+		return ResolvedSource{}, fmt.Errorf("unsupported builtin source %q", source.Builtin)
+	}
 }
 
 // SearchRoot 返回真正用于技能发现的根目录。
@@ -365,6 +420,21 @@ func parseGitHubURL(input, ref string) (Source, error) {
 	}
 
 	return source, nil
+}
+
+func parseBuiltinSource(input, ref string) (Source, bool, error) {
+	if !strings.HasPrefix(input, builtinSourceNamespace+"/") {
+		return Source{}, false, nil
+	}
+
+	parts := strings.Split(strings.Trim(input, "/"), "/")
+	if len(parts) != 2 {
+		return Source{}, true, fmt.Errorf("builtin source %q does not support nested paths", input)
+	}
+	if ref == "" {
+		ref = ui.CurrentLang()
+	}
+	return NewBuiltinSource(parts[1], ref), true, nil
 }
 
 func parseGitLabURL(input, ref string) (Source, error) {

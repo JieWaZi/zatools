@@ -437,6 +437,41 @@ func TestServiceLifecycleCommands(t *testing.T) {
 	}
 }
 
+func TestServiceAddBuiltinDevwikiLibrary(t *testing.T) {
+	service := newTestService(t)
+	t.Setenv("ZATOOLS_LANG", "en")
+
+	err := captureStdout(t, func() error {
+		return service.Add(context.Background(), "zatools/devwiki", AddOptions{
+			Yes:           true,
+			ScopeProvided: true,
+			Agents:        []string{"codex"},
+		})
+	})
+	if err != nil {
+		t.Fatalf("Service.Add(builtin devwiki) error = %v", err)
+	}
+
+	lockPath, err := service.runtime.Workspace.LockFilePath(false)
+	if err != nil {
+		t.Fatalf("LockFilePath error = %v", err)
+	}
+	lock, err := skills.LoadLock(lockPath)
+	if err != nil {
+		t.Fatalf("LoadLock error = %v", err)
+	}
+	entry, ok := lock.Entries(skills.SkillAsset)["devwiki-setup"]
+	if !ok {
+		t.Fatalf("expected devwiki-setup in lock, got %#v", lock.Entries(skills.SkillAsset))
+	}
+	if entry.Source != "zatools/devwiki#en" {
+		t.Fatalf("Source = %q, want %q", entry.Source, "zatools/devwiki#en")
+	}
+	if !strings.HasSuffix(entry.SourceSubdir, "setup") {
+		t.Fatalf("SourceSubdir = %q, want suffix %q", entry.SourceSubdir, "setup")
+	}
+}
+
 func TestServiceEmptyFlowsAndListOnly(t *testing.T) {
 	service := newTestService(t)
 	projectDir := service.runtime.Workspace.ProjectDir()

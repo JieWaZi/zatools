@@ -1,11 +1,15 @@
 # zatools
 
-`zatools` 是一个 Go 编写的 CLI，用来把可复用的 `skill` 和 `rule` 资产安装到不同 AI Agent 的约定目录中，并维护锁文件、更新检查和多 Agent 同步。
+`zatools` 是一个 Go 编写的 CLI，用来把可复用的 `skill` 和 `rule` 资产安装到不同 AI Agent 的约定目录中，并维护锁文件、更新检查、多 Agent 同步，以及 DevWiki 工程初始化与维护工具。
 
 当前代码库已经实现两类可安装资产：
 
 - `skill`
 - `rule`
+
+同时也提供一组独立的 DevWiki 命令：
+
+- `devwiki`
 
 同时也内置了 Agent 安装目录编排能力，但要注意：
 
@@ -20,6 +24,8 @@
 | --- | --- | --- | --- | --- |
 | `skill` | 可安装资产 | 已支持 | `zatools skill ...` | 支持发现、列出、安装、删除、检查更新、更新、模板初始化 |
 | `rule` | 可安装资产 | 已支持 | `zatools rule ...` | 支持发现、列出、安装、删除、检查更新、更新 |
+| `devwiki` | 工程脚手架与维护命令组 | 已支持 | `zatools devwiki ...` | 支持创建 DevWiki 工程、安装 runtime skills，以及执行 `reset`、`log` 等内置工具 |
+| `qmd` | QMD 执行与环境封装命令组 | 已支持 | `zatools qmd ...` | 支持 DevWiki collection 同步，并对原生 `qmd` 命令做环境变量注入与参数透传 |
 | `agent` | 安装目标目录编排 | 已支持 | `--agent` | 当前支持 `codex`、`cursor`、`claude` |
 | `command` | 可安装资产 | 未实现 | 无 | 当前代码没有 `AssetKind`、扫描器、CLI 子命令 |
 | `hook` | 可安装资产 | 未实现 | 无 | 当前代码没有 `AssetKind`、扫描器、CLI 子命令 |
@@ -50,10 +56,16 @@ go vet ./...
 
 ## CLI 总览
 
-当前顶层命令只有 3 个：
+当前顶层命令有 5 个：
 
 ```text
 zatools
+├── devwiki
+│   ├── init
+│   └── tool
+│       ├── log
+│       └── reset
+├── qmd
 ├── skill
 │   ├── add
 │   ├── list
@@ -103,6 +115,9 @@ zatools skill add owner/repo/skills/backend
 # 指定分支或标签
 zatools skill add owner/repo#main
 
+# 安装内置 DevWiki skill 库
+zatools skill add zatools/devwiki
+
 # 安装到全局
 zatools skill add ./examples/skills --global --yes
 
@@ -136,13 +151,74 @@ zatools rule add ./examples/rules --yes
 zatools rule add https://github.com/example/team-rules/tree/main/rules
 ```
 
-### `completion` 命令
+### `devwiki` 命令
 
 ```bash
-zatools completion bash
-zatools completion zsh
-zatools completion fish
-zatools completion powershell
+zatools devwiki init [project-name] [--agent <codex|cursor|claude>] [--lang <zh|en>] [--code-dir <dir>]... [--global] [--yes]
+zatools devwiki update
+zatools devwiki tool reset --scope <wiki|raw|log|checkpoints|all> [--project-root <dir>] [--yes]
+zatools devwiki tool log --wiki-root <dir> --message "<text>"
+```
+
+说明：
+
+- `devwiki init` 用于生成 `devwiki-<project-name>/` 工程、桥接运行时说明文件，并按所选 scope 安装 DevWiki runtime skills
+- `devwiki init` 结束前会自动执行一次 qmd 预热，尽量把首次模型下载前置到初始化阶段，避免后续 agent 在首次检索时长时间等待
+- `devwiki update` 按当前项目根的 lock 文件优先更新项目级 DevWiki builtin skills；若当前项目没有 lock，则回退更新全局 DevWiki builtin skills
+- `devwiki tool reset` 默认输出 JSON dry-run 计划；只有加 `--yes` 才会实际执行重置
+- `devwiki tool log` 追加一条记录到 `wiki/log.md`
+
+### `zatools qmd` 命令
+
+```bash
+zatools qmd [--embed-model <model>] [--rerank-model <model>] [--generate-model <model>] <native-qmd-args...>
+zatools qmd sync [--root <dir>] [--apply] [--embed-model <model>] [--rerank-model <model>] [--generate-model <model>]
+zatools qmd download [--root <dir>] [--embed-model <model>] [--rerank-model <model>] [--generate-model <model>]
+```
+
+说明：
+
+- `zatools qmd` 是 agent 侧唯一应使用的顶层检索与维护入口
+- 除 `sync` 与 `download` 之外，其余参数都会直接透传给底层能力，因此 `zatools qmd --help`、`zatools qmd query ...`、`zatools qmd collection ...` 的行为会尽量保持一致
+- `zatools qmd sync` 默认只打印建议注册的 collection 命令；加 `--apply` 后才真正执行
+- `zatools qmd download` 会按 `config/search.yaml` 中的模型配置预热下载 embed、rerank、generate 三类模型，并在预热前尽量补齐 collection 注册
+- 其余如 `update`、`status`、`embed`、`query`、`get`、`multi-get`、`collection` 等命令，都统一通过 `zatools qmd` 入口透传
+- 上述 `zatools qmd ...` 会把 `--embed-model`、`--rerank-model`、`--generate-model` 映射成 `QMD_EMBED_MODEL`、`QMD_RERANK_MODEL`、`QMD_GENERATE_MODEL`
+- 若不显式传参，则默认值使用内置模型：`hf:Qwen/Qwen3-Embedding-0.6B-GGUF/Qwen3-Embedding-0.6B-Q8_0.gguf`、`hf:ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF/qwen3-reranker-0.6b-q8_0.gguf`、`hf:tobil/qmd-query-expansion-1.7B-gguf/qmd-query-expansion-1.7B-q4_k_m.gguf`
+- 若 agent 正在 DevWiki 工作区内执行，建议先读取 `config/search.yaml`，再把其中的三个模型显式带进 `zatools qmd` 命令
+- `zatools qmd` 会自动把 `XDG_CACHE_HOME` 指到检测到的项目根目录下的 `.cache`
+- 在 Codex、Claude Code 等沙箱环境里执行 `zatools qmd` 前，仍需确保 agent 可以成功运行 `zatools qmd ...`，以及项目根 `.cache` 目录具备写权限
+
+示例：
+
+```bash
+# 交互式创建一个 DevWiki 工程
+zatools devwiki init
+
+# 非交互方式创建 DevWiki 工程并注册代码目录
+zatools devwiki init my-product --agent codex --lang zh --code-dir . --yes
+
+# 更新当前作用域下发生变化的 DevWiki skills
+zatools devwiki update
+
+# 打印 reset 计划，不真正删除内容
+zatools devwiki tool reset --scope wiki --project-root .
+
+# 把一条操作记录追加到 wiki/log.md
+zatools devwiki tool log --wiki-root wiki --message "init | bootstrap devwiki workspace"
+
+# 预览 collection 注册命令
+zatools qmd sync --root .
+
+# 主动预热并下载 qmd 所需模型
+zatools qmd download --root .
+
+# 刷新检索索引并检查状态
+zatools qmd update
+zatools qmd status
+
+# 直接执行查询
+zatools qmd query "payment retry policy"
 ```
 
 ## 来源格式
@@ -222,15 +298,19 @@ flowchart LR
     A[cmd/zatools/main.go] --> B[internal/cli]
     B --> C[internal/app/skillapp]
     B --> D[internal/app/ruleapp]
-    B --> E[internal/ui]
-    C --> F[internal/skills]
-    C --> G[internal/platform/agents]
-    C --> E
-    D --> F
-    D --> H[internal/rules]
+    B --> E[internal/app/devwikiapp]
+    B --> F[internal/ui]
+    C --> G[internal/skills]
+    C --> H[internal/platform/agents]
+    C --> F
     D --> G
-    D --> E
-    G --> F
+    D --> I[internal/rules]
+    D --> H
+    D --> F
+    E --> H
+    E --> J[internal/devwiki]
+    E --> F
+    H --> G
 ```
 
 ### 职责说明
@@ -238,15 +318,19 @@ flowchart LR
 | 目录 | 职责 |
 | --- | --- |
 | `cmd/zatools` | CLI 入口 |
-| `internal/cli` | Cobra 命令树、flags、help、completion |
+| `internal/cli` | Cobra 命令树、flags、help、completion，包括 `skill`、`rule`、`devwiki` 与 shell completion |
 | `internal/app/skillapp` | skill 的应用层编排：解析来源、发现、选择、安装、删除、检查更新、更新 |
 | `internal/app/ruleapp` | rule 的应用层编排：解析来源、发现、选择、安装、删除、检查更新、更新 |
+| `internal/app/devwikiapp` | `devwiki init` 的应用层编排：收集初始化参数、生成工程、安装 runtime skills |
 | `internal/skills` | 通用核心能力：来源解析、clone、本地路径校验、workspace、锁文件、拷贝、哈希、同步 |
 | `internal/rules` | rule 的发现与元数据解析 |
+| `internal/devwiki` | DevWiki 模板渲染、运行时桥接、reset/log 等内置工具 |
+| `internal/qmd` | `zatools qmd` 的配置解析、环境注入、命令执行与 collection 同步辅助 |
+| `internal/cli/qmd` | 顶层 `zatools qmd` 命令与参数透传解析 |
 | `internal/platform/agents` | 各 Agent 在 project/global 作用域下的安装目录映射 |
 | `internal/ui` | TUI/终端输出、本地化文案、选择器、帮助模板 |
 
-### 运行流程
+### skill / rule 运行流程
 
 ```mermaid
 flowchart TD
@@ -263,6 +347,21 @@ flowchart TD
     J --> K[InstallAsset / InstallSkill]
     K --> L[SyncInstalledPath]
     L --> M[SaveLock]
+```
+
+### DevWiki 运行流程
+
+```mermaid
+flowchart TD
+    A[CLI 命令] --> B[internal/cli/devwiki]
+    B --> C{子命令}
+    C -->|init| D[internal/app/devwikiapp.Init]
+    D --> E[internal/devwiki.GenerateProject]
+    E --> F[EnsureProjectRuntimeBridge]
+    D --> G[安装选定的 runtime skills]
+    C -->|tool reset/log| H[internal/devwiki helpers]
+    A --> I[internal/cli/qmd]
+    I --> J[internal/qmd]
 ```
 
 ## Skill 的发现与识别规则

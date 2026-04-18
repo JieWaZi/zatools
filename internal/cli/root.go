@@ -8,6 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	devwikicmd "zatools/internal/cli/devwiki"
+	qmdcmd "zatools/internal/cli/qmd"
 	rulecmd "zatools/internal/cli/rule"
 	skillcmd "zatools/internal/cli/skill"
 	"zatools/internal/ui"
@@ -39,6 +41,8 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
 	rootCmd.AddCommand(skillcmd.NewCommand())
 	rootCmd.AddCommand(rulecmd.NewCommand())
+	rootCmd.AddCommand(devwikicmd.NewCommand())
+	rootCmd.AddCommand(qmdcmd.NewCommand())
 	rootCmd.AddCommand(newCompletionCmd(rootCmd))
 	ui.ApplyHelpLocalization(rootCmd)
 	return rootCmd
