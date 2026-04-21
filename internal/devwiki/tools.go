@@ -19,7 +19,7 @@ const (
 
 var (
 	resetScopes = []string{"wiki", "raw", "log", "checkpoints"}
-	rawDirNames = []string{"requirements", "designs", "features", "code-summaries", "postmortems", "api", "tests"}
+	rawDirNames = []string{"requirements", "designs", "features", "tests"}
 )
 
 // ResetPlan describes which files would be removed or rewritten for a reset run.
@@ -51,13 +51,10 @@ type CodeCandidate struct {
 }
 
 var docTypes = map[string]string{
-	"requirements":   "requirement",
-	"designs":        "design",
-	"features":       "feature",
-	"code-summaries": "code-summary",
-	"postmortems":    "postmortem",
-	"api":            "api",
-	"tests":          "test",
+	"requirements": "requirement",
+	"designs":      "design",
+	"features":     "feature",
+	"tests":        "test",
 }
 
 // ParseResetScopes parses a reset scope list and expands `all`.
@@ -108,9 +105,8 @@ func BuildResetPlan(root string, scopes []string) (ResetPlan, error) {
 
 	if containsScope(scopes, "wiki") {
 		for _, rel := range []string{
-			filepath.Join("wiki", "documents"),
 			filepath.Join("wiki", "capabilities"),
-			filepath.Join("wiki", "changes"),
+			filepath.Join("wiki", "features"),
 			filepath.Join("wiki", "outputs"),
 			filepath.Join("wiki", "graph"),
 		} {

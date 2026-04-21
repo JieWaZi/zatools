@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	common "zatools/internal/app/common"
@@ -78,6 +79,16 @@ func TestServiceLifecycleCommandsAcrossAgents(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(projectDir, ".claude", "rules", "cursor", "backend", "style.mdc")); err != nil {
 		t.Fatalf("cursor rule not installed to claude: %v", err)
+	}
+	gitignoreData, err := os.ReadFile(filepath.Join(projectDir, ".gitignore"))
+	if err != nil {
+		t.Fatalf("ReadFile(.gitignore) error = %v", err)
+	}
+	gitignore := string(gitignoreData)
+	for _, want := range []string{".cursor", ".claude", ".zatools-lock.json"} {
+		if !strings.Contains(gitignore, want) {
+			t.Fatalf(".gitignore missing %q:\n%s", want, gitignore)
+		}
 	}
 
 	if err := captureStdout(t, func() error {

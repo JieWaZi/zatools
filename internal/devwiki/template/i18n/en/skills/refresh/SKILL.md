@@ -1,6 +1,6 @@
 ---
 name: "devwiki-refresh"
-description: "Use when existing DevWiki knowledge has drifted from current raw documents, code paths, symbols, or capability/change classification, especially after user corrections, source_hash mismatches, broken code refs, missing symbols, or outdated change classification."
+description: "Use when existing DevWiki knowledge has drifted from current raw documents, capability-feature mapping, code paths, symbols, or test/API entry points."
 argument-hint: "[drift scope or issue description]"
 ---
 
@@ -17,18 +17,17 @@ argument-hint: "[drift scope or issue description]"
 
 ## Inputs
 
-- `scope` (optional): drift scope or issue description, such as “user-permission capability drift” or “all broken code refs”
-- `wiki/documents/**/*.md`
+- `scope` (optional): drift scope or issue description, such as “user-permission feature drift” or “all broken code refs”
 - `wiki/capabilities/*.md`
-- `wiki/changes/*.md`
+- `wiki/features/*.md`
 - `raw/*/*.md`
 - `config/project.yaml`
 
 ## Outputs
 
 - one `refresh proposal`
-- lists of documents / capabilities / changes needing repair
-- lists of broken `code refs`, stale `source_hash`, missing `symbol`, and invalid paths
+- lists of capabilities / features needing repair
+- lists of broken `code_refs`, stale `sources.hash`, missing `symbol`, invalid paths, and bad capability-feature links
 - confirmed repair results after user approval
 - updated `wiki/index.md`
 - appended refresh logs in `wiki/log.md`
@@ -38,9 +37,8 @@ argument-hint: "[drift scope or issue description]"
 ### Reads
 
 - `config/project.yaml` — get the primary code directory
-- `wiki/documents/**/*.md` — verify `source_path` and `source_hash`
-- `wiki/capabilities/*.md` — verify capability classification, linked docs, and code refs
-- `wiki/changes/*.md` — verify change classification and linked entities
+- `wiki/capabilities/*.md` — verify capability summary, feature links, and boundaries
+- `wiki/features/*.md` — verify `sources`, `api_entries`, `code_refs`, and `test_refs`
 - `wiki/index.md` — cross-check page existence
 - `raw/*/*.md` — compare against current raw sources
 - local code directory — verify code-ref paths and whether a `symbol` still exists
@@ -49,9 +47,8 @@ argument-hint: "[drift scope or issue description]"
 
 - proposal-first by default, no immediate writes
 - only after confirmation:
-  - EDIT `wiki/documents/**/*.md`
   - EDIT `wiki/capabilities/*.md`
-  - EDIT `wiki/changes/*.md`
+  - EDIT `wiki/features/*.md`
   - EDIT `wiki/index.md`
   - APPEND `wiki/log.md`
 
@@ -60,23 +57,29 @@ argument-hint: "[drift scope or issue description]"
 
 ### Step 1: Identify the refresh scope
 
-1. Decide whether this is a global refresh or a targeted repair for one capability, change, or source path
+1. Decide whether this is a global refresh or a targeted repair for one capability, one feature, or one source path
 2. Classify the issue:
-   - `source_hash` mismatch
-   - broken `source_path`
-   - broken `code refs` path
+   - stale `sources.hash`
+   - missing raw source
+   - broken `code_refs.path`
    - missing `symbol`
-   - incorrect capability classification
-   - incorrect `new / modify / unclear` change classification
+   - stale `api_entries` or `test_refs`
+   - incorrect capability-feature mapping
+   - capability summary drift
 3. If the user already reported a concrete mistake, stay tightly scoped to that mistake instead of scanning everything blindly
 
 ### Step 2: Run deterministic drift checks
 
-1. Re-verify `source_path` and `source_hash` for document mirrors
-2. Check whether capability and change `code refs` paths still exist
+Follow the tiered recall rules in `references/zatools-qmd.md`, **local-first by default**:
+
+1. Re-verify `sources.path` and `sources.hash` for feature pages
+2. Check whether feature `code_refs`, `api_entries`, and `test_refs` still point to valid entry points
 3. If a code directory is configured, verify whether each referenced `symbol` still exists in its file
-4. Run `zatools qmd status`
-5. If `zatools qmd status` is healthy, use `zatools qmd query` across `wiki / raw / code`, then inspect top-K hits with `zatools qmd get` / `zatools qmd multi-get` to narrow the repair scope
+4. Verify capability-feature reverse links
+5. When re-running retrieval, escalate in tiers:
+   - start with local `grep` / file search
+   - escalate to `zatools qmd search` when local hits are insufficient
+   - only escalate to `zatools qmd query` when concept-level recall is needed; apply the hard fallback when no GPU/accelerator is available
 6. Separate findings into:
    - deterministic breakage
    - high-probability drift
@@ -84,11 +87,11 @@ argument-hint: "[drift scope or issue description]"
 
 ### Step 3: Re-retrieve candidate repairs
 
-1. For broken documents, search `raw/` for renamed, moved, or updated source files
+1. For missing raw sources, search `raw/` for renamed, moved, or updated files
 2. For broken code refs, search the codebase for replacement paths and symbols
-3. For suspicious capability classification, re-check linked documents, changes, and code refs
-4. For suspicious change classification, re-evaluate whether it is `new`, `modify`, or `unclear`
-5. If documents are clearly lagging behind code behavior, recommend `/devwiki-feature-doc` where appropriate
+3. For suspicious capability drift, re-check linked feature pages and raw source material
+4. For suspicious feature drift, re-check source material, entry points, and bounded code evidence
+5. If a feature page is clearly too stale to repair incrementally, recommend `/devwiki-feature-doc`
 
 ### Step 4: Build the refresh proposal
 
@@ -98,23 +101,23 @@ The `refresh proposal` must include:
 - which findings are high-probability drift
 - which findings remain low-confidence inference
 - recommended actions:
-  - update `source_hash`
-  - replace `source_path`
-  - replace `code refs.path`
+  - update `sources.hash`
+  - replace `sources.path`
+  - replace `code_refs.path`
   - remove missing `symbol`
-  - repair capability classification
-  - repair change classification
+  - repair capability-feature links
+  - tighten or simplify stale summaries
 
 Separate by risk:
 
-- low risk: `source_hash` refresh, removing obviously broken auxiliary clues, index updates
-- medium risk: replacing `code refs`, adding better code candidates
-- high risk: changing capability classification, changing change classification, replacing primary code refs
+- low risk: `sources.hash` refresh, removing obviously broken auxiliary clues, index updates
+- medium risk: replacing `code_refs`, `api_entries`, or `test_refs`; relinking an obvious capability-feature edge
+- high risk: changing capability boundaries, creating or deleting a feature page, replacing primary code refs
 
 ### Step 5: Wait for confirmation
 
 1. Medium- and high-risk repairs require confirmation
-2. If multiple candidate paths, capability mappings, or change classifications remain plausible, do not decide silently
+2. If multiple candidate paths or capability mappings remain plausible, do not decide silently
 3. Ask 1 to 3 specific questions instead
 4. Only apply changes after the proposal is confirmed
 
@@ -122,7 +125,7 @@ Separate by risk:
 
 After confirmation:
 
-1. update the relevant documents / capabilities / changes
+1. update the relevant capabilities / features
 2. update `wiki/index.md`
 3. append `refresh | proposal-applied` to `wiki/log.md`
 4. after writes succeed, run:
@@ -145,14 +148,14 @@ zatools qmd embed
 - **raw/ is read-only**: do not modify source documents
 - **Proposal-first by default**: do not silently apply high-impact repairs
 - **No fabricated symbols**: never rewrite a function, file, or symbol you could not verify
-- **Medium/high risk requires confirmation**: especially capability classification, change classification, and primary `code refs`
+- **Medium/high risk requires confirmation**: especially capability boundary changes, feature re-linking, and primary `code_refs`
 - **Separate facts from inference**: deterministic breakage, high-probability drift, and low-confidence inference must be reported separately
 - **Admit uncertainty**: weak evidence is not enough to justify forced repairs
 
 ## Error Handling
 
 - **wiki is mostly empty**: tell the user to run `/devwiki-init` or `/devwiki-ingest` first
-- **code directory missing**: allow document-layer refresh only, and say code was not verified
+- **code directory missing**: allow wiki/raw-layer refresh only, and say code was not verified
 - **`zatools qmd ...` unavailable**: fall back to local search without blocking refresh
-- **source_path target deleted**: report deterministic breakage and search `raw/` for replacements
+- **source target deleted**: report deterministic breakage and search `raw/` for replacements
 - **multiple candidates remain plausible**: stop expanding and ask the user

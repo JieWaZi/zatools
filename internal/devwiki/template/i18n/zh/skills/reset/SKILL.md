@@ -1,131 +1,94 @@
 ---
 name: "devwiki-reset"
-description: "当需要按范围清理 DevWiki 生成内容、修复失败初始化后的残留状态，或为重新执行 init / ingest 准备干净工作区时使用。"
-argument-hint: "--scope wiki|raw|log|checkpoints|all [--project-root <devwiki-root>]"
+description: "当需要按受控 scope 重置生成态 DevWiki 内容时使用，例如 wiki、raw、log 或 checkpoints。"
+argument-hint: "[scope list]"
 ---
 
 # /devwiki-reset
 
 > 先阅读通用约束：
 > - `references/evidence-grounding.md`
-> - `references/mutation-safety.md`
+> - `references/zatools-qmd.md`
+> - 涉及写入、重分类或破坏性操作时，再读 `references/mutation-safety.md`
 
-> 按范围重置 DevWiki。`/devwiki-reset` 是破坏性技能，必须先给 dry-run 计划，再等待用户明确确认。
+
+> 在受控 scope 内重置 DevWiki 生成内容。默认先预览；破坏性执行必须显式确认。
 
 ## Inputs
 
-- `--scope`：必填，可为 `wiki`、`raw`、`log`、`checkpoints`、`all`
-- `--project-root`：可选；若当前目录就是 DevWiki 工作区，可直接用 `.`
-- 当前工作区中的 `raw/`、`wiki/`
+- `scope` — 逗号分隔的 scope：`wiki`、`raw`、`log`、`checkpoints` 或 `all`
+- 可选 `--dry-run` — 仅预览
+- 可选 `--yes` — 确认执行 reset
 
 ## Outputs
 
-- 一份 dry-run 删除 / 重置计划
-- 用户确认后的执行结果摘要
-- 可选：写入 `wiki/log.md` 的 reset 记录
+- reset plan
+- 可选 applied reset result
+- 追加到 `wiki/log.md` 的 reset 日志
 
 ## DevWiki Interaction
 
 ### Reads
 
-- `raw/`
-- `wiki/documents/`
 - `wiki/capabilities/`
-- `wiki/changes/`
+- `wiki/features/`
 - `wiki/outputs/`
 - `wiki/graph/`
+- `wiki/index.md`
+- `wiki/log.md`
+- `raw/*/`
 - `wiki/.checkpoints/`
 
 ### Writes
 
-- DELETE `raw/` 下命中 scope 的文件
-- DELETE `wiki/documents/`、`wiki/capabilities/`、`wiki/changes/`、`wiki/outputs/`、`wiki/graph/` 下命中的生成文件
+- DELETE `wiki/capabilities/`、`wiki/features/`、`wiki/outputs/`、`wiki/graph/` 下命中的生成文件
+- DELETE 选定 `raw/` 子目录下的文件
 - RESET `wiki/index.md`
-- 可选 RESET `wiki/log.md`
+- 只有在选择 `log` scope 时才 RESET `wiki/log.md`
+
 
 ## Workflow
 
-### Step 1: 规范化 scope 并做 dry-run
+### Step 1: 生成 reset 计划
 
-先把 scope 规范化，再执行：
+1. 将 `all` 展开为 `wiki,raw,log,checkpoints`
+2. 收集候选删除项
+3. 永远不要删除 `.gitkeep`
+4. 缺失路径按 no-op 处理，不视为失败
 
-```bash
-zatools devwiki tool reset --scope <scope> --project-root <devwiki-root>
-```
+### Step 2: 展示计划
 
-该命令只输出计划，不执行删除。必须把 `delete` 与 `reset` 分开向用户展示。
+预览中必须列出：
 
-### Step 2: 向用户解释风险
+- 选定的 scopes
+- 待删除目标
+- 待重置目标
+- 当前是否 dry-run
 
-解释每种 scope 的含义：
+### Step 3: 确认破坏性执行
 
-- `wiki`：清空生成知识页与输出，保留目录骨架
-- `raw`：清空原始资料，风险最高
-- `log`：重置 `wiki/log.md`
-- `checkpoints`：清理中间状态
-- `all`：以上全部
+1. 如果传了 `--dry-run`，不得写入任何内容
+2. 如果会删除文件，且未传 `--yes`，就停在预览
+3. 只有拿到显式确认后，才允许执行 reset
 
-如果 scope 包含 `raw` 或 `all`，必须明确说明 `raw/` 删除通常不可恢复。
+### Step 4: 应用 reset
 
-### Step 3: 等待明确确认
+确认后：
 
-确认前禁止真正执行。应明确说明：
-
-```text
-即将按 scope=<scope> 删除 N 个文件、重置 M 个文件。请明确确认后继续。
-```
-
-只有在用户明确同意后，才允许进入下一步。
-
-### Step 4: 执行重置
-
-用户确认后执行：
-
-```bash
-zatools devwiki tool reset --scope <scope> --project-root <devwiki-root> --yes
-```
-
-读取返回结果并确认：
-
-- 实际删除了哪些文件
-- 实际重置了哪些文件
-- 删除数与重置数是否符合预期
-
-### Step 5: 记录 reset 日志
-
-如果本次 scope 不包含 `log`，可追加一条低风险日志：
-
-```bash
-zatools devwiki tool log --wiki-root <devwiki-root>/wiki --message "reset | scope=<scope>"
-```
-
-### Step 6: 给出下一步建议
-
-根据重置范围给建议：
-
-- 刚清空 `raw/`：提醒先补原始资料
-- 只清空 `wiki`：建议 `/devwiki-init` 或 `/devwiki-ingest`
-- 只清空 `checkpoints`：建议继续之前的 ingest / refresh 流程
-
-常见下一步：
-
-- `/devwiki-init`
-- `/devwiki-ingest`
-- `/devwiki-setup`
+1. 删除计划中的文件
+2. 若选择了 `wiki` scope，则用基础模板重写 `wiki/index.md`
+3. 若选择了 `log` scope，则用基础模板重写 `wiki/log.md`
+4. 如果 log 仍然存在，尽量在其中追加一条带日期的 reset 摘要
 
 ## Constraints
 
-- **必须先 dry-run，再确认，再执行**：不得跳过计划展示
-- **没有明确确认，不得带 `--yes`**
-- **保留骨架文件**：`.gitkeep` 不删
-- **不要误删安装状态**：不得触碰当前项目根下的 `.agents/` 与 `.zatools-lock.json`
-- **`raw/` 是高风险区**：scope 含 `raw` 时必须二次提醒
-- **重置结果必须可解释**：删除和重置分别报告，不能只说“已清空”
+- **默认先预览**：不要隐式执行删除
+- **不得删除 `.gitkeep`**：目录骨架必须稳定
+- **scope 必须有边界**：不要越过所选 scope 扩散
+- **raw reset 是破坏性的**：删除来源资料前必须确认
 
 ## Error Handling
 
-- **scope 缺失或非法**：列出合法值并停止，不要猜测
-- **`zatools devwiki tool reset` 失败**：直接报错，禁止用临时命令代替批量删文件
-- **`wiki/` 或 `raw/` 缺失**：按现状生成空计划并解释原因
-- **日志追加失败**：报告 warning，但不要掩盖 reset 主结果
-- **用户取消确认**：明确说明本次只完成 dry-run，没有真正修改任何文件
+- **未知 scope**：报告合法 scope 并停止
+- **未提供 scope**：要求用户给出明确 scope
+- **路径本来就不存在**：按 no-op 处理

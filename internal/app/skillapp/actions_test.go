@@ -367,7 +367,7 @@ func TestServiceLifecycleCommands(t *testing.T) {
 	addOpts := AddOptions{
 		Yes:           true,
 		ScopeProvided: true,
-		Agents:        []string{"codex"},
+		Agents:        []string{"codex", "cursor"},
 	}
 	if err := captureStdout(t, func() error {
 		return service.Add(context.Background(), sourceDir, addOpts)
@@ -386,6 +386,16 @@ func TestServiceLifecycleCommands(t *testing.T) {
 	entry, ok := lock.Entries(skills.SkillAsset)["demo"]
 	if !ok {
 		t.Fatalf("lock skills = %#v, want demo entry", lock.Entries(skills.SkillAsset))
+	}
+	gitignoreData, err := os.ReadFile(filepath.Join(projectDir, ".gitignore"))
+	if err != nil {
+		t.Fatalf("ReadFile(.gitignore) error = %v", err)
+	}
+	gitignore := string(gitignoreData)
+	for _, want := range []string{".agents", ".cursor", ".zatools-lock.json"} {
+		if !strings.Contains(gitignore, want) {
+			t.Fatalf(".gitignore missing %q:\n%s", want, gitignore)
+		}
 	}
 
 	if err := captureStdout(t, func() error {

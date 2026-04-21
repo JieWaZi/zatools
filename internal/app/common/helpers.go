@@ -229,3 +229,117 @@ func SortedInstalledAssets(lock skills.LockFile, kind skills.AssetKind) []skills
 	sort.Slice(installed, func(i, j int) bool { return installed[i].Name < installed[j].Name })
 	return installed
 }
+
+// GitignoreEntryForProjectPath converts an absolute or project-relative path into a
+// stable .gitignore entry. Top-level hidden directories are collapsed to the
+// directory root, so ".agents/skills" becomes ".agents".
+func GitignoreEntryForProjectPath(projectRoot, path string) (string, error) {
+	if strings.TrimSpace(projectRoot) == "" {
+		return "", fmt.Errorf("project root is required")
+	}
+	if strings.TrimSpace(path) == "" {
+		return "", fmt.Errorf("path is required")
+	}
+
+	candidate := path
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(projectRoot, candidate)
+	}
+
+	absRoot, err := filepath.Abs(projectRoot)
+	if err != nil {
+		return "", fmt.Errorf("resolve project root %q: %w", projectRoot, err)
+	}
+	absPath, err := filepath.Abs(candidate)
+	if err != nil {
+		return "", fmt.Errorf("resolve path %q: %w", path, err)
+	}
+
+	rel, err := filepath.Rel(absRoot, absPath)
+	if err != nil {
+		return "", fmt.Errorf("relativize %q to %q: %w", absPath, absRoot, err)
+	}
+	if rel == "." {
+		return "", fmt.Errorf("refuse to ignore the project root directly")
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("path %q is outside project root %q", path, projectRoot)
+	}
+
+	entry := filepath.ToSlash(filepath.Clean(rel))
+	if strings.HasPrefix(entry, "./") {
+		entry = strings.TrimPrefix(entry, "./")
+	}
+	parts := strings.Split(entry, "/")
+	if len(parts) > 1 && strings.HasPrefix(parts[0], ".") {
+		return parts[0], nil
+	}
+	return entry, nil
+}
+
+// EnsureProjectGitignore makes sure the provided project paths are ignored in the
+// project-root .gitignore. Missing files are created automatically, and existing
+// entries are preserved without duplication.
+func EnsureProjectGitignore(projectRoot string, paths ...string) error {
+	entries := make([]string, 0, len(paths))
+	seen := map[string]struct{}{}
+	for _, path := range paths {
+		entry, err := GitignoreEntryForProjectPath(projectRoot, path)
+		if err != nil {
+			return err
+		}
+		if _, ok := seen[entry]; ok {
+			continue
+		}
+		seen[entry] = struct{}{}
+		entries = append(entries, entry)
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+
+	gitignorePath := filepath.Join(projectRoot, ".gitignore")
+	data, err := os.ReadFile(gitignorePath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	existing := map[string]struct{}{}
+	if len(data) > 0 {
+		for _, line := range strings.Split(string(data), "\n") {
+			normalized := normalizeGitignoreEntry(line)
+			if normalized == "" {
+				continue
+			}
+			existing[normalized] = struct{}{}
+		}
+	}
+
+	missing := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if _, ok := existing[normalizeGitignoreEntry(entry)]; ok {
+			continue
+		}
+		missing = append(missing, entry)
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+
+	content := string(data)
+	if content != "" && !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	content += strings.Join(missing, "\n") + "\n"
+	return os.WriteFile(gitignorePath, []byte(content), 0o644)
+}
+
+func normalizeGitignoreEntry(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		return ""
+	}
+	trimmed = strings.TrimPrefix(trimmed, "./")
+	trimmed = strings.TrimSuffix(trimmed, "/")
+	return trimmed
+}

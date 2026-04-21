@@ -2,15 +2,9 @@ package devwikiapp
 
 import (
 	"context"
-	"os"
 
 	common "zatools/internal/app/common"
-	"zatools/internal/qmd"
 )
-
-var defaultQMDWarmup = func(ctx context.Context, projectRoot string) error {
-	return qmd.RunDownload(ctx, projectRoot, qmd.Models{}, os.Stdout, os.Stderr)
-}
 
 // InitOptions 描述 `devwiki init` 的命令参数。
 type InitOptions struct {
@@ -25,8 +19,7 @@ type InitOptions struct {
 
 // Service 编排 DevWiki 工程初始化与 runtime skill 安装。
 type Service struct {
-	runtime   common.Runtime
-	qmdWarmup func(context.Context, string) error
+	runtime common.Runtime
 }
 
 // NewService 构建使用当前终端环境的 DevWiki 应用服务。
@@ -37,8 +30,7 @@ func NewService() *Service {
 // NewServiceWithRuntime 允许测试注入自定义运行环境。
 func NewServiceWithRuntime(runtime common.Runtime) *Service {
 	return &Service{
-		runtime:   runtime,
-		qmdWarmup: defaultQMDWarmup,
+		runtime: runtime,
 	}
 }
 

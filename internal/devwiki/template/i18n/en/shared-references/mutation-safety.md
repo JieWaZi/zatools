@@ -18,7 +18,7 @@ Low-risk deterministic maintenance may proceed without extra approval when the w
 
 Examples:
 
-- create a new document mirror
+- refresh `sources.hash`
 - refresh derived indexes
 - append deterministic log entries
 - update clearly stale generated output
@@ -29,10 +29,10 @@ These actions are usually reversible and do not redefine knowledge ownership.
 
 Examples:
 
-- append a document to an existing capability
+- attach a feature to an existing capability
 - add supporting `code_refs`
-- attach a change to an existing capability
-- add secondary code clues or API references
+- add secondary API or test entry points
+- tighten a stale feature summary without changing scope
 
 These actions modify structure but usually do not redefine the system center.
 
@@ -42,9 +42,9 @@ Examples:
 
 - create a new capability
 - merge or split capabilities
-- create or reclassify a change
+- create a new feature
+- re-scope a feature to a different capability
 - replace primary `code_refs`
-- rewrite `change_classification`
 
 These actions affect future retrieval, ownership, and planning behavior. They must never be auto-written silently.
 
@@ -61,8 +61,8 @@ Before a medium-risk or high-risk write:
 
 Good confirmation language:
 
-- "This is a medium-risk attachment to an existing capability. Confirm before write."
-- "This is a high-risk reclassification from `new` to `modify`. Confirm before write."
+- "This is a medium-risk attachment of a feature to an existing capability. Confirm before write."
+- "This is a high-risk capability-boundary change. Confirm before write."
 
 ---
 
@@ -71,14 +71,15 @@ Good confirmation language:
 Route work to `/devwiki-refresh` when:
 
 - wiki knowledge drifts from raw or code
-- path, symbol, or classification mismatches appear
+- path or symbol mismatches appear
+- capability-feature relationships look wrong
 - a user is correcting earlier mistakes
 
 Route work to `/devwiki-check` when:
 
 - the need is deterministic health validation
 - the user wants a report-first scan
-- the issue may be broken links, stale `source_hash`, missing reverse links, or stale `code_refs`
+- the issue may be broken links, stale hashes, missing reverse links, or stale `code_refs`
 
 ---
 
@@ -92,7 +93,7 @@ A good mutation proposal should include:
 - what remains uncertain
 - what will happen if the proposal is accepted
 
-If multiple candidate capabilities or changes still compete, do not choose one quietly. Ask the user instead.
+If multiple candidate capabilities or features still compete, do not choose one quietly. Ask the user instead.
 
 ---
 
@@ -113,6 +114,6 @@ Always:
 
 - Do not classify a high-risk mutation as low risk just because it is convenient
 - Do not hide a structural rewrite inside a small wording change
-- Do not overwrite ownership or classification silently
+- Do not overwrite capability or feature ownership silently
 - Do not treat user silence as confirmation
-- Do not use `/devwiki-check --fix` to perform capability or change reclassification
+- Do not use `/devwiki-check --fix` to perform capability-boundary or feature-ownership rewrites

@@ -1,7 +1,7 @@
 ---
 name: "devwiki-check"
-description: "当需要对 DevWiki 的 documents、capabilities、changes、链接、source_hash、code refs、symbol 与索引状态做确定性健康检查时使用，尤其适用于批量验收、refresh 前后核对和周期性巡检。"
-argument-hint: "[检查范围]"
+description: "当需要对 DevWiki 的 capabilities、features、链接、source hash、code refs、symbol 与索引状态做确定性健康检查时使用。"
+argument-hint: "[check-scope]"
 ---
 
 # /devwiki-check
@@ -13,106 +13,105 @@ argument-hint: "[检查范围]"
 > - 涉及代码追踪、代码归因或实现核对时，再读 `references/code-tracing.md`
 
 
-> 对 DevWiki 执行确定性健康检查，并输出分级报告。默认只报告，不直接修。
+> 对 DevWiki 做确定性健康检查并输出分层报告。默认只读。
 
 ## Inputs
 
-- `scope`（可选）：检查范围，如“全部 wiki”或“用户权限相关页面”
+- `scope`（可选）：检查范围，例如“整个 wiki”或“用户权限相关页面”
 - `wiki/` 目录
-- 可选：`--fix` — 自动修复确定性且低风险的问题
-- 可选：`--fix --dry-run` — 预览修复但不执行
-- 可选：`--json` — 以 JSON 形式输出结果
+- 可选 `--fix` — 自动修复确定性的低风险问题
+- 可选 `--fix --dry-run` — 只预览修复，不落盘
+- 可选 `--json` — 输出 JSON 结果
 
 ## Outputs
 
-- 检查报告
-- 可选：修复预览或修复结果
-- 可选：写入 `wiki/outputs/check-report-<date>.md`
-- `wiki/log.md` 中的 check 摘要记录
+- health report
+- 可选 repair preview 或 repair result
+- 可选写入 `wiki/outputs/check-report-<date>.md`
+- 追加到 `wiki/log.md` 的 check 摘要
 
 ## DevWiki Interaction
 
 ### Reads
 
-- `wiki/documents/**/*.md` — 检查 `source_path`、`source_hash`、关联字段
-- `wiki/capabilities/*.md` — 检查 `documents`、`changes`、`code refs`
-- `wiki/changes/*.md` — 检查 change 关联与分类
-- `wiki/index.md` — 检查页面目录完整性
-- `raw/*/*.md` — 回核 source 是否仍存在
+- `wiki/capabilities/*.md` — 检查 feature 关联与必填字段
+- `wiki/features/*.md` — 检查 `sources`、`code_refs`、`api_entries`、`test_refs`
+- `wiki/index.md` — 检查目录完整性
+- `raw/*/*.md` — 检查来源是否仍存在
 - 本地代码目录 — 检查 `code_refs.path` 和 `symbol`
 
 ### Writes
 
-- 默认不写任何页面
-- 仅在用户指定 `--fix` 且问题属于确定性低风险时，允许修复相关字段
+- 默认不写页面
+- 只有在显式传入 `--fix` 且问题确定、低风险时，才允许自动修复
 - APPEND `wiki/log.md`
 
 
 ## Workflow
 
-### Step 1: 运行基础检查
+### Step 1: 做基线检查
 
-至少检查以下项目：
+至少要检查：
 
 1. 必填字段缺失
-2. `source_path` 不存在
-3. `source_hash` 失配
-4. `code_refs.path` 不存在
-5. `symbol` 在对应文件中找不到
-6. 索引条目缺失或失效
-7. 反向链接缺失
-8. 孤儿页面
-9. `qmd` 索引状态落后
+2. `sources.path` 缺失
+3. `sources.hash` 失配
+4. `code_refs.path` 缺失
+5. 被引用文件里 `symbol` 缺失
+6. `index.md` 过期或缺项
+7. capability-feature 反向链接缺失
+8. 孤儿页
+9. `qmd` 索引状态过期
 
-### Step 2: 读取结果并分级
+### Step 2: 给发现分层
 
-将问题分成三层：
+将问题分成：
 
-- 🔴 立即修复：确定性坏链、坏路径、坏 hash、坏 symbol
-- 🟡 建议修复：归类异常、反向链接缺失、索引陈旧
-- 🔵 可选优化：孤儿页面、低价值冗余线索
+- 🔴 立即处理：确定性坏链、坏路径、坏 hash、坏 symbol
+- 🟡 建议处理：capability-feature 关系异常、索引陈旧、反向链接缺失
+- 🔵 可选改进：孤儿页、低价值冗余线索
 
-### Step 3: fix 模式处理
+### Step 3: 处理 fix 模式
 
-1. 默认只报告
-2. 若用户指定 `--fix`：
-   - 只修低风险且确定性的问题
-   - 如：刷新 `source_hash`、删除不存在的辅助 code clue、补简单索引项
-3. 若用户指定 `--fix --dry-run`：
-   - 只预览拟修复项，不真正写入
-4. 任何需要重新判断 capability / change 归属的问题，都不要在 `--fix` 中自动处理，应分流到 `/devwiki-refresh`
+1. 默认模式是只读报告
+2. 如果用户传了 `--fix`：
+   - 只修确定性的低风险问题
+   - 例如：刷新 `sources.hash`、移除失效的辅助 code clue、修简单索引项
+3. 如果用户传了 `--fix --dry-run`：
+   - 只预览修复候选，不写入
+4. 凡是需要重新判断 capability 边界或 feature 归属的，都不能自动修；应分流到 `/devwiki-refresh`
 
-### Step 4: 输出报告
+### Step 4: 输出结果
 
-报告至少包含：
+报告必须包含：
 
 - 检查范围
-- 问题总数
-- 各等级问题明细
-- 若启用 fix：哪些问题已修、哪些只预览、哪些必须人工处理
-- 后续建议：
-  - 能自动修但未执行：提醒带 `--fix`
-  - 归类漂移：建议 `/devwiki-refresh`
-  - 缺少结构化文档：建议 `/devwiki-feature-doc`
+- 问题数量
+- 按严重级别分组的详情
+- 若执行了 fix：修了什么、预览了什么、哪些仍需人工处理
+- 下一步建议：
+  - 对确定性问题可继续用 `--fix`
+  - 对结构漂移使用 `/devwiki-refresh`
+  - feature 文档缺失时使用 `/devwiki-feature-doc`
 
-### Step 5: 记录日志
+### Step 5: 记录执行
 
-在 `wiki/log.md` 中追加：
+在 `wiki/log.md` 追加：
 
 - `check | report-only | <summary>`
 - 或 `check | fix-applied | <summary>`
 
 ## Constraints
 
-- **默认只报告**：不带 `--fix` 时不得修改 wiki
-- **`--fix` 只修确定性低风险问题**：不能自动修归类和高影响判断
-- **raw/ 只读**：不修改源文档
-- **不得虚构 symbol**：找不到就是找不到，不能靠猜测补
-- **检查结果可重复**：相同输入下结果应基本稳定
+- **默认只读**：没传 `--fix` 时，不得修改 wiki 页面
+- **`--fix` 只修确定性低风险问题**：不得自动修 capability 边界或 feature 归属
+- **raw/ 只读**：不得修改来源层
+- **不得虚构 symbol**：找不到就是找不到，必须如实报告
+- **结果应稳定**：同一状态下重复执行，结果应基本一致
 
 ## Error Handling
 
-- **wiki/ 不存在**：提示先运行 `/devwiki-init`
-- **代码目录未配置**：跳过代码检查并说明范围受限
-- **`zatools qmd ...` 不可用**：报告索引检查受限，但继续执行其他检查
-- **fix 遇到中高风险项**：停止自动修复这些项，并建议 `/devwiki-refresh`
+- **缺少 wiki/**：提示用户先执行 `/devwiki-init`
+- **代码目录缺失**：跳过代码检查，并说明覆盖范围下降
+- **`zatools qmd ...` 不可用**：报告索引校验覆盖下降，但继续做其他检查
+- **fix 模式遇到中高风险项**：停止自动修复该项，并建议转到 `/devwiki-refresh`

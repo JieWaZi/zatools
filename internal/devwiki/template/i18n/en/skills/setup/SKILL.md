@@ -34,6 +34,7 @@ argument-hint: "[<project-name>] [--agent codex|cursor|claude --lang zh|en --cod
 - for project-scoped installs: project-root `.agents/` and `.zatools-lock.json`
 - for global installs: home-scoped skill installation and lock file
 - optional `zatools qmd` registration results or generated manual commands
+- optional manual reminder to run `zatools qmd download --root .` after init
 - optional: hand off to `devwiki-qmd-sync` when the workspace already exists
 
 ## DevWiki Interaction
@@ -114,6 +115,12 @@ After collection registration, continue with:
 ```bash
 zatools qmd update
 zatools qmd status
+```
+
+If the user wants to download qmd models manually, run this inside the DevWiki workspace:
+
+```bash
+zatools qmd download --root .
 ```
 
 If `status` still shows significant pending embeddings and the next task explicitly depends on higher-quality semantic retrieval, ask whether to continue with:

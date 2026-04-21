@@ -1,6 +1,6 @@
 ---
 name: "devwiki-check"
-description: "Use when running deterministic health checks on DevWiki documents, capabilities, changes, links, source_hash values, code refs, symbols, and index state, especially for validation, periodic audits, and before or after refresh."
+description: "Use when running deterministic health checks on DevWiki capabilities, features, links, source hashes, code refs, symbols, and index state, especially for validation, periodic audits, and before or after refresh."
 argument-hint: "[check-scope]"
 ---
 
@@ -34,9 +34,8 @@ argument-hint: "[check-scope]"
 
 ### Reads
 
-- `wiki/documents/**/*.md` — verify `source_path`, `source_hash`, and linked fields
-- `wiki/capabilities/*.md` — verify `documents`, `changes`, and `code refs`
-- `wiki/changes/*.md` — verify change links and classification
+- `wiki/capabilities/*.md` — verify linked features and required fields
+- `wiki/features/*.md` — verify `sources`, `code_refs`, `api_entries`, and `test_refs`
 - `wiki/index.md` — verify catalog completeness
 - `raw/*/*.md` — verify whether source material still exists
 - local code directory — verify `code_refs.path` and `symbol`
@@ -55,12 +54,12 @@ argument-hint: "[check-scope]"
 At minimum, check:
 
 1. missing required fields
-2. broken `source_path`
-3. mismatched `source_hash`
+2. missing raw `sources.path`
+3. mismatched `sources.hash`
 4. missing `code_refs.path`
 5. missing `symbol` in the referenced file
 6. stale or missing index entries
-7. missing reverse links
+7. missing reverse links between capabilities and features
 8. orphan pages
 9. stale `qmd` index state
 
@@ -69,7 +68,7 @@ At minimum, check:
 Group issues into:
 
 - 🔴 fix immediately: deterministic broken links, paths, hashes, symbols
-- 🟡 recommended fixes: classification anomalies, missing reverse links, stale index
+- 🟡 recommended fixes: stale capability-feature mapping, missing reverse links, stale index
 - 🔵 optional improvements: orphan pages, low-value redundant clues
 
 ### Step 3: Handle fix mode
@@ -77,10 +76,10 @@ Group issues into:
 1. Default mode is report-only
 2. If the user passes `--fix`:
    - repair only deterministic low-risk issues
-   - examples: refresh `source_hash`, remove broken auxiliary code clues, patch simple index entries
+   - examples: refresh `sources.hash`, remove broken auxiliary code clues, patch simple index entries
 3. If the user passes `--fix --dry-run`:
    - preview repair candidates without writing
-4. Anything that requires re-judging capability or change ownership must not be auto-fixed; route it to `/devwiki-refresh`
+4. Anything that requires re-judging capability boundaries or feature ownership must not be auto-fixed; route it to `/devwiki-refresh`
 
 ### Step 4: Report results
 
@@ -92,8 +91,8 @@ The report must include:
 - if fix mode ran: what was repaired, what was previewed, and what still needs manual handling
 - next-step suggestions:
   - use `--fix` for deterministic repairs
-  - use `/devwiki-refresh` for classification drift
-  - use `/devwiki-feature-doc` when structured documentation is missing
+  - use `/devwiki-refresh` for structural drift
+  - use `/devwiki-feature-doc` when structured feature documentation is missing
 
 ### Step 5: Log the run
 
@@ -105,7 +104,7 @@ Append to `wiki/log.md`:
 ## Constraints
 
 - **Report-only by default**: without `--fix`, do not modify wiki pages
-- **`--fix` repairs only deterministic low-risk issues**: no automatic classification repairs
+- **`--fix` repairs only deterministic low-risk issues**: no automatic capability-boundary or feature-ownership repairs
 - **raw/ is read-only**: do not modify source material
 - **No fabricated symbols**: if a symbol is missing, report it as missing
 - **Results should be stable**: repeated runs on the same state should produce similar results

@@ -1,6 +1,6 @@
 # 证据落地约束
 
-> 供 `/devwiki-ask`、`/devwiki-init`、`/devwiki-ingest`、`/devwiki-scope`、`/devwiki-refresh`、`/devwiki-check`、`/devwiki-feature-doc` 等技能共享使用。
+> 供 `/devwiki-ask`、`/devwiki-init`、`/devwiki-ingest`、`/devwiki-refresh`、`/devwiki-check`、`/devwiki-feature-doc` 等技能共享使用。
 > DevWiki 的输出必须落到真实来源、已核对代码证据，或被明确标注为推断。
 
 ---
@@ -10,7 +10,7 @@
 DevWiki 中每一个重要结论，至少要能回溯到以下三类之一：
 
 1. `raw/` 原始资料
-2. `wiki/` 中从已验证来源沉淀出的结构化页面
+2. `wiki/capabilities/` 或 `wiki/features/`
 3. 配置代码目录中的已核对代码证据
 
 `qmd` 只是召回加速器，不是真相源。
@@ -21,20 +21,16 @@ DevWiki 中每一个重要结论，至少要能回溯到以下三类之一：
 
 ### 原始资料层
 
-`raw/` 是文档层面最强的事实来源。
+`raw/` 是最强的来源层。
 
 适合承载：
 
 - 原始需求意图
 - 原始设计决策
-- 官方特性说明
-- 代码总结与复盘
-- 接口与测试资料
+- 原始功能说明
+- 测试方案与测试记录
 
-每个镜像页都应保留：
-
-- `source_path`
-- `source_hash`
+feature 页应通过 `sources.path` 与 `sources.hash` 记录这些来源。
 
 ### 结构化 Wiki 层
 
@@ -42,10 +38,10 @@ DevWiki 中每一个重要结论，至少要能回溯到以下三类之一：
 
 适合承载：
 
-- 跨文档的结构化总结
-- capability 聚合
-- change 历史
-- 文档与代码之间的整理后关系
+- capability 的业务能力总结
+- feature 的流程、约束、入口和索引
+- capability 与 feature 之间的整理后关系
+- feature 页上的代码、接口、测试入口
 
 如果 `wiki/` 与 `raw/` 冲突，应优先相信真实来源，并把冲突分流到 `/devwiki-refresh` 或 `/devwiki-check`。
 
@@ -56,7 +52,8 @@ DevWiki 中每一个重要结论，至少要能回溯到以下三类之一：
 应使用：
 
 - `code_refs`
-- `api_refs`
+- `api_entries`
+- `test_refs`
 - 直接文件 / symbol 核对
 
 没有读过或核对过的文件、函数、路由、接口，不得硬说相关。
@@ -69,8 +66,8 @@ DevWiki 中每一个重要结论，至少要能回溯到以下三类之一：
 
 ### 事实
 
-- `source_path` 存在或不存在
-- `source_hash` 匹配或失配
+- raw `path` 存在或不存在
+- `hash` 匹配或失配
 - 文件存在
 - symbol 能找到或找不到
 - 某个 wiki 页面明确写了某条关系
@@ -78,9 +75,9 @@ DevWiki 中每一个重要结论，至少要能回溯到以下三类之一：
 ### 推断
 
 - 这个需求更像 `new`、`modify` 还是 `unclear`
-- 这个 capability 很可能拥有该特性
+- 这个 capability 很可能拥有该 feature
+- 这个 feature 很可能覆盖当前需求
 - 这条代码路径大概率是主实现
-- 这个 change 很可能覆盖了旧 change
 
 推断可以写，但必须显式标注为推断，并给出可见证据。
 
@@ -92,24 +89,33 @@ DevWiki 中每一个重要结论，至少要能回溯到以下三类之一：
 
 1. 先查 `wiki`
 2. 再查 `raw`
-3. 再查 `code`
-4. 最后对 top-K 代码候选做本地核对
+3. 先判断页面是否已经足够支撑答案
+4. 只有在页面证据不足，或问题明确要求实现现实时，再查 `code`
+5. 只有在代码证据真的必要时，才对 top-K 代码候选做本地核对
 
 这样可以避免在还没理解文档意图前，就直接被代码细节带偏。
 
+对 `/devwiki-ask` 而言，先用文档回答，再决定是否值得看代码。
+
+对 `/devwiki-ask` 而言，先用 wiki/raw 回答，再决定是否值得看代码。
+
+如果文档已经足够支撑答案，默认不要为了“保险”再做一轮代码展开。
+
+如果页面已经足够支撑答案，默认不要为了“保险”再做一轮代码展开。
+
 ---
 
-## 如何使用 `source_hash`
+## 如何使用 `sources.hash`
 
-`source_hash` 不是装饰字段。
+`sources.hash` 不是装饰字段。
 
 它用于回答：
 
 - 原始文件是否变化
-- wiki 镜像页是否过期
+- feature 页是否过期
 - refresh 提案是否属于确定性修正
 
-只要 raw 内容变了，就不能静默沿用旧 `source_hash`。
+只要 raw 内容变了，就不能静默沿用旧 hash。
 
 ---
 
@@ -125,6 +131,8 @@ DevWiki 中每一个重要结论，至少要能回溯到以下三类之一：
 - 当前置信度是多少
 
 如果文件很大，应优先使用 `path + symbol`，而不是模糊地只存文件路径。
+
+`code_refs` 只属于 feature 页，不属于 capability 页。
 
 ---
 
@@ -142,7 +150,7 @@ DevWiki 中每一个重要结论，至少要能回溯到以下三类之一：
 - 关键文件
 - 关键函数
 - 页面路由
-- 已知 capability 名称
+- 已知 capability 名称或 feature 名称
 
 不要用空泛描述掩盖不确定性，应明确向用户提问。
 

@@ -1,6 +1,8 @@
 # 代码追踪纪律
 
-> 供 `/devwiki-scope`、`/devwiki-ask`、`/devwiki-feature-doc` 以及所有需要从入口锚点走到真实实现的技能共享使用。
+> 供 `/devwiki-ask`、`/devwiki-feature-doc` 以及所有需要从入口锚点走到真实实现的技能共享使用。
+
+> 仅当工作流已经确认“这次确实需要看代码”时才使用本规范；如果文档已经能回答问题，`/devwiki-ask` 应先给出文档结论，再把代码核对作为可选补充。
 
 ---
 

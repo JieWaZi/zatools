@@ -121,6 +121,18 @@ func (s *Service) Add(ctx context.Context, sourceArg string, opts AddOptions) er
 	if err := skills.SaveLock(lockPath, lock); err != nil {
 		return err
 	}
+	targetDirs, err := common.ResolveAgentDirectories(skills.RuleAsset, agentKeys, false, s.runtime.Workspace.ProjectDir())
+	if err != nil {
+		return err
+	}
+	gitignorePaths := make([]string, 0, len(targetDirs)+1)
+	for _, agentKey := range agentKeys {
+		gitignorePaths = append(gitignorePaths, targetDirs[agentKey])
+	}
+	gitignorePaths = append(gitignorePaths, lockPath)
+	if err := common.EnsureProjectGitignore(s.runtime.Workspace.ProjectDir(), gitignorePaths...); err != nil {
+		return err
+	}
 
 	s.printInstallResults(lock, selected)
 	fmt.Println()

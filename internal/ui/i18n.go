@@ -121,6 +121,9 @@ type Catalog struct {
 	Done                          string
 	DoneReviewPermissions         string
 	QMDModelsReady                string
+	TitleQMDManualDownload        string
+	QMDManualDownloadHint         string
+	QMDManualDownloadCommand      string
 	NoSkillsTracked               string
 	NoRulesTracked                string
 	AllUpToDate                   string
@@ -282,6 +285,9 @@ var catalogs = map[string]Catalog{
 		Done:                          "完成！",
 		DoneReviewPermissions:         "完成！  请在使用前检查技能内容；它们会以 Agent 的完整权限运行。",
 		QMDModelsReady:                "QMD models 已预热",
+		TitleQMDManualDownload:        "QMD 模型下载",
+		QMDManualDownloadHint:         "如需手动下载 QMD models，请进入新建的 DevWiki 工作区后执行：",
+		QMDManualDownloadCommand:      "zatools qmd download --root .",
 		NoSkillsTracked:               "锁文件中没有记录任何技能。",
 		NoRulesTracked:                "锁文件中没有记录任何规则。",
 		AllUpToDate:                   "所有技能都已是最新。",
@@ -441,6 +447,9 @@ var catalogs = map[string]Catalog{
 		Done:                          "Done!",
 		DoneReviewPermissions:         "Done!  Review skills before use; they run with full agent permissions.",
 		QMDModelsReady:                "qmd models warmed",
+		TitleQMDManualDownload:        "QMD Model Download",
+		QMDManualDownloadHint:         "If you want to download qmd models manually, run this inside the new DevWiki workspace:",
+		QMDManualDownloadCommand:      "zatools qmd download --root .",
 		NoSkillsTracked:               "No skills tracked in lock file.",
 		NoRulesTracked:                "No rules tracked in lock file.",
 		AllUpToDate:                   "All skills are up to date",

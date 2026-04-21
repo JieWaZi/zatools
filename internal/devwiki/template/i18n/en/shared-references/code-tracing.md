@@ -1,6 +1,8 @@
 # Code Tracing Discipline
 
-> Shared reference for `/devwiki-scope`, `/devwiki-ask`, `/devwiki-feature-doc`, and any workflow that must move from an entry anchor into concrete implementation understanding.
+> Shared reference for `/devwiki-ask`, `/devwiki-feature-doc`, and any workflow that must move from an entry anchor into concrete implementation understanding.
+
+> Use this only after the workflow has already decided that code inspection is necessary. If documents already answer the question, `/devwiki-ask` should answer first and offer code verification as an optional follow-up instead of tracing by default.
 
 ---
 

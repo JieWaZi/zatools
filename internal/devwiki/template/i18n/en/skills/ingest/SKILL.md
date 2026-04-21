@@ -1,7 +1,7 @@
 ---
 name: "devwiki-ingest"
-description: "Use when bringing one or more new raw documents into DevWiki and deciding how they should map to documents, capabilities, changes, and code refs, especially for incremental knowledge maintenance."
-argument-hint: "<document-path-or-scope>"
+description: "Use when bringing one or more new raw documents into DevWiki and deciding how they should update capabilities, features, and feature-level code clues."
+argument-hint: "<document path or scope>"
 ---
 
 # /devwiki-ingest
@@ -17,18 +17,17 @@ argument-hint: "<document-path-or-scope>"
 
 ## Inputs
 
-- `source`: a document path, a directory, or a batch of raw documents
-- `raw/*/*.md` — new or updated source material
+- `source`: one document path, one directory, or a batch of raw documents
+- `raw/*/*.md` — added or updated source documents
 - `config/project.yaml` — primary code directory, language, and code repo configuration
 
 ## Outputs
 
-- created or updated `wiki/documents/**/*.md`
 - created or updated `wiki/capabilities/*.md`
-- created or updated `wiki/changes/*.md`
-- written or corrected `code refs`
+- created or updated `wiki/features/*.md`
+- updated feature-level `sources`, `code_refs`, `api_entries`, and `test_refs`
 - updated `wiki/index.md`
-- appended ingest entries in `wiki/log.md`
+- ingest record appended to `wiki/log.md`
 - one ingest proposal for user confirmation
 
 ## DevWiki Interaction
@@ -37,144 +36,145 @@ argument-hint: "<document-path-or-scope>"
 
 - `config/project.yaml` — get the primary code directory
 - `raw/*/*.md` — source documents to ingest
-- `wiki/documents/**/*.md` — dedup by `source_path` and `source_hash`
+- `wiki/features/*.md` — dedup by `sources.path` and `sources.hash`
 - `wiki/capabilities/*.md` — match existing capabilities
-- `wiki/changes/*.md` — match existing changes
 - `wiki/index.md` — locate existing pages
-- local code directory — add candidate code locations and perform second-pass verification
+- local code directory — supplement candidate code locations and bounded second-pass verification
 
 ### Writes
 
-- CREATE / EDIT `wiki/documents/**/*.md`
 - CREATE / EDIT `wiki/capabilities/*.md`
-- CREATE / EDIT `wiki/changes/*.md`
+- CREATE / EDIT `wiki/features/*.md`
 - EDIT `wiki/index.md`
 - APPEND `wiki/log.md`
 
 
 ## Workflow
 
-### Step 1: Parse sources and check deduplication
+### Step 1: Expand the source set and deduplicate
 
-1. Expand the input `source` into a concrete document list
-2. Extract for each document:
+1. Expand `source` into the concrete document list
+2. For each file, extract:
    - title
-   - `doc_type`
+   - likely feature topic
+   - source kind inferred from the parent directory
    - `source_path`
    - `source_hash`
-3. Check for existing records using `source_path`, `source_hash`, and title
-4. If the source is unchanged, mark it in the proposal as “no update needed”
-5. If `source_path` matches but `source_hash` changed, treat it as an update to an existing document mirror
+3. Check existing feature pages by three signals:
+   - matching `sources.path`
+   - matching `sources.hash`
+   - close title / feature-name similarity
+4. If `sources.path` matches but the hash changed, treat it as an update to an existing feature page
+5. If a raw file is new but clearly belongs to an existing feature, update that feature instead of forcing a new page
 
-### Step 2: Match existing documents, capabilities, and changes
+### Step 2: Match existing capabilities and features
 
-1. Match the document itself against existing mirrors
-2. Match the most likely capability
-3. Match the most likely change record
-4. Prioritize:
+1. First match the most likely feature page
+2. Then match the most likely supporting capability pages
+3. Match using:
    - titles and aliases
-   - already linked documents
-   - capability `code_refs`
-   - change classification and linked scope
-5. If several capabilities look plausible, keep multiple candidates instead of forcing one
+   - existing capability-feature links
+   - existing feature `code_refs`, `api_entries`, and `test_refs`
+   - repeated business terminology in the raw content
+4. If multiple capabilities look plausible, keep multiple candidates instead of forcing one
+5. If the raw source suggests a genuinely new feature, keep that as a proposal instead of writing immediately
 
 ### Step 3: Retrieve candidate code clues
 
+Follow the tiered recall rules in `references/zatools-qmd.md`, **local-first by default**:
+
 1. If a code directory is configured:
-   - run `zatools qmd status` first
-   - if `zatools qmd status` is healthy, prefer `zatools qmd query` across `raw / wiki / code`, then inspect top-K hits with `zatools qmd get` / `zatools qmd multi-get`
-   - then run local keyword search in code
-2. Perform a second-pass inspection on top-K candidate files
+   - start with local `grep` / file search for known anchors (symbols, files, directories, API URLs)
+   - escalate to `zatools qmd search` only when local hits are insufficient
+   - only consider `zatools qmd query` when concept-level recall is genuinely needed; apply the hard fallback when no GPU/accelerator is available
+2. Re-check top-K candidate files locally
 3. Confirm at least:
    - why the file is relevant
-   - whether a key function or symbol actually exists
-   - whether the hit is a primary ref or only an auxiliary clue
-4. If hits are too scattered and cannot be localized, do not write high-confidence `code refs`
+   - whether the key symbol exists
+   - whether it is a primary clue or a supporting clue
+4. Do not write high-confidence `code_refs` when hits are still scattered
 
-### Step 4: Build the ingest proposal
+### Step 4: Form the ingest proposal
 
 The proposal must answer:
 
-- should this create a new document mirror
-- should it update an existing document mirror
-- should it attach to an existing capability
+- should this update an existing feature
+- should this create a new feature
+- should it link to existing capabilities
 - should it create a new capability
-- should it update an existing change
-- should it create a new change
-- should it write or adjust code refs
+- should it update feature-level code clues
 
-Risk separation is mandatory:
+Separate actions by risk:
 
-- low risk: new document mirror, `source_hash` refresh, logs
-- medium risk: attaching to an existing capability, adding auxiliary code refs, linking to an existing change
-- high risk: creating capabilities, creating changes, changing primary code refs, changing change classification
+- low risk: source hash refresh, logs, index refresh
+- medium risk: attaching a feature to an existing capability, adding auxiliary code clues
+- high risk: creating a capability, creating a feature, rewriting primary `code_refs`
 
-### Step 5: Ask the user when confidence remains low
+### Step 5: Ask follow-up questions when confidence stays low
 
 After a few bounded searches, ask the user when:
 
-- one document plausibly maps to multiple capabilities
-- several change records look equally plausible
-- the referenced endpoint, module, or function cannot be found in code
-- code hits are only scattered clues with no interpretable cluster
+- one raw document plausibly maps to multiple capabilities
+- several feature pages still compete
+- the document mentions an endpoint, module, or symbol that cannot be found
+- code search returns many scattered hits without a coherent entry point
 
 Question rules:
 
 - ask only 1 to 3 narrow questions
-- prefer anchor questions: API URL, key file, key function, page route, or requirement ticket
-- do not ask vague questions like “please provide more context”
+- prefer anchor questions: API URL, key file, key function, page route, requirement ticket
+- do not ask vague questions like "please provide more context"
 
 ### Step 6: Wait for confirmation
 
-1. All medium- and high-risk writes require confirmation
-2. These actions must never be applied silently:
-   - creating a capability
-   - creating a change
-   - remapping a document to a different capability
-   - writing primary code refs
-3. Only apply changes after the proposal is confirmed
+1. All medium- and high-risk writes must wait for confirmation
+2. Especially do not default to:
+   - creating a new capability
+   - creating a new feature
+   - reattaching a feature to a different capability
+   - writing primary `code_refs`
+3. Only apply the proposal after explicit confirmation
 
-### Step 7: Apply and refresh navigation
+### Step 7: Apply writes and refresh navigation
 
 After confirmation:
 
-1. write or update `wiki/documents/`
-2. write or update `wiki/capabilities/`
-3. write or update `wiki/changes/`
-4. update `wiki/index.md`
-5. append `ingest | proposal-applied` to `wiki/log.md`
-6. after writes succeed, run:
+1. write or update `wiki/capabilities/`
+2. write or update `wiki/features/`
+3. update `wiki/index.md`
+4. append `ingest | proposal-applied` to `wiki/log.md`
+5. after writes succeed, run:
 
 ```bash
 zatools qmd update
 zatools qmd status
 ```
 
-7. if the next task immediately depends on higher-quality semantic retrieval through `zatools qmd query`, and `status` still reports pending embeddings, ask whether to continue with:
+6. if the next task immediately depends on higher-quality semantic retrieval through `zatools qmd query`, and `status` still reports pending embeddings, ask whether to continue with:
 
 ```bash
 zatools qmd embed
 ```
 
-When useful, recommend follow-up steps:
+Useful next-step suggestions:
 
-- use `/devwiki-scope` for change classification
-- use `/devwiki-feature-doc` when code exists but documentation is still missing
-- use `/devwiki-refresh` when wiki knowledge and current code disagree
+- use `/devwiki-ask` for change classification or follow-up Q&A
+- use `/devwiki-feature-doc` when raw docs are weak but code clearly contains the feature
+- use `/devwiki-refresh` when existing wiki knowledge conflicts with the new evidence
 
 ## Constraints
 
 - **raw/ is read-only**: do not modify source documents
-- **No fabricated code refs**: never write high-confidence file or function refs without checking code
-- **Do not silently merge capabilities**: preserve ambiguity until confirmed
-- **Medium/high risk requires confirmation**: especially capability, change, and primary code-ref writes
-- **source_hash must be refreshed**: document content changes require a new hash
-- **Code clues are not full design docs**: `ingest` adds local evidence but does not replace `/devwiki-feature-doc`
+- **No fabricated code refs**: files and symbols must not be claimed with high confidence unless verified
+- **Do not silently re-scope capabilities**: preserve ambiguity until the user confirms
+- **Medium/high risk requires confirmation**: especially new capabilities, new features, and primary code refs
+- **source hashes must be refreshed**: content changes require new hashes in the feature page
+- **ingest is not a full design pass**: it adds knowledge and bounded code clues; it does not replace `/devwiki-feature-doc`
 
 ## Error Handling
 
-- **source missing or empty**: ask the user for a valid raw document path
-- **document type cannot be inferred**: ask the user to place it in the right raw directory or convert it first
+- **source is empty or path is missing**: ask the user for a valid raw document path
+- **document type cannot be inferred**: ask the user to place it under the correct raw directory
 - **`zatools qmd ...` unavailable**: fall back to local search without blocking ingest
-- **code directory missing**: allow document-only ingest, but state clearly that code was not verified
-- **multiple capability / change matches remain**: stop expanding and ask the user
+- **code directory missing**: allow raw-only updates, but state clearly that code linkage was not verified
+- **multiple capability candidates remain plausible**: stop expanding and ask the user

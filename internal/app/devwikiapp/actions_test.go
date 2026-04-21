@@ -2,7 +2,6 @@ package devwikiapp
 
 import (
 	"context"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -29,7 +28,6 @@ func TestResolveTargetDirUsesDetectedProjectRoot(t *testing.T) {
 		Workspace: skills.NewWorkspace(child),
 		IsTTY:     false,
 	})
-	service.qmdWarmup = func(context.Context, string) error { return nil }
 
 	target, err := service.resolveTargetDir("Sample Project")
 	if err != nil {
@@ -159,8 +157,6 @@ func TestInstallSelectedSkillsWritesIntoCurrentProjectRootByDefault(t *testing.T
 }
 
 func TestInitCreatesProjectAndInstallsCodexSkillsIntoCurrentProjectRoot(t *testing.T) {
-	t.Parallel()
-
 	root := t.TempDir()
 	mustWriteFileDevwikiApp(t, filepath.Join(root, "go.mod"), "module example\n")
 	child := filepath.Join(root, "nested", "work")
@@ -172,7 +168,6 @@ func TestInitCreatesProjectAndInstallsCodexSkillsIntoCurrentProjectRoot(t *testi
 		Workspace: skills.NewWorkspace(child),
 		IsTTY:     false,
 	})
-	service.qmdWarmup = func(context.Context, string) error { return nil }
 
 	err := service.Init(context.Background(), InitOptions{
 		ProjectName: "Sample Project",
@@ -200,6 +195,16 @@ func TestInitCreatesProjectAndInstallsCodexSkillsIntoCurrentProjectRoot(t *testi
 	}
 	if _, err := os.Stat(filepath.Join(root, ".agents", "skills", "devwiki-setup", "SKILL.md")); err != nil {
 		t.Fatalf("missing installed project-scope skill: %v", err)
+	}
+	gitignoreData, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	if err != nil {
+		t.Fatalf("ReadFile(.gitignore) error = %v", err)
+	}
+	gitignore := string(gitignoreData)
+	for _, want := range []string{".agents", ".cache", ".zatools-lock.json"} {
+		if !strings.Contains(gitignore, want) {
+			t.Fatalf(".gitignore missing %q:\n%s", want, gitignore)
+		}
 	}
 	rootAgentsData, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
 	if err != nil {
@@ -230,8 +235,6 @@ func TestInitCreatesProjectAndInstallsCodexSkillsIntoCurrentProjectRoot(t *testi
 }
 
 func TestInitCreatesProjectAndInstallsCursorSkillsIntoCurrentProjectRoot(t *testing.T) {
-	t.Parallel()
-
 	root := t.TempDir()
 	mustWriteFileDevwikiApp(t, filepath.Join(root, "go.mod"), "module example\n")
 	child := filepath.Join(root, "nested", "work")
@@ -243,7 +246,6 @@ func TestInitCreatesProjectAndInstallsCursorSkillsIntoCurrentProjectRoot(t *test
 		Workspace: skills.NewWorkspace(child),
 		IsTTY:     false,
 	})
-	service.qmdWarmup = func(context.Context, string) error { return nil }
 
 	err := service.Init(context.Background(), InitOptions{
 		ProjectName: "Sample Project",
@@ -266,6 +268,16 @@ func TestInitCreatesProjectAndInstallsCursorSkillsIntoCurrentProjectRoot(t *test
 	if _, err := os.Stat(filepath.Join(root, ".cursor", "skills", "devwiki-setup", "SKILL.md")); err != nil {
 		t.Fatalf("missing installed cursor-scope skill: %v", err)
 	}
+	gitignoreData, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	if err != nil {
+		t.Fatalf("ReadFile(.gitignore) error = %v", err)
+	}
+	gitignore := string(gitignoreData)
+	for _, want := range []string{".cursor", ".cache", ".zatools-lock.json"} {
+		if !strings.Contains(gitignore, want) {
+			t.Fatalf(".gitignore missing %q:\n%s", want, gitignore)
+		}
+	}
 	rootAgentsData, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
 	if err != nil {
 		t.Fatalf("ReadFile(root AGENTS.md) error = %v", err)
@@ -276,8 +288,6 @@ func TestInitCreatesProjectAndInstallsCursorSkillsIntoCurrentProjectRoot(t *test
 }
 
 func TestInitDoesNotRequireFinalConfirmationPrompt(t *testing.T) {
-	t.Parallel()
-
 	root := t.TempDir()
 	mustWriteFileDevwikiApp(t, filepath.Join(root, "go.mod"), "module example\n")
 	child := filepath.Join(root, "nested", "work")
@@ -289,7 +299,6 @@ func TestInitDoesNotRequireFinalConfirmationPrompt(t *testing.T) {
 		Workspace: skills.NewWorkspace(child),
 		IsTTY:     false,
 	})
-	service.qmdWarmup = func(context.Context, string) error { return nil }
 
 	err := service.Init(context.Background(), InitOptions{
 		ProjectName: "No Prompt Project",
@@ -308,9 +317,7 @@ func TestInitDoesNotRequireFinalConfirmationPrompt(t *testing.T) {
 	}
 }
 
-func TestInitWarmsQMDModelsForGeneratedProject(t *testing.T) {
-	t.Parallel()
-
+func TestInitDoesNotWarmQMDModelsAndPrintsManualDownloadHint(t *testing.T) {
 	root := t.TempDir()
 	mustWriteFileDevwikiApp(t, filepath.Join(root, "go.mod"), "module example\n")
 
@@ -319,67 +326,27 @@ func TestInitWarmsQMDModelsForGeneratedProject(t *testing.T) {
 		IsTTY:     false,
 	})
 
-	var warmedRoot string
-	service.qmdWarmup = func(_ context.Context, projectRoot string) error {
-		warmedRoot = projectRoot
-		return nil
-	}
-
-	err := service.Init(context.Background(), InitOptions{
-		ProjectName: "Warmup Project",
-		Agent:       "codex",
-		Lang:        "zh",
-		CodeDirs:    []string{root},
-		Yes:         true,
-	})
+	var output string
+	err := captureDevwikiStdoutText(t, func() error {
+		runErr := service.Init(context.Background(), InitOptions{
+			ProjectName: "Warmup Project",
+			Agent:       "codex",
+			Lang:        "zh",
+			CodeDirs:    []string{root},
+			Yes:         true,
+		})
+		return runErr
+	}, &output)
 	if err != nil {
 		t.Fatalf("Init error = %v", err)
 	}
 
-	want := filepath.Join(root, "devwiki-warmup-project")
-	if warmedRoot != want {
-		t.Fatalf("warmedRoot = %q, want %q", warmedRoot, want)
-	}
-}
-
-func TestInitReturnsWarmupErrorButKeepsGeneratedProject(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	mustWriteFileDevwikiApp(t, filepath.Join(root, "go.mod"), "module example\n")
-
-	service := NewServiceWithRuntime(common.Runtime{
-		Workspace: skills.NewWorkspace(root),
-		IsTTY:     false,
-	})
-
-	service.qmdWarmup = func(_ context.Context, projectRoot string) error {
-		return errors.New("warmup failed")
-	}
-
-	err := service.Init(context.Background(), InitOptions{
-		ProjectName: "Warmup Failure",
-		Agent:       "codex",
-		Lang:        "zh",
-		CodeDirs:    []string{root},
-		Yes:         true,
-	})
-	if err == nil {
-		t.Fatal("Init should fail when qmd warmup fails")
-	}
-	if !strings.Contains(err.Error(), "warmup failed") {
-		t.Fatalf("Init error = %v", err)
-	}
-
-	target := filepath.Join(root, "devwiki-warmup-failure")
-	if _, statErr := os.Stat(filepath.Join(target, "README.md")); statErr != nil {
-		t.Fatalf("generated project should remain on warmup failure: %v", statErr)
+	if !strings.Contains(output, "zatools qmd download --root .") {
+		t.Fatalf("Init output missing manual qmd download hint:\n%s", output)
 	}
 }
 
 func TestUpdateMigratesLegacyDevwikiSourcesAndOnlyRefreshesDevwikiSkills(t *testing.T) {
-	t.Parallel()
-
 	root := t.TempDir()
 	mustWriteFileDevwikiApp(t, filepath.Join(root, "go.mod"), "module example\n")
 	service := NewServiceWithRuntime(common.Runtime{
@@ -491,5 +458,24 @@ func captureDevwikiStdout(t *testing.T, fn func() error) error {
 	os.Stdout = original
 	_, _ = io.ReadAll(reader)
 	_ = reader.Close()
+	return runErr
+}
+
+func captureDevwikiStdoutText(t *testing.T, fn func() error, output *string) error {
+	t.Helper()
+
+	original := os.Stdout
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe error = %v", err)
+	}
+
+	os.Stdout = writer
+	runErr := fn()
+	_ = writer.Close()
+	os.Stdout = original
+	data, _ := io.ReadAll(reader)
+	_ = reader.Close()
+	*output = string(data)
 	return runErr
 }

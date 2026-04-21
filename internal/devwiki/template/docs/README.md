@@ -2,7 +2,7 @@
 
 面向研发场景的结构化 Wiki 与代码检索工作流。
 
-DevWiki 的目标不是“让 Agent 临时回答一次问题”，而是把需求文档、设计文档、特性说明、代码总结、复盘等材料持续沉淀成可维护、可检索、可修正的知识层。新需求到来时，Agent 先利用已有 Wiki 和代码线索做范围收敛，再决定这是新增能力、已有能力改造，还是仍需继续追问。
+DevWiki 的目标不是“让 Agent 临时回答一次问题”，而是把需求、设计、功能说明、测试资料持续沉淀成可维护、可检索、可修正的知识层。新需求到来时，Agent 先利用已有 Wiki、raw 资料和代码线索做范围收敛，再回答这属于新增能力、已有能力改造，还是仍需继续追问。
 
 ## 什么是 DevWiki
 
@@ -11,34 +11,42 @@ DevWiki 是一个单产品、单仓库场景下的研发知识底座，核心思
 - 把原始资料放在 `raw/`
 - 把结构化知识沉淀到 `wiki/`
 - 用 `zatools qmd ...` 加速 `raw / wiki / code` 三层召回
-- 用 `capabilities` 和 `changes` 回答“这是什么能力”和“这是新增还是改造”
+- DevWiki 的人工知识主模型就是 capabilities 和 features
+- 人工维护的主知识只围绕 `capabilities` 和 `features`
+- 用 `capabilities` 告诉用户系统有哪些能力、能力之间怎样关联
+- 用 `features` 告诉用户具体功能支撑哪些能力、流程怎么走、入口和代码线索在哪里
 - 用 `devwiki-refresh`、`devwiki-check`、`devwiki-edit` 处理知识漂移和人工纠错
 
-它参考了 OmegaWiki 的结构化工作流，但实体模型换成了研发场景的一等对象：
+它参考了 OmegaWiki 的“稳定知识页 + 生成产物分离”思路，但实体模型换成了更适合研发场景的两类一等对象：
 
-- `documents`
 - `capabilities`
-- `changes`
+- `features`
+
+同时保留生成目录：
+
+- `outputs`
+- `graph`
 
 ## 为什么不是临时 RAG
 
 | 维度 | 临时 RAG | DevWiki |
 |------|----------|---------|
 | 知识持久化 | 每次查询重新拼接 | 文档持续沉淀为结构化 Wiki |
-| 研发实体 | 通常只有文本块 | 有 `documents / capabilities / changes` 三类中心对象 |
-| 代码关联 | 只靠临时关键词命中 | 用 `code_refs`、接口 URL、函数名做结构化关联 |
-| 变更定性 | Agent 容易乱猜 | 用 `devwiki-scope` 判断 `new / modify / unclear` |
+| 研发实体 | 通常只有文本块 | 有 `capabilities` 和 `features` 两类主页面 |
+| 能力视角 | 容易丢业务边界 | `capabilities` 专门维护业务能力地图 |
+| 功能视角 | 功能说明容易碎片化 | `features` 统一承接流程、约束、入口、代码线索、测试入口 |
+| 变更定性 | Agent 容易乱猜 | 用 `devwiki-ask` 即时判断 `new / modify / unclear` |
 | 知识修正 | 上次答错，下次还可能错 | 可用 `refresh / check / edit` 持续修正 |
-| 无文档场景 | 只能瞎搜代码 | 可用 `devwiki-feature-doc` 从代码反向梳理特性文档 |
+| 无文档场景 | 只能瞎搜代码 | 可用 `devwiki-feature-doc` 从代码反向整理 feature 页 |
 
 ## 快速开始
 
 ### 环境要求
 
 - 已安装 `zatools`
-- 如果你要使用 Claude 侧运行时：需要先安装 Claude Code
 - 如果你要使用 `zatools qmd ...` 检索加速：需要确保当前环境可以成功执行 `zatools qmd status`
 - 如果你要在 Codex、Claude Code 这类沙箱 agent 中执行 `zatools qmd ...`：还要确保 agent 具备对应执行权限，以及项目根 `.cache` 目录写权限
+- 无 GPU/加速的机器建议以本地 `grep` 和 `zatools qmd search` 起步，必要时再升级到 `zatools qmd query`；具体阶梯见技能内置的 `references/zatools-qmd.md`
 
 ### 第一步：执行 `zatools devwiki init`
 
@@ -67,14 +75,14 @@ zatools devwiki init "{{PROJECT_NAME}}" --agent {{AGENT}} --lang {{LANG}} --code
 - 生成当前 agent 对应的运行时文件 `{{RUNTIME_FILE}}`
 - 生成 `config/project.yaml` 与 `config/search.yaml`
 - 安装 DevWiki skills
-- 预热一次 `zatools qmd` 所需模型，并尽量提前完成首次下载
 - 在当前项目根创建或更新桥接用运行时文件，引导 agent 先读取 `./{{WORKSPACE_DIR}}/{{RUNTIME_FILE}}`
+- 在初始化结束后提示用户：如需，可手动执行 `zatools qmd download --root .`
 
 如果是项目级安装，项目级 skill 安装状态、桥接用运行时文件和 `.zatools-lock.json` 都写在当前检测到的项目根，不写进 `{{WORKSPACE_DIR}}/`。
 
 ### 第二步：同步 `zatools qmd` 检索层
 
-初始化会在创建完成后自动做一次 `zatools qmd` 预热，尽量提前完成 collection 注册、索引刷新和模型下载；如果你是在已有工作区里补接 qmd，仍然优先使用 `zatools qmd sync` 或 `devwiki-qmd-sync`。
+初始化不会自动下载 qmd models；如果你是在已有工作区里补接 qmd，仍然优先使用 `zatools qmd sync` 或 `devwiki-qmd-sync`。
 
 通过 `zatools qmd ...` 执行检索与维护命令时，会把以下 flags 映射成环境变量：
 
@@ -106,7 +114,7 @@ zatools qmd sync --root .
 zatools qmd sync --root . --apply
 ```
 
-如果你希望单独提前把模型下载好，也可以直接执行：
+如果你想手动提前把模型下载好，可以在 DevWiki 工作区内执行：
 
 ```bash
 zatools qmd download --root .
@@ -152,9 +160,6 @@ qmd:
 - `raw/requirements/`
 - `raw/designs/`
 - `raw/features/`
-- `raw/code-summaries/`
-- `raw/postmortems/`
-- `raw/api/`
 - `raw/tests/`
 
 当前以 Markdown 为主。后续再扩展 `docx / pdf -> md` 转换工具。
@@ -167,7 +172,6 @@ qmd:
 - `devwiki-qmd-sync`
 - `devwiki-init`
 - `devwiki-ingest`
-- `devwiki-scope`
 - `devwiki-ask`
 - `devwiki-feature-doc`
 - `devwiki-refresh`
@@ -179,36 +183,36 @@ qmd:
 
 ### 场景一：从原始资料启动第一版 Wiki
 
-1. 把需求、设计、特性说明、代码总结、复盘等文件放入 `raw/`
+1. 把需求、设计、功能说明、测试资料放入 `raw/`
 2. 执行 `devwiki-init`
-3. Agent 生成第一版 `documents / capabilities / changes` 骨架
+3. Agent 生成第一版 `capabilities` 和 `features` 骨架
 4. 对中高风险写入做确认后落盘
 
 ### 场景二：增量吸收一批新文档
 
 1. 向 `raw/` 补充新文档
 2. 执行 `devwiki-ingest`
-3. Agent 识别文档类型、匹配已有 capability / change、补代码线索
+3. Agent 识别文档意图、匹配已有 capability / feature、补代码线索
 4. 提案确认后更新 Wiki
 
 ### 场景三：开发前先判断需求属于新增还是改造
 
-1. 执行 `devwiki-scope`
-2. Agent 在 `wiki / raw / code` 三层召回相关证据
-3. 输出 `new / modify / unclear`
-4. 给出相关文档、历史 change、候选代码文件和函数
+1. 用 `devwiki-ask` 提出变更说明（例如「我要给用户组加 XXX」）
+2. Agent 在 `wiki / raw / code` 三层按阶梯召回证据
+3. 输出综合回答，并附带 `new / modify / unclear`
+4. 给出相关 capability、相关 feature、候选代码入口和下一步建议
 
 ### 场景四：缺少现成文档，只能从代码反向梳理
 
 1. 执行 `devwiki-feature-doc`
-2. 提供至少一个明确特性名称
+2. 提供至少一个明确功能名称
 3. 最好再提供一个入口锚点：接口 URL、关键文件、关键函数、页面路径 / 路由
-4. Agent 按标准步骤逐层阅读调用链，输出 `raw/features/<特性名称>特性文档.md`
+4. Agent 按标准步骤逐层阅读入口和关键调用边界，写入或更新 `wiki/features/<feature-slug>.md`
 
 ### 场景五：知识漂移或用户纠错
 
 1. 执行 `devwiki-refresh`
-2. 检查 `source_hash`、失效路径、失效 symbol、归类漂移
+2. 检查 raw 来源、feature 入口、code refs、capability / feature 关联是否漂移
 3. 生成修正提案
 4. 用户确认后回写 Wiki
 
@@ -229,11 +233,10 @@ qmd:
 |------|------|
 | `devwiki-setup` | 解释初始化约束、安装范围与运行时使用方式 |
 | `devwiki-qmd-sync` | 为已有工作区补做或修复 `zatools qmd` collection 注册、索引刷新与状态检查 |
-| `devwiki-init` | 从现有 `raw/` 启动第一版知识骨架 |
+| `devwiki-init` | 从现有 `raw/` 启动第一版 `capabilities + features` 知识骨架 |
 | `devwiki-ingest` | 增量吸收新的原始文档 |
-| `devwiki-scope` | 在开发前归并上下文并判断 `new / modify / unclear` |
-| `devwiki-ask` | 对已有 Wiki 与代码线索做通用问答 |
-| `devwiki-feature-doc` | 在缺少文档时从代码反向梳理特性文档 |
+| `devwiki-ask` | 先基于已有 Wiki / raw 做通用问答；仅在证据不足或问题明确关心实现时再核对代码，并即时给出 `new / modify / unclear` |
+| `devwiki-feature-doc` | 在缺少功能说明时，从代码反向整理或补全 feature 页 |
 | `devwiki-refresh` | 修复知识漂移与错误关联 |
 | `devwiki-check` | 做确定性健康检查 |
 | `devwiki-edit` | 对 Wiki 或 raw 入口做定点编辑 |
@@ -252,21 +255,12 @@ qmd:
 │   ├── requirements/
 │   ├── designs/
 │   ├── features/
-│   ├── code-summaries/
-│   ├── postmortems/
-│   ├── api/
 │   └── tests/
 └── wiki/
-    ├── documents/
-    │   ├── requirements/
-    │   ├── designs/
-    │   ├── features/
-    │   ├── code-summaries/
-    │   ├── postmortems/
-    │   ├── api/
-    │   └── tests/
     ├── capabilities/
-    ├── changes/
+    ├── features/
+    ├── outputs/
+    ├── graph/
     ├── index.md
     └── log.md
 ```
@@ -276,16 +270,21 @@ qmd:
 其中：
 
 - `raw/` 是只读原始资料层
-- `wiki/` 是结构化知识层
-- `config/search.yaml` 只保存检索配置，不会自动执行 `zatools qmd` 注册
+- `wiki/capabilities/` 是业务能力地图
+- `wiki/features/` 是功能说明页
+- `wiki/outputs/` 和 `wiki/graph/` 是生成产物目录
 - 当前项目根还会额外持有项目级 skills、桥接用运行时文件和 `.zatools-lock.json`
 
 ## 设计原则
 
 - `raw/` 只读，不直接改写源材料
+- `capabilities` 只写业务能力与边界，不写具体实现细节
+- `features` 负责承接业务流程、约束、接口入口、代码线索、测试入口
+- `capabilities` 和 `features` 不重复复述正文，而是通过链接建立关系
+- `new / modify / unclear` 只作为 `devwiki-ask` 的即时判断输出，不再落为独立 change 页面
 - 中高风险动作必须先提案、后确认
 - `zatools qmd ...` 只是检索加速层，不是真相源
-- 代码关联必须能落到文件、函数、接口 URL 等可追踪对象
+- 代码关联必须能落到文件、函数、接口入口、测试入口等可追踪对象
 - 检索几轮仍低置信时，Agent 必须停止乱搜并向用户提问
 
 ## 常用维护命令
@@ -351,9 +350,9 @@ zatools devwiki tool log --wiki-root wiki --message "init | note"
 当前版本优先保证单产品、单仓库场景可演示、可闭环。重点覆盖：
 
 - 原始文档进入 `raw/`
-- `init / ingest` 生成结构化 Wiki
-- `devwiki-scope` 辅助开发前收敛上下文
-- `devwiki-feature-doc` 从代码补文档
+- `init / ingest` 生成 `capabilities + features` 结构化 Wiki
+- `devwiki-ask` 覆盖知识查询与开发前变更定性
+- `devwiki-feature-doc` 从代码补 feature 页
 - `refresh / check / edit / reset` 保持知识可维护
 
 多仓库、多产品、复杂格式转换与更强自动化，会在后续版本继续扩展。

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode"
 
+	common "zatools/internal/app/common"
 	"zatools/internal/app/skillapp"
 	"zatools/internal/devwiki"
 	"zatools/internal/platform/agents"
@@ -18,6 +19,8 @@ import (
 )
 
 func (s *Service) runProject(ctx context.Context, opts InitOptions, installSkills bool) error {
+	_ = ctx
+
 	copy := ui.Messages()
 
 	resolved, err := s.collectInitOptions(opts, installSkills)
@@ -99,13 +102,28 @@ func (s *Service) runProject(ctx context.Context, opts InitOptions, installSkill
 		}
 	}
 
-	spinner.Start(copy.StepDownloadingQMDModels)
-	if err := s.qmdWarmup(ctx, targetDir); err != nil {
+	gitignorePaths := []string{filepath.Join(s.runtime.Workspace.ProjectDir(), ".cache")}
+	if !resolved.Global {
+		installDir, err := agents.ResolveSkillsDir(resolved.Agent, false, s.runtime.Workspace.ProjectDir())
+		if err != nil {
+			return err
+		}
+		gitignorePaths = append(gitignorePaths, installDir)
+		lockPath, err := devwikiLockPath(s.runtime.Workspace.ProjectDir(), false)
+		if err != nil {
+			return err
+		}
+		gitignorePaths = append(gitignorePaths, lockPath)
+	}
+	if err := common.EnsureProjectGitignore(s.runtime.Workspace.ProjectDir(), gitignorePaths...); err != nil {
 		return err
 	}
-	spinner.Stop(copy.QMDModelsReady)
 
 	fmt.Printf("%s%s%s\n", ui.Green, copy.Done, ui.Reset)
+	ui.Note(copy.TitleQMDManualDownload, []string{
+		copy.QMDManualDownloadHint,
+		copy.QMDManualDownloadCommand,
+	})
 	return nil
 }
 

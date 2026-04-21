@@ -33,10 +33,26 @@ func TestGenerateProjectCreatesExpectedFiles(t *testing.T) {
 		"config/project.yaml",
 		"config/search.yaml",
 		"raw/requirements/.gitkeep",
-		"wiki/documents/designs/.gitkeep",
+		"raw/features/.gitkeep",
+		"wiki/capabilities/.gitkeep",
+		"wiki/features/.gitkeep",
+		"wiki/outputs/.gitkeep",
+		"wiki/graph/.gitkeep",
 	} {
 		if _, err := os.Stat(filepath.Join(target, rel)); err != nil {
 			t.Fatalf("missing %s: %v", rel, err)
+		}
+	}
+
+	for _, rel := range []string{
+		"raw/api",
+		"raw/code-summaries",
+		"raw/postmortems",
+		"wiki/documents",
+		"wiki/changes",
+	} {
+		if _, err := os.Stat(filepath.Join(target, rel)); err == nil {
+			t.Fatalf("%s should not be generated in the simplified DevWiki model", rel)
 		}
 	}
 }
@@ -156,6 +172,7 @@ func TestGenerateProjectRendersReadmeAndRuntimeTemplates(t *testing.T) {
 		"# DevWiki",
 		"结构化 Wiki 与代码检索工作流",
 		"为什么不是临时 RAG",
+		"capabilities 和 features",
 		"zatools devwiki init",
 		"zatools qmd sync --root . --apply",
 		"zatools qmd update",
@@ -167,12 +184,19 @@ func TestGenerateProjectRendersReadmeAndRuntimeTemplates(t *testing.T) {
 		"devwiki-sample-project/",
 		"├── AGENTS.md",
 		"├── config/",
+		"├── raw/",
 		"└── wiki/",
+		"raw/requirements/",
+		"raw/designs/",
+		"raw/features/",
+		"raw/tests/",
+		"wiki/capabilities/",
+		"wiki/features/",
 		"项目级 skill 安装状态、桥接用运行时文件和 `.zatools-lock.json`",
 	) {
 		t.Fatalf("README.md content missing expected latest Go guidance:\n%s", readme)
 	}
-	if containsAny(readme, "{{", "}}", "Python 3.11+", ".venv", "setup.sh", "setup.ps1", "├── i18n/", "├── search/", "├── tools/") {
+	if containsAny(readme, "{{", "}}", "Python 3.11+", ".venv", "setup.sh", "setup.ps1", "├── i18n/", "├── search/", "├── tools/", "wiki/documents/", "wiki/changes/", "raw/api/", "raw/code-summaries/", "raw/postmortems/") {
 		t.Fatalf("README.md still contains unresolved placeholders or outdated paths:\n%s", readme)
 	}
 
@@ -221,13 +245,18 @@ func TestGenerateProjectRendersLatestRuntimeTemplates(t *testing.T) {
 				"devwiki-sample-project/",
 				"当前项目根的桥接运行时文件会要求 agent 在处理 DevWiki 任务前先阅读 `./devwiki-sample-project/"+tc.runtimeFile+"`",
 				"使用 `zatools devwiki init` 初始化 DevWiki 工作区",
-				"wiki/documents/{doc-type}/{slug}.md",
+				"wiki/capabilities/{slug}.md",
+				"wiki/features/{slug}.md",
+				"raw/requirements/",
+				"raw/designs/",
+				"raw/features/",
+				"raw/tests/",
 				"├── config/",
 				"└── wiki/",
 			) {
 				t.Fatalf("%s content missing expected latest runtime guidance:\n%s", tc.runtimeFile, content)
 			}
-			if containsAny(content, "{{", "}}", "setup.sh", "setup.ps1", "i18n/", "project.yaml.example", "claude-settings.local.json.example", "codex-config.example.yaml", "search/", "tools/") {
+			if containsAny(content, "{{", "}}", "setup.sh", "setup.ps1", "i18n/", "project.yaml.example", "claude-settings.local.json.example", "codex-config.example.yaml", "search/", "tools/", "wiki/documents/{doc-type}/{slug}.md", "wiki/changes/{slug}.md", "raw/api/", "raw/code-summaries/", "raw/postmortems/") {
 				t.Fatalf("%s still contains unresolved placeholders or outdated paths:\n%s", tc.runtimeFile, content)
 			}
 		})
@@ -371,6 +400,165 @@ func TestExtractBuiltinSkillsMaterializesSharedReferencesIntoEachSkill(t *testin
 	}
 	if strings.Contains(content, "## zatools qmd Environment") || strings.Contains(content, "## zatools qmd 环境准备") {
 		t.Fatalf("qmd-sync skill should rely on shared qmd guidance instead of duplicating the section:\n%s", content)
+	}
+}
+
+func TestExtractBuiltinSkillsRenderDocFirstAskGuidance(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                string
+		lang                string
+		wantAskPhrases      []string
+		wantEvidencePhrases []string
+	}{
+		{
+			name: "zh",
+			lang: "zh",
+			wantAskPhrases: []string{
+				"只有当文档证据不足、问题明确要求实现核对，或你要做开发/变更定性时，才进入 Step 3",
+				"如果文档已经足够回答，就不要为了“更稳”再默认展开代码阅读",
+				"如需，我可以再基于代码做一次核对版汇总",
+			},
+			wantEvidencePhrases: []string{
+				"先用文档回答，再决定是否值得看代码",
+				"文档已经足够支撑答案",
+				"默认不要为了“保险”再做一轮代码展开",
+			},
+		},
+		{
+			name: "en",
+			lang: "en",
+			wantAskPhrases: []string{
+				"Only enter Step 3 when the documents do not settle the question, the user explicitly asks about implementation reality, or the task is a development / change request",
+				"If the documents already answer the question, do not expand into code just to feel safer",
+				"If useful, I can run a second pass against the code and give you an implementation-verified summary",
+			},
+			wantEvidencePhrases: []string{
+				"answer from documents first, then decide whether code is worth opening",
+				"the documents already support the answer",
+				"do not perform another code-expansion pass just for reassurance",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			root, cleanup, err := ExtractBuiltinSkills(tc.lang)
+			if err != nil {
+				t.Fatalf("ExtractBuiltinSkills error = %v", err)
+			}
+			defer cleanup()
+
+			askData, err := os.ReadFile(filepath.Join(root, "ask", "SKILL.md"))
+			if err != nil {
+				t.Fatalf("ReadFile(ask/SKILL.md) error = %v", err)
+			}
+			if !containsAll(string(askData), tc.wantAskPhrases...) {
+				t.Fatalf("ask/SKILL.md missing doc-first guidance:\n%s", string(askData))
+			}
+
+			evidenceData, err := os.ReadFile(filepath.Join(root, "ask", "references", "evidence-grounding.md"))
+			if err != nil {
+				t.Fatalf("ReadFile(ask/references/evidence-grounding.md) error = %v", err)
+			}
+			if !containsAll(string(evidenceData), tc.wantEvidencePhrases...) {
+				t.Fatalf("evidence-grounding.md missing doc-first guidance:\n%s", string(evidenceData))
+			}
+		})
+	}
+}
+
+func TestExtractBuiltinSkillsUseCapabilitiesFeaturesModel(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name            string
+		lang            string
+		wantInitPhrases []string
+		wantAskPhrases  []string
+		unwantedPhrases []string
+	}{
+		{
+			name: "zh",
+			lang: "zh",
+			wantInitPhrases: []string{
+				"capabilities / features 骨架",
+				"wiki/features/*.md",
+				"wiki/capabilities/*.md",
+			},
+			wantAskPhrases: []string{
+				"wiki/features/*.md",
+				"相关 features",
+			},
+			unwantedPhrases: []string{
+				"wiki/documents/**/*.md",
+				"wiki/changes/*.md",
+				"raw/api",
+				"raw/code-summaries",
+				"raw/postmortems",
+			},
+		},
+		{
+			name: "en",
+			lang: "en",
+			wantInitPhrases: []string{
+				"capabilities / features skeleton",
+				"wiki/features/*.md",
+				"wiki/capabilities/*.md",
+			},
+			wantAskPhrases: []string{
+				"wiki/features/*.md",
+				"related features",
+			},
+			unwantedPhrases: []string{
+				"wiki/documents/**/*.md",
+				"wiki/changes/*.md",
+				"raw/api",
+				"raw/code-summaries",
+				"raw/postmortems",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			root, cleanup, err := ExtractBuiltinSkills(tc.lang)
+			if err != nil {
+				t.Fatalf("ExtractBuiltinSkills error = %v", err)
+			}
+			defer cleanup()
+
+			initData, err := os.ReadFile(filepath.Join(root, "init", "SKILL.md"))
+			if err != nil {
+				t.Fatalf("ReadFile(init/SKILL.md) error = %v", err)
+			}
+			initContent := string(initData)
+			if !containsAll(initContent, tc.wantInitPhrases...) {
+				t.Fatalf("init/SKILL.md missing capabilities/features guidance:\n%s", initContent)
+			}
+
+			askData, err := os.ReadFile(filepath.Join(root, "ask", "SKILL.md"))
+			if err != nil {
+				t.Fatalf("ReadFile(ask/SKILL.md) error = %v", err)
+			}
+			askContent := string(askData)
+			if !containsAll(askContent, tc.wantAskPhrases...) {
+				t.Fatalf("ask/SKILL.md missing features-first guidance:\n%s", askContent)
+			}
+
+			for _, unwanted := range tc.unwantedPhrases {
+				if strings.Contains(initContent, unwanted) || strings.Contains(askContent, unwanted) {
+					t.Fatalf("unexpected legacy phrase %q still present in extracted skills", unwanted)
+				}
+			}
+		})
 	}
 }
 

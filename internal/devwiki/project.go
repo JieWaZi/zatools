@@ -166,17 +166,7 @@ func ensureRepoLayout(root string) error {
 		}
 	}
 
-	for _, name := range rawDirNames {
-		dir := filepath.Join(root, "wiki", "documents", name)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return err
-		}
-		if err := ensureGitkeep(dir); err != nil {
-			return err
-		}
-	}
-
-	for _, name := range []string{"capabilities", "changes"} {
+	for _, name := range []string{"capabilities", "features", "outputs", "graph"} {
 		dir := filepath.Join(root, "wiki", name)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err

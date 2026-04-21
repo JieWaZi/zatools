@@ -1,131 +1,94 @@
 ---
 name: "devwiki-reset"
-description: "Use when DevWiki generated content must be cleared by scope, failed initialization left residue behind, or a clean workspace is needed before running init or ingest again."
-argument-hint: "--scope wiki|raw|log|checkpoints|all [--project-root <devwiki-root>]"
+description: "Use when resetting generated DevWiki content under controlled scopes such as wiki, raw, log, or checkpoints."
+argument-hint: "[scope list]"
 ---
 
 # /devwiki-reset
 
 > Read the shared constraints first:
 > - `references/evidence-grounding.md`
-> - `references/mutation-safety.md`
+> - `references/zatools-qmd.md`
+> - If the task writes, reclassifies, or performs destructive actions, also read `references/mutation-safety.md`
 
-> Reset DevWiki by scope. `/devwiki-reset` is destructive and must always show a dry-run plan before execution.
+
+> Reset generated DevWiki content in bounded scopes. Prefer preview-first; destructive actions require explicit confirmation.
 
 ## Inputs
 
-- `--scope`: required, one of `wiki`, `raw`, `log`, `checkpoints`, `all`
-- `--project-root`: optional; use `.` when the current directory is already the DevWiki workspace
-- the current `raw/` and `wiki/` trees
+- `scope` — comma-separated scope list: `wiki`, `raw`, `log`, `checkpoints`, or `all`
+- optional `--dry-run` — preview only
+- optional `--yes` — confirm the reset
 
 ## Outputs
 
-- a dry-run deletion and reset plan
-- an execution summary after user confirmation
-- optional reset entry in `wiki/log.md`
+- reset plan
+- optional applied reset result
+- appended reset log in `wiki/log.md`
 
 ## DevWiki Interaction
 
 ### Reads
 
-- `raw/`
-- `wiki/documents/`
 - `wiki/capabilities/`
-- `wiki/changes/`
+- `wiki/features/`
 - `wiki/outputs/`
 - `wiki/graph/`
+- `wiki/index.md`
+- `wiki/log.md`
+- `raw/*/`
 - `wiki/.checkpoints/`
 
 ### Writes
 
-- DELETE files selected under `raw/`
-- DELETE generated files under `wiki/documents/`, `wiki/capabilities/`, `wiki/changes/`, `wiki/outputs/`, and `wiki/graph/`
+- DELETE generated files under `wiki/capabilities/`, `wiki/features/`, `wiki/outputs/`, and `wiki/graph/`
+- DELETE files under the selected `raw/` subdirectories
 - RESET `wiki/index.md`
-- optionally RESET `wiki/log.md`
+- RESET `wiki/log.md` only when the `log` scope is selected
+
 
 ## Workflow
 
-### Step 1: Normalize the scope and run dry-run
+### Step 1: Build the reset plan
 
-Normalize the requested scope, then run:
+1. Expand `all` into `wiki,raw,log,checkpoints`
+2. Collect candidate deletions
+3. Never delete `.gitkeep`
+4. Treat missing files as no-op, not failure
 
-```bash
-zatools devwiki tool reset --scope <scope> --project-root <devwiki-root>
-```
+### Step 2: Show the plan
 
-This prints a plan only. It must not delete anything yet. Show `delete` and `reset` separately.
+The preview must list:
 
-### Step 2: Explain the risk
+- selected scopes
+- delete targets
+- reset targets
+- whether the run is dry-run or executable
 
-Explain what each scope means:
+### Step 3: Confirm destructive execution
 
-- `wiki`: clear generated knowledge pages and outputs while preserving the scaffold
-- `raw`: clear raw source material and is the highest-risk option
-- `log`: reset `wiki/log.md`
-- `checkpoints`: clear intermediate state
-- `all`: everything above
+1. If `--dry-run`, do not write anything
+2. If the run would delete files and `--yes` was not provided, stop at the plan
+3. Only apply the reset after explicit confirmation
 
-If the scope includes `raw` or `all`, explicitly warn that deleting `raw/` is usually irreversible.
+### Step 4: Apply the reset
 
-### Step 3: Wait for explicit confirmation
+After confirmation:
 
-Never execute before confirmation. Use wording like:
-
-```text
-About to delete N files and reset M files for scope=<scope>. Confirm before continuing.
-```
-
-Only proceed after the user explicitly confirms.
-
-### Step 4: Execute the reset
-
-After confirmation, run:
-
-```bash
-zatools devwiki tool reset --scope <scope> --project-root <devwiki-root> --yes
-```
-
-Read the result and verify:
-
-- which files were actually deleted
-- which files were actually reset
-- whether the counts match the plan
-
-### Step 5: Append a reset log
-
-If the scope did not include `log`, append a low-risk log entry:
-
-```bash
-zatools devwiki tool log --wiki-root <devwiki-root>/wiki --message "reset | scope=<scope>"
-```
-
-### Step 6: Suggest next steps
-
-Tailor the next step to the scope:
-
-- if `raw/` was cleared: ask the user to restore source documents first
-- if only `wiki` was cleared: suggest `/devwiki-init` or `/devwiki-ingest`
-- if only `checkpoints` was cleared: suggest resuming the previous ingest or refresh flow
-
-Common follow-ups:
-
-- `/devwiki-init`
-- `/devwiki-ingest`
-- `/devwiki-setup`
+1. delete the planned files
+2. rewrite `wiki/index.md` with the baseline template when the `wiki` scope is selected
+3. rewrite `wiki/log.md` with the baseline template when the `log` scope is selected
+4. append a dated reset summary to the surviving log when possible
 
 ## Constraints
 
-- **Dry-run, then confirm, then execute**: never skip the plan stage
-- **Do not call `--yes` without explicit confirmation**
-- **Preserve scaffold markers**: do not delete `.gitkeep`
-- **Do not touch installation state**: never modify project-root `.agents/` or `.zatools-lock.json`
-- **`raw/` is high risk**: any scope including `raw` requires an extra warning
-- **Results must be explainable**: report deletes and resets separately instead of saying “cleared”
+- **Preview-first**: do not apply deletions implicitly
+- **Do not delete `.gitkeep`**: keep the directory skeleton stable
+- **Scope must stay bounded**: do not expand beyond the selected scopes
+- **raw resets are destructive**: confirm before deleting source material
 
 ## Error Handling
 
-- **Missing or invalid scope**: print valid values and stop instead of guessing
-- **`zatools devwiki tool reset` fails**: report the failure and do not replace it with ad-hoc bulk deletes
-- **Missing `wiki/` or `raw/`**: produce an empty or partial plan and explain why
-- **Log append failure**: report a warning without hiding the main reset result
-- **User cancels confirmation**: clearly state that only a dry-run happened and nothing was modified
+- **unknown scope**: report valid scopes and stop
+- **scope omitted**: ask for a concrete scope
+- **path already missing**: treat as no-op

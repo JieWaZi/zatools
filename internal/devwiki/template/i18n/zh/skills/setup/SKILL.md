@@ -34,6 +34,7 @@ argument-hint: "[<project-name>] [--agent codex|cursor|claude --lang zh|en --cod
 - 项目级安装时：当前项目根下的 `.agents/` 与 `.zatools-lock.json`
 - 全局安装时：用户主目录下的技能安装与锁文件
 - 可选：`zatools qmd` 的注册结果或可手动执行的命令
+- 可选：初始化结束后提示用户手动执行 `zatools qmd download --root .`
 - 可选：若工作区已存在，可转给 `devwiki-qmd-sync`
 
 ## DevWiki Interaction
@@ -114,6 +115,12 @@ zatools qmd sync --root <devwiki-root> --apply
 ```bash
 zatools qmd update
 zatools qmd status
+```
+
+如果用户还想手动下载 qmd models，可在 DevWiki 工作区内执行：
+
+```bash
+zatools qmd download --root .
 ```
 
 如果 `status` 显示仍有大量 pending embeddings，且后续任务明确依赖更高质量语义召回，再询问用户是否继续执行：

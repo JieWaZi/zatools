@@ -27,8 +27,8 @@ func TestBuildResetPlanSkipsGitkeepAndTargetsExpectedFiles(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
-	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", "documents", "requirements", ".gitkeep"), "")
-	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", "documents", "requirements", "note.md"), "# note\n")
+	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", "features", ".gitkeep"), "")
+	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", "features", "note.md"), "# note\n")
 	mustWriteDevwikiFile(t, filepath.Join(root, "raw", "requirements", ".gitkeep"), "")
 	mustWriteDevwikiFile(t, filepath.Join(root, "raw", "requirements", "spec.md"), "# spec\n")
 	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", ".checkpoints", "checkpoint.json"), "{}")
@@ -38,11 +38,11 @@ func TestBuildResetPlanSkipsGitkeepAndTargetsExpectedFiles(t *testing.T) {
 		t.Fatalf("BuildResetPlan error = %v", err)
 	}
 
-	if containsString(plan.Delete, filepath.Join(root, "wiki", "documents", "requirements", ".gitkeep")) {
+	if containsString(plan.Delete, filepath.Join(root, "wiki", "features", ".gitkeep")) {
 		t.Fatal("plan should not delete .gitkeep files")
 	}
-	if !containsString(plan.Delete, filepath.Join(root, "wiki", "documents", "requirements", "note.md")) {
-		t.Fatal("plan should delete wiki documents")
+	if !containsString(plan.Delete, filepath.Join(root, "wiki", "features", "note.md")) {
+		t.Fatal("plan should delete wiki features")
 	}
 	if !containsString(plan.Delete, filepath.Join(root, "raw", "requirements", "spec.md")) {
 		t.Fatal("plan should delete raw documents")
@@ -59,7 +59,7 @@ func TestApplyResetPlanDeletesFilesAndRewritesTemplates(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
-	deletePath := filepath.Join(root, "wiki", "documents", "requirements", "note.md")
+	deletePath := filepath.Join(root, "wiki", "features", "note.md")
 	indexPath := filepath.Join(root, "wiki", "index.md")
 	logPath := filepath.Join(root, "wiki", "log.md")
 	mustWriteDevwikiFile(t, deletePath, "# note\n")
