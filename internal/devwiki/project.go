@@ -21,6 +21,8 @@ var slugPattern = regexp.MustCompile(`[^a-z0-9]+`)
 const (
 	runtimeBridgeStartMarker = "<!-- zatools:devwiki-runtime:start -->"
 	runtimeBridgeEndMarker   = "<!-- zatools:devwiki-runtime:end -->"
+	codeLinkStartMarker      = "<!-- zatools:devwiki-link:start -->"
+	codeLinkEndMarker        = "<!-- zatools:devwiki-link:end -->"
 )
 
 // CodeRepo 描述一个注册到 DevWiki 配置中的代码仓条目。
@@ -89,14 +91,20 @@ func BuiltinSkillsPath(lang string) string {
 	return path.Join("template", "i18n", lang, "skills")
 }
 
-// GenerateProject 把内置模板渲染成一个独立的 DevWiki 工程目录。
+// GenerateProject 把内置模板渲染到指定 DevWiki 工程目录。
 func GenerateProject(target string, spec ProjectSpec) error {
 	if strings.TrimSpace(target) == "" {
 		return fmt.Errorf("target directory is empty")
 	}
-	if _, err := os.Stat(target); err == nil {
-		return fmt.Errorf("%s already exists", target)
-	} else if !os.IsNotExist(err) {
+	if info, err := os.Stat(target); err == nil {
+		if !info.IsDir() {
+			return fmt.Errorf("%s already exists and is not a directory", target)
+		}
+	} else if os.IsNotExist(err) {
+		if err := os.MkdirAll(target, 0o755); err != nil {
+			return err
+		}
+	} else {
 		return err
 	}
 	if err := ensureRepoLayout(target); err != nil {
@@ -166,7 +174,7 @@ func ensureRepoLayout(root string) error {
 		}
 	}
 
-	for _, name := range []string{"capabilities", "features", "outputs", "graph"} {
+	for _, name := range []string{"capabilities", "features", "workflows", "troubleshooting", "outputs"} {
 		dir := filepath.Join(root, "wiki", name)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
@@ -177,6 +185,12 @@ func ensureRepoLayout(root string) error {
 	}
 
 	if err := os.WriteFile(filepath.Join(root, "wiki", "index.md"), []byte("# Wiki Index\n"), 0o644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(root, "wiki", "relations.yml"), []byte("relations: {}\n"), 0o644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(root, "wiki", "glossary.md"), []byte("# Glossary\n"), 0o644); err != nil {
 		return err
 	}
 	return os.WriteFile(filepath.Join(root, "wiki", "log.md"), []byte("# Wiki Log\n\n> Append-only chronological log.\n"), 0o644)
@@ -238,14 +252,7 @@ func writeSearchConfig(root string, spec ProjectSpec) error {
 		Path string `yaml:"path"`
 	}
 	collections := []collection{
-		{Name: fmt.Sprintf("devwiki-%s-raw", spec.ProjectSlug), Path: "raw"},
 		{Name: fmt.Sprintf("devwiki-%s-wiki", spec.ProjectSlug), Path: "wiki"},
-	}
-	for _, repo := range spec.CodeRepos {
-		collections = append(collections, collection{
-			Name: fmt.Sprintf("devwiki-%s-code-%s", spec.ProjectSlug, repo.Slug),
-			Path: repo.Path,
-		})
 	}
 	content := map[string]any{
 		"qmd": map[string]any{
@@ -288,7 +295,7 @@ func renderProjectDoc(spec ProjectSpec, name string) (string, error) {
 	replacer := strings.NewReplacer(
 		"{{PROJECT_NAME}}", spec.ProjectName,
 		"{{PROJECT_SLUG}}", spec.ProjectSlug,
-		"{{WORKSPACE_DIR}}", "devwiki-"+spec.ProjectSlug,
+		"{{WORKSPACE_DIR}}", ".",
 		"{{AGENT}}", spec.Agent,
 		"{{LANG}}", spec.Lang,
 		"{{PRIMARY_CODE_DIR}}", primaryRepo.Path,
@@ -298,6 +305,86 @@ func renderProjectDoc(spec ProjectSpec, name string) (string, error) {
 		"{{RUNTIME_ENTRY}}", runtimeEntry,
 	)
 	return replacer.Replace(string(data)), nil
+}
+
+// EnsureCodeRepoDevwikiLink writes managed DevWiki association text into a code repository.
+func EnsureCodeRepoDevwikiLink(codeRoot string, devwikiRoot string, agent string, lang string) error {
+	runtimeFile, err := runtimeFilenameForAgent(agent)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(codeRoot, 0o755); err != nil {
+		return err
+	}
+
+	devwikiRoot, err = filepath.Abs(devwikiRoot)
+	if err != nil {
+		return err
+	}
+	codeRoot, err = filepath.Abs(codeRoot)
+	if err != nil {
+		return err
+	}
+	runtimePath := filepath.Join(devwikiRoot, runtimeFile)
+	block := renderCodeRepoDevwikiLinkBlock(devwikiRoot, runtimePath, lang)
+	wrote := false
+	for _, filename := range []string{"AGENTS.md", "CLAUDE.md"} {
+		targetPath := filepath.Join(codeRoot, filename)
+		if _, err := os.Stat(targetPath); err == nil {
+			if err := upsertManagedFileBlock(targetPath, block, lang); err != nil {
+				return err
+			}
+			wrote = true
+		} else if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	if wrote {
+		return nil
+	}
+	return upsertManagedFileBlock(filepath.Join(codeRoot, "AGENTS.md"), block, lang)
+}
+
+func renderCodeRepoDevwikiLinkBlock(devwikiRoot string, runtimePath string, lang string) string {
+	if lang == "en" {
+		return strings.Join([]string{
+			codeLinkStartMarker,
+			"## Linked DevWiki",
+			fmt.Sprintf("DevWiki document root: `%s`.", devwikiRoot),
+			fmt.Sprintf("Before answering project-knowledge questions or running `devwiki-query` / `devwiki-code-to-doc` from this code repository, read `%s`.", runtimePath),
+			"Use the linked DevWiki root for `wiki/`, `raw/`, `config/search.yaml`, and `wiki/outputs/` writes.",
+			"`devwiki-code-to-doc` must write generated workflow/code-location pages under the linked DevWiki root, not in this code repository.",
+			codeLinkEndMarker,
+			"",
+		}, "\n")
+	}
+
+	return strings.Join([]string{
+		codeLinkStartMarker,
+		"## 关联 DevWiki",
+		fmt.Sprintf("DevWiki 文档库根目录：`%s`。", devwikiRoot),
+		fmt.Sprintf("在本代码库回答项目知识问题，或使用 `devwiki-query` / `devwiki-code-to-doc` 前，必须先阅读 `%s`。", runtimePath),
+		"查询时以关联 DevWiki 根目录下的 `wiki/`、`raw/`、`config/search.yaml` 为知识来源。",
+		"`devwiki-code-to-doc` 生成的 workflow / 代码定位页面必须写入关联 DevWiki 文档库，不要写入本代码库。",
+		codeLinkEndMarker,
+		"",
+	}, "\n")
+}
+
+func upsertManagedFileBlock(targetPath string, block string, lang string) error {
+	data, err := os.ReadFile(targetPath)
+	if os.IsNotExist(err) {
+		title := "# Repository Runtime\n\n"
+		if lang != "en" {
+			title = "# 仓库运行时入口\n\n"
+		}
+		return os.WriteFile(targetPath, []byte(title+block), 0o644)
+	}
+	if err != nil {
+		return err
+	}
+	updated := upsertDelimitedBlock(string(data), block, codeLinkStartMarker, codeLinkEndMarker)
+	return os.WriteFile(targetPath, []byte(updated), 0o644)
 }
 
 // EnsureProjectRuntimeBridge ensures the project root runtime file points agents at the generated DevWiki runtime file.
@@ -372,7 +459,11 @@ func renderNewRuntimeBridgeFile(block string, lang string) string {
 }
 
 func upsertRuntimeBridgeBlock(content string, block string) string {
-	start := strings.Index(content, runtimeBridgeStartMarker)
+	return upsertDelimitedBlock(content, block, runtimeBridgeStartMarker, runtimeBridgeEndMarker)
+}
+
+func upsertDelimitedBlock(content string, block string, startMarker string, endMarker string) string {
+	start := strings.Index(content, startMarker)
 	if start == -1 {
 		content = strings.TrimRight(content, "\n")
 		if content != "" {
@@ -381,7 +472,7 @@ func upsertRuntimeBridgeBlock(content string, block string) string {
 		return content + block
 	}
 
-	end := strings.Index(content[start:], runtimeBridgeEndMarker)
+	end := strings.Index(content[start:], endMarker)
 	if end == -1 {
 		content = strings.TrimRight(content[:start], "\n")
 		if content != "" {
@@ -390,7 +481,7 @@ func upsertRuntimeBridgeBlock(content string, block string) string {
 		return content + block
 	}
 
-	end += start + len(runtimeBridgeEndMarker)
+	end += start + len(endMarker)
 	prefix := strings.TrimRight(content[:start], "\n")
 	suffix := strings.TrimLeft(content[end:], "\n")
 

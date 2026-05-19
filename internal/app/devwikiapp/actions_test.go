@@ -14,7 +14,7 @@ import (
 	"zatools/internal/skills"
 )
 
-func TestResolveTargetDirUsesDetectedProjectRoot(t *testing.T) {
+func TestResolveTargetDirUsesCurrentWorkingDirectory(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
@@ -29,12 +29,15 @@ func TestResolveTargetDirUsesDetectedProjectRoot(t *testing.T) {
 		IsTTY:     false,
 	})
 
-	target, err := service.resolveTargetDir("Sample Project")
+	target, err := service.resolveTargetDir()
 	if err != nil {
 		t.Fatalf("resolveTargetDir error = %v", err)
 	}
 
-	want := filepath.Join(root, "devwiki-sample-project")
+	want, err := filepath.Abs(child)
+	if err != nil {
+		t.Fatalf("Abs(child) error = %v", err)
+	}
 	if target != want {
 		t.Fatalf("target = %q, want %q", target, want)
 	}
@@ -99,8 +102,8 @@ func TestResolveSelectedSkillsDefaultsToAllInNonTTYMode(t *testing.T) {
 	})
 
 	found := []skills.Skill{
-		{Name: "devwiki-setup", Description: "setup"},
-		{Name: "devwiki-init", Description: "init"},
+		{Name: "devwiki-project-router", Description: "router"},
+		{Name: "devwiki-ingest", Description: "ingest"},
 	}
 
 	selected, err := service.resolveSelectedSkills(found, InitOptions{})
@@ -126,23 +129,23 @@ func TestInstallSelectedSkillsWritesIntoCurrentProjectRootByDefault(t *testing.T
 		t.Fatalf("MkdirAll(target) error = %v", err)
 	}
 
-	sourceDir := filepath.Join(root, "builtin-skills", "devwiki-setup")
+	sourceDir := filepath.Join(root, "builtin-skills", "devwiki-project-router")
 	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll(sourceDir) error = %v", err)
 	}
-	mustWriteFileDevwikiApp(t, filepath.Join(sourceDir, "SKILL.md"), "---\nname: devwiki-setup\ndescription: setup\n---\n")
+	mustWriteFileDevwikiApp(t, filepath.Join(sourceDir, "SKILL.md"), "---\nname: devwiki-project-router\ndescription: router\n---\n")
 
 	err := service.installSelectedSkills(root, "codex", false, "zh", []skills.Skill{
-		{Name: "devwiki-setup", Description: "setup", Dir: sourceDir, RelativeDir: "."},
+		{Name: "devwiki-project-router", Description: "router", Dir: sourceDir, RelativeDir: "."},
 	})
 	if err != nil {
 		t.Fatalf("installSelectedSkills error = %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(root, ".agents", "skills", "devwiki-setup", "SKILL.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, ".agents", "skills", "devwiki-project-router", "SKILL.md")); err != nil {
 		t.Fatalf("missing installed skill: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(target, ".agents", "skills", "devwiki-setup", "SKILL.md")); err == nil {
+	if _, err := os.Stat(filepath.Join(target, ".agents", "skills", "devwiki-project-router", "SKILL.md")); err == nil {
 		t.Fatal("generated devwiki project should not receive project-scope installed skills")
 	}
 
@@ -150,22 +153,19 @@ func TestInstallSelectedSkillsWritesIntoCurrentProjectRootByDefault(t *testing.T
 	if err != nil {
 		t.Fatalf("LoadLock error = %v", err)
 	}
-	entry := lock.Entries(skills.SkillAsset)["devwiki-setup"]
+	entry := lock.Entries(skills.SkillAsset)["devwiki-project-router"]
 	if entry.Source != "zatools/devwiki#zh" {
 		t.Fatalf("Source = %q, want %q", entry.Source, "zatools/devwiki#zh")
 	}
 }
 
 func TestInitCreatesProjectAndInstallsCodexSkillsIntoCurrentProjectRoot(t *testing.T) {
-	root := t.TempDir()
-	mustWriteFileDevwikiApp(t, filepath.Join(root, "go.mod"), "module example\n")
-	child := filepath.Join(root, "nested", "work")
-	if err := os.MkdirAll(child, 0o755); err != nil {
-		t.Fatalf("MkdirAll(child) error = %v", err)
-	}
+	docRoot := t.TempDir()
+	codeRoot := t.TempDir()
+	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
 
 	service := NewServiceWithRuntime(common.Runtime{
-		Workspace: skills.NewWorkspace(child),
+		Workspace: skills.NewWorkspace(docRoot),
 		IsTTY:     false,
 	})
 
@@ -173,30 +173,40 @@ func TestInitCreatesProjectAndInstallsCodexSkillsIntoCurrentProjectRoot(t *testi
 		ProjectName: "Sample Project",
 		Agent:       "codex",
 		Lang:        "zh",
-		CodeDirs:    []string{root},
+		CodeDirs:    []string{codeRoot},
 		Yes:         true,
 	})
 	if err != nil {
 		t.Fatalf("Init error = %v", err)
 	}
 
-	target := filepath.Join(root, "devwiki-sample-project")
 	for _, rel := range []string{
 		"README.md",
 		"AGENTS.md",
 		"config/project.yaml",
+		"wiki/index.md",
+		"wiki/relations.yml",
 	} {
-		if _, err := os.Stat(filepath.Join(target, rel)); err != nil {
+		if _, err := os.Stat(filepath.Join(docRoot, rel)); err != nil {
 			t.Fatalf("missing %s: %v", rel, err)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(target, "CLAUDE.md")); err == nil {
+	if _, err := os.Stat(filepath.Join(docRoot, "CLAUDE.md")); err == nil {
 		t.Fatal("codex init should not generate CLAUDE.md")
 	}
-	if _, err := os.Stat(filepath.Join(root, ".agents", "skills", "devwiki-setup", "SKILL.md")); err != nil {
-		t.Fatalf("missing installed project-scope skill: %v", err)
+	for _, rel := range []string{
+		".agents/skills/devwiki-project-router/SKILL.md",
+		".agents/skills/devwiki-ingest/SKILL.md",
+		".agents/skills/devwiki-maintain/SKILL.md",
+		".agents/skills/devwiki-query/SKILL.md",
+		".agents/skills/devwiki-code-to-doc/SKILL.md",
+		".agents/skills/devwiki-qmd-sync/SKILL.md",
+	} {
+		if _, err := os.Stat(filepath.Join(docRoot, rel)); err != nil {
+			t.Fatalf("missing doc-root installed skill %s: %v", rel, err)
+		}
 	}
-	gitignoreData, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	gitignoreData, err := os.ReadFile(filepath.Join(docRoot, ".gitignore"))
 	if err != nil {
 		t.Fatalf("ReadFile(.gitignore) error = %v", err)
 	}
@@ -206,44 +216,33 @@ func TestInitCreatesProjectAndInstallsCodexSkillsIntoCurrentProjectRoot(t *testi
 			t.Fatalf(".gitignore missing %q:\n%s", want, gitignore)
 		}
 	}
-	rootAgentsData, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
-	if err != nil {
-		t.Fatalf("ReadFile(root AGENTS.md) error = %v", err)
-	}
-	rootAgents := string(rootAgentsData)
-	if !strings.Contains(rootAgents, "./devwiki-sample-project/AGENTS.md") {
-		t.Fatalf("root AGENTS.md missing DevWiki runtime bridge:\n%s", rootAgents)
-	}
-	if _, err := os.Stat(filepath.Join(root, ".zatools-lock.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(docRoot, ".zatools-lock.json")); err != nil {
 		t.Fatalf("missing project lock file: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(target, ".agents")); err == nil {
-		t.Fatal("generated devwiki project should not own project-scope .agents")
+	if _, err := os.Stat(filepath.Join(codeRoot, "AGENTS.md")); err == nil {
+		t.Fatal("init should not create code repo AGENTS.md")
 	}
-	if _, err := os.Stat(filepath.Join(target, ".zatools-lock.json")); err == nil {
-		t.Fatal("generated devwiki project should not own project-scope lock file")
+	if _, err := os.Stat(filepath.Join(codeRoot, ".agents")); err == nil {
+		t.Fatal("init should not install code repo skills")
 	}
 
-	lock, err := skills.LoadLock(filepath.Join(root, skills.LockFileName))
+	lock, err := skills.LoadLock(filepath.Join(docRoot, skills.LockFileName))
 	if err != nil {
 		t.Fatalf("LoadLock error = %v", err)
 	}
-	entry := lock.Entries(skills.SkillAsset)["devwiki-setup"]
+	entry := lock.Entries(skills.SkillAsset)["devwiki-project-router"]
 	if entry.Source != "zatools/devwiki#zh" {
 		t.Fatalf("Source = %q, want %q", entry.Source, "zatools/devwiki#zh")
 	}
 }
 
 func TestInitCreatesProjectAndInstallsCursorSkillsIntoCurrentProjectRoot(t *testing.T) {
-	root := t.TempDir()
-	mustWriteFileDevwikiApp(t, filepath.Join(root, "go.mod"), "module example\n")
-	child := filepath.Join(root, "nested", "work")
-	if err := os.MkdirAll(child, 0o755); err != nil {
-		t.Fatalf("MkdirAll(child) error = %v", err)
-	}
+	docRoot := t.TempDir()
+	codeRoot := t.TempDir()
+	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
 
 	service := NewServiceWithRuntime(common.Runtime{
-		Workspace: skills.NewWorkspace(child),
+		Workspace: skills.NewWorkspace(docRoot),
 		IsTTY:     false,
 	})
 
@@ -251,24 +250,23 @@ func TestInitCreatesProjectAndInstallsCursorSkillsIntoCurrentProjectRoot(t *test
 		ProjectName: "Sample Project",
 		Agent:       "cursor",
 		Lang:        "zh",
-		CodeDirs:    []string{root},
+		CodeDirs:    []string{codeRoot},
 		Yes:         true,
 	})
 	if err != nil {
 		t.Fatalf("Init error = %v", err)
 	}
 
-	target := filepath.Join(root, "devwiki-sample-project")
-	if _, err := os.Stat(filepath.Join(target, "AGENTS.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(docRoot, "AGENTS.md")); err != nil {
 		t.Fatalf("missing AGENTS.md for cursor runtime: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(target, "CLAUDE.md")); err == nil {
+	if _, err := os.Stat(filepath.Join(docRoot, "CLAUDE.md")); err == nil {
 		t.Fatal("cursor init should not generate CLAUDE.md")
 	}
-	if _, err := os.Stat(filepath.Join(root, ".cursor", "skills", "devwiki-setup", "SKILL.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(docRoot, ".cursor", "skills", "devwiki-project-router", "SKILL.md")); err != nil {
 		t.Fatalf("missing installed cursor-scope skill: %v", err)
 	}
-	gitignoreData, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	gitignoreData, err := os.ReadFile(filepath.Join(docRoot, ".gitignore"))
 	if err != nil {
 		t.Fatalf("ReadFile(.gitignore) error = %v", err)
 	}
@@ -278,25 +276,18 @@ func TestInitCreatesProjectAndInstallsCursorSkillsIntoCurrentProjectRoot(t *test
 			t.Fatalf(".gitignore missing %q:\n%s", want, gitignore)
 		}
 	}
-	rootAgentsData, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
-	if err != nil {
-		t.Fatalf("ReadFile(root AGENTS.md) error = %v", err)
-	}
-	if !strings.Contains(string(rootAgentsData), "./devwiki-sample-project/AGENTS.md") {
-		t.Fatalf("root AGENTS.md missing cursor DevWiki runtime bridge:\n%s", string(rootAgentsData))
+	if _, err := os.Stat(filepath.Join(codeRoot, "AGENTS.md")); err == nil {
+		t.Fatal("cursor init should not create code repo AGENTS.md")
 	}
 }
 
 func TestInitDoesNotRequireFinalConfirmationPrompt(t *testing.T) {
-	root := t.TempDir()
-	mustWriteFileDevwikiApp(t, filepath.Join(root, "go.mod"), "module example\n")
-	child := filepath.Join(root, "nested", "work")
-	if err := os.MkdirAll(child, 0o755); err != nil {
-		t.Fatalf("MkdirAll(child) error = %v", err)
-	}
+	docRoot := t.TempDir()
+	codeRoot := t.TempDir()
+	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
 
 	service := NewServiceWithRuntime(common.Runtime{
-		Workspace: skills.NewWorkspace(child),
+		Workspace: skills.NewWorkspace(docRoot),
 		IsTTY:     false,
 	})
 
@@ -304,16 +295,18 @@ func TestInitDoesNotRequireFinalConfirmationPrompt(t *testing.T) {
 		ProjectName: "No Prompt Project",
 		Agent:       "codex",
 		Lang:        "zh",
-		CodeDirs:    []string{root},
+		CodeDirs:    []string{codeRoot},
 		Yes:         false,
 	})
 	if err != nil {
 		t.Fatalf("Init error = %v", err)
 	}
 
-	target := filepath.Join(root, "devwiki-no-prompt-project")
-	if _, err := os.Stat(filepath.Join(target, "README.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(docRoot, "README.md")); err != nil {
 		t.Fatalf("missing README.md after init without final confirmation: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(codeRoot, "AGENTS.md")); err == nil {
+		t.Fatal("init should not create code repo AGENTS.md")
 	}
 }
 
@@ -346,7 +339,57 @@ func TestInitDoesNotWarmQMDModelsAndPrintsManualDownloadHint(t *testing.T) {
 	}
 }
 
-func TestUpdateMigratesLegacyDevwikiSourcesAndOnlyRefreshesDevwikiSkills(t *testing.T) {
+func TestLinkAssociatesExistingDevwikiRootWithCodeRepository(t *testing.T) {
+	docRoot := t.TempDir()
+	codeRoot := t.TempDir()
+	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
+
+	if err := devwiki.GenerateProject(docRoot, devwiki.ProjectSpec{
+		ProjectName: "Linked Project",
+		ProjectSlug: "linked-project",
+		Agent:       "codex",
+		Lang:        "zh",
+		CodeRepos: []devwiki.CodeRepo{
+			{Name: "code", Slug: "code", Path: codeRoot, Default: true},
+		},
+	}); err != nil {
+		t.Fatalf("GenerateProject error = %v", err)
+	}
+
+	service := NewServiceWithRuntime(common.Runtime{
+		Workspace: skills.NewWorkspace(docRoot),
+		IsTTY:     false,
+	})
+
+	if err := service.Link(context.Background(), LinkOptions{
+		DevwikiRoot: docRoot,
+		Agent:       "codex",
+		Lang:        "zh",
+		CodeDirs:    []string{codeRoot},
+		Yes:         true,
+	}); err != nil {
+		t.Fatalf("Link error = %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(codeRoot, ".agents", "skills", "devwiki-query", "SKILL.md")); err != nil {
+		t.Fatalf("missing linked code repo query skill: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(codeRoot, ".agents", "skills", "devwiki-code-to-doc", "SKILL.md")); err != nil {
+		t.Fatalf("missing linked code repo code-to-doc skill: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(codeRoot, ".agents", "skills", "devwiki-project-router", "SKILL.md")); err == nil {
+		t.Fatal("link should not install full DevWiki skill set into code repo")
+	}
+	agentsData, err := os.ReadFile(filepath.Join(codeRoot, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(code AGENTS.md) error = %v", err)
+	}
+	if !containsAll(string(agentsData), docRoot, filepath.Join(docRoot, "AGENTS.md"), "devwiki-query", "devwiki-code-to-doc") {
+		t.Fatalf("code AGENTS.md missing DevWiki link guidance:\n%s", string(agentsData))
+	}
+}
+
+func TestUpdateRefreshesDevwikiSourcesAndLeavesOtherSkillsUntouched(t *testing.T) {
 	root := t.TempDir()
 	mustWriteFileDevwikiApp(t, filepath.Join(root, "go.mod"), "module example\n")
 	service := NewServiceWithRuntime(common.Runtime{
@@ -366,13 +409,13 @@ func TestUpdateMigratesLegacyDevwikiSourcesAndOnlyRefreshesDevwikiSkills(t *test
 	}
 	var selected []skills.Skill
 	for _, skill := range found {
-		if skill.Name == "devwiki-setup" {
+		if skill.Name == "devwiki-ingest" {
 			selected = append(selected, skill)
 			break
 		}
 	}
 	if len(selected) != 1 {
-		t.Fatalf("selected builtin skills = %#v, want devwiki-setup", selected)
+		t.Fatalf("selected builtin skills = %#v, want devwiki-ingest", selected)
 	}
 
 	if err := service.installSelectedSkills(root, "codex", false, "zh", selected); err != nil {
@@ -398,10 +441,10 @@ func TestUpdateMigratesLegacyDevwikiSourcesAndOnlyRefreshesDevwikiSkills(t *test
 	if err != nil {
 		t.Fatalf("LoadLock error = %v", err)
 	}
-	devEntry := lock.Entries(skills.SkillAsset)["devwiki-setup"]
-	devEntry.Source = filepath.Join(root, "tmp", "legacy-devwiki-setup")
+	devEntry := lock.Entries(skills.SkillAsset)["devwiki-ingest"]
+	devEntry.Source = filepath.Join(root, "tmp", "cached-devwiki-ingest")
 	devEntry.Hash = "stale-devwiki"
-	lock.Entries(skills.SkillAsset)["devwiki-setup"] = devEntry
+	lock.Entries(skills.SkillAsset)["devwiki-ingest"] = devEntry
 
 	customEntry := lock.Entries(skills.SkillAsset)["custom"]
 	customEntry.Hash = "stale-custom"
@@ -420,15 +463,99 @@ func TestUpdateMigratesLegacyDevwikiSourcesAndOnlyRefreshesDevwikiSkills(t *test
 	if err != nil {
 		t.Fatalf("LoadLock(updated) error = %v", err)
 	}
-	updatedDevEntry := updatedLock.Entries(skills.SkillAsset)["devwiki-setup"]
+	updatedDevEntry := updatedLock.Entries(skills.SkillAsset)["devwiki-ingest"]
 	if updatedDevEntry.Source != "zatools/devwiki#zh" {
 		t.Fatalf("updated devwiki source = %q, want %q", updatedDevEntry.Source, "zatools/devwiki#zh")
 	}
 	if updatedDevEntry.Hash == "stale-devwiki" {
 		t.Fatal("expected devwiki hash to refresh")
 	}
+	for _, rel := range []string{
+		".agents/skills/devwiki-ingest/references/capability_template.md",
+		".agents/skills/devwiki-ingest/references/feature_template.md",
+		".agents/skills/devwiki-ingest/references/workflow_template.md",
+	} {
+		if _, err := os.Stat(filepath.Join(root, rel)); err != nil {
+			t.Fatalf("updated devwiki ingest missing reference %s: %v", rel, err)
+		}
+	}
 	if updatedLock.Entries(skills.SkillAsset)["custom"].Hash != "stale-custom" {
 		t.Fatal("expected non-devwiki skill to remain untouched by devwiki update")
+	}
+}
+
+func TestUpdateInstallsMissingBuiltinSkillsInDevwikiRoot(t *testing.T) {
+	root := t.TempDir()
+	codeRoot := t.TempDir()
+	if err := devwiki.GenerateProject(root, devwiki.ProjectSpec{
+		ProjectName: "Sample",
+		ProjectSlug: "sample",
+		Agent:       "codex",
+		Lang:        "zh",
+		CodeRepos: []devwiki.CodeRepo{
+			{Name: "code", Slug: "code", Path: codeRoot, Default: true},
+		},
+	}); err != nil {
+		t.Fatalf("GenerateProject error = %v", err)
+	}
+
+	service := NewServiceWithRuntime(common.Runtime{
+		Workspace: skills.NewWorkspace(root),
+		IsTTY:     false,
+	})
+
+	builtinRoot, cleanup, err := devwiki.ExtractBuiltinSkills("zh")
+	if err != nil {
+		t.Fatalf("ExtractBuiltinSkills error = %v", err)
+	}
+	defer cleanup()
+
+	found, err := skills.Discover(builtinRoot)
+	if err != nil {
+		t.Fatalf("Discover builtin skills error = %v", err)
+	}
+	selected := make([]skills.Skill, 0, len(found)-1)
+	for _, skill := range found {
+		if skill.Name == "devwiki-maintain" {
+			continue
+		}
+		selected = append(selected, skill)
+	}
+	if len(selected) != len(found)-1 {
+		t.Fatalf("selected skills = %d, found = %d; expected only maintain to be omitted", len(selected), len(found))
+	}
+	if err := service.installSelectedSkills(root, "codex", false, "zh", selected); err != nil {
+		t.Fatalf("installSelectedSkills error = %v", err)
+	}
+
+	lockPath := filepath.Join(root, skills.LockFileName)
+	beforeLock, err := skills.LoadLock(lockPath)
+	if err != nil {
+		t.Fatalf("LoadLock(before) error = %v", err)
+	}
+	if _, ok := beforeLock.Entries(skills.SkillAsset)["devwiki-maintain"]; ok {
+		t.Fatal("test setup should not have devwiki-maintain installed")
+	}
+
+	if err := captureDevwikiStdout(t, func() error {
+		return service.Update(context.Background())
+	}); err != nil {
+		t.Fatalf("Service.Update error = %v", err)
+	}
+
+	afterLock, err := skills.LoadLock(lockPath)
+	if err != nil {
+		t.Fatalf("LoadLock(after) error = %v", err)
+	}
+	entry, ok := afterLock.Entries(skills.SkillAsset)["devwiki-maintain"]
+	if !ok {
+		t.Fatalf("expected devwiki update to install missing devwiki-maintain, got %#v", afterLock.Entries(skills.SkillAsset))
+	}
+	if entry.Source != "zatools/devwiki#zh" {
+		t.Fatalf("maintain Source = %q, want %q", entry.Source, "zatools/devwiki#zh")
+	}
+	if _, err := os.Stat(filepath.Join(root, ".agents", "skills", "devwiki-maintain", "SKILL.md")); err != nil {
+		t.Fatalf("missing installed devwiki-maintain skill: %v", err)
 	}
 }
 
@@ -478,4 +605,13 @@ func captureDevwikiStdoutText(t *testing.T, fn func() error, output *string) err
 	_ = reader.Close()
 	*output = string(data)
 	return runErr
+}
+
+func containsAll(text string, parts ...string) bool {
+	for _, part := range parts {
+		if !strings.Contains(text, part) {
+			return false
+		}
+	}
+	return true
 }

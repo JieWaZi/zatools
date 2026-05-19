@@ -17,6 +17,15 @@ type InitOptions struct {
 	Yes           bool
 }
 
+// LinkOptions 描述 `devwiki link` 的命令参数。
+type LinkOptions struct {
+	DevwikiRoot string
+	Agent       string
+	Lang        string
+	CodeDirs    []string
+	Yes         bool
+}
+
 // Service 编排 DevWiki 工程初始化与 runtime skill 安装。
 type Service struct {
 	runtime common.Runtime
@@ -42,4 +51,9 @@ func (s *Service) Init(ctx context.Context, opts InitOptions) error {
 // Update 更新当前作用域下已安装的 DevWiki builtin skills。
 func (s *Service) Update(ctx context.Context) error {
 	return s.updateSkills(ctx)
+}
+
+// Link 将已有 DevWiki 文档库关联到一个或多个代码库。
+func (s *Service) Link(ctx context.Context, opts LinkOptions) error {
+	return s.linkCodeRepositories(ctx, opts)
 }

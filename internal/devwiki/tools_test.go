@@ -29,6 +29,10 @@ func TestBuildResetPlanSkipsGitkeepAndTargetsExpectedFiles(t *testing.T) {
 	root := t.TempDir()
 	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", "features", ".gitkeep"), "")
 	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", "features", "note.md"), "# note\n")
+	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", "workflows", "flow.md"), "# flow\n")
+	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", "troubleshooting", "debug.md"), "# debug\n")
+	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", "sources", "legacy.md"), "# legacy source\n")
+	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", "modules", "legacy.md"), "# legacy module\n")
 	mustWriteDevwikiFile(t, filepath.Join(root, "raw", "requirements", ".gitkeep"), "")
 	mustWriteDevwikiFile(t, filepath.Join(root, "raw", "requirements", "spec.md"), "# spec\n")
 	mustWriteDevwikiFile(t, filepath.Join(root, "wiki", ".checkpoints", "checkpoint.json"), "{}")
@@ -43,6 +47,18 @@ func TestBuildResetPlanSkipsGitkeepAndTargetsExpectedFiles(t *testing.T) {
 	}
 	if !containsString(plan.Delete, filepath.Join(root, "wiki", "features", "note.md")) {
 		t.Fatal("plan should delete wiki features")
+	}
+	if !containsString(plan.Delete, filepath.Join(root, "wiki", "workflows", "flow.md")) {
+		t.Fatal("plan should delete wiki workflows")
+	}
+	if !containsString(plan.Delete, filepath.Join(root, "wiki", "troubleshooting", "debug.md")) {
+		t.Fatal("plan should delete wiki troubleshooting")
+	}
+	if containsString(plan.Delete, filepath.Join(root, "wiki", "sources", "legacy.md")) {
+		t.Fatal("plan should not target removed legacy wiki sources")
+	}
+	if containsString(plan.Delete, filepath.Join(root, "wiki", "modules", "legacy.md")) {
+		t.Fatal("plan should not target removed legacy wiki modules")
 	}
 	if !containsString(plan.Delete, filepath.Join(root, "raw", "requirements", "spec.md")) {
 		t.Fatal("plan should delete raw documents")

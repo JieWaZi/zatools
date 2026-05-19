@@ -107,8 +107,9 @@ func BuildResetPlan(root string, scopes []string) (ResetPlan, error) {
 		for _, rel := range []string{
 			filepath.Join("wiki", "capabilities"),
 			filepath.Join("wiki", "features"),
+			filepath.Join("wiki", "workflows"),
+			filepath.Join("wiki", "troubleshooting"),
 			filepath.Join("wiki", "outputs"),
-			filepath.Join("wiki", "graph"),
 		} {
 			for _, path := range resetCandidates(filepath.Join(absRoot, rel)) {
 				deleteSet[path] = struct{}{}

@@ -26,7 +26,7 @@ DevWiki 技能做召回时，默认按「成本 / 速度由低到高」升档，
 当问题有关键词但不知道具体落点时用 `qmd search`：
 
 - 典型场景：「SAML metadata 相关代码」「鉴权失败日志出处」「和支付回调相关的文档」
-- 纯文本 / 文档召回、跨 `raw / wiki / code` 三类 collection 的关键词命中
+- 默认只召回 `wiki` collection；只有用户手动在 `config/search.yaml` 添加 raw 或 code collection 后，才会覆盖这些额外目录
 - 不依赖向量，CPU 友好
 
 ### 第 3 档：`zatools qmd query`（语义召回）

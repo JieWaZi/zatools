@@ -26,7 +26,7 @@ This tier is usually enough to answer directly, and it is the fastest and most d
 Use `qmd search` when the question has keywords but the exact landing point is unknown:
 
 - Typical queries: "code related to SAML metadata", "where is the auth-failure log emitted", "documents about the payment callback"
-- Plain-text / document recall across the `raw / wiki / code` collections
+- Default recall covers only the `wiki` collection; raw or code directories are included only when the user manually adds those collections to `config/search.yaml`
 - Keyword-based, no embeddings required, CPU-friendly
 
 ### Tier 3: `zatools qmd query` (semantic recall)

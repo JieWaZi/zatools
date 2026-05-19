@@ -13,6 +13,7 @@ argument-hint: "[--root <devwiki-root>]"
 
 
 > Register or repair `zatools qmd` collections for an existing DevWiki workspace, refresh the index, and report whether the `zatools qmd` retrieval mode is actually ready. Prefer dry-run and status checks before applying changes.
+> Fresh init registers only the `wiki` collection by default; raw and code directories are not registered unless the user manually adds them to `config/search.yaml`.
 
 ## Inputs
 
@@ -83,7 +84,8 @@ zatools qmd status
 Confirm at least:
 
 - the DevWiki collections exist
-- the `raw / wiki / code` collections do not report obviously wrong zero-file states
+- the default `wiki` collection does not report an obviously wrong zero-file state
+- if the user manually added raw or code collections, inspect those manual collections too
 - `Pending`, `Updated`, and related status lines match the current workspace state
 
 ### Step 5: Run embed only when it is justified
@@ -116,7 +118,7 @@ The conclusion should include:
 
 ## Error Handling
 
-- **missing `config/search.yaml`**: tell the user to run `/devwiki-setup` or `zatools devwiki init` first
+- **missing `config/search.yaml`**: tell the user to run `zatools devwiki init` first
 - **`zatools qmd ...` cannot run**: stop before apply, print the required commands, and state that the `zatools qmd` retrieval mode is not active
 - **sync apply fails**: report the failure, keep the dry-run output, and do not pretend registration succeeded
 - **status shows missing collections or suspicious zero-file counts**: recommend checking collection paths or re-running sync

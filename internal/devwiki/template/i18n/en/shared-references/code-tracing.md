@@ -1,8 +1,8 @@
 # Code Tracing Discipline
 
-> Shared reference for `/devwiki-ask`, `/devwiki-feature-doc`, and any workflow that must move from an entry anchor into concrete implementation understanding.
+> Shared reference for `devwiki-query`, `devwiki-code-to-doc`, and any workflow that must move from an entry anchor into concrete implementation understanding.
 
-> Use this only after the workflow has already decided that code inspection is necessary. If documents already answer the question, `/devwiki-ask` should answer first and offer code verification as an optional follow-up instead of tracing by default.
+> Use this only after the workflow has already decided that code inspection is necessary. If documents already answer the question, `devwiki-query` should answer first and offer code verification as an optional follow-up instead of tracing by default.
 
 ---
 
@@ -23,7 +23,7 @@ A good trace should start from at least one of:
 - key function
 - page route
 - explicit feature name
-- known capability name
+- known capability or feature name
 
 If none exists, ask the user for one before broad code search explodes.
 
@@ -40,7 +40,7 @@ Examples:
 - API URL → controller / router / handler candidates
 - key function → direct symbol lookup
 - page route → frontend route + backend endpoint candidates
-- feature name → capability candidates + top-K code hits
+- feature name → feature / workflow candidates + top-K code hits
 
 ### Step 2: Retrieve Top-K Candidates
 
@@ -104,7 +104,7 @@ A good trace summary should include:
 - important implementation nodes
 - unresolved gaps
 
-When the output is a document, prefer `path + symbol` for large files.
+When the output is a document, prefer `path + symbol` for large files, and write it into a workflow or troubleshooting page; do not put code references in capability or feature pages.
 
 ---
 

@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode"
+
+	"gopkg.in/yaml.v3"
 
 	common "zatools/internal/app/common"
 	"zatools/internal/app/skillapp"
@@ -32,13 +35,8 @@ func (s *Service) runProject(ctx context.Context, opts InitOptions, installSkill
 		return nil
 	}
 
-	targetDir, err := s.resolveTargetDir(resolved.ProjectName)
+	targetDir, err := s.resolveTargetDir()
 	if err != nil {
-		return err
-	}
-	if _, err := os.Stat(targetDir); err == nil {
-		return fmt.Errorf(copy.AlreadyExistsFmt, targetDir)
-	} else if !os.IsNotExist(err) {
 		return err
 	}
 
@@ -72,9 +70,6 @@ func (s *Service) runProject(ctx context.Context, opts InitOptions, installSkill
 	if err := devwiki.GenerateProject(targetDir, spec); err != nil {
 		return err
 	}
-	if err := devwiki.EnsureProjectRuntimeBridge(s.runtime.Workspace.ProjectDir(), targetDir, resolved.Agent, resolved.Lang); err != nil {
-		return err
-	}
 	spinner.Stop(fmt.Sprintf(copy.CreatedFmt, targetDir))
 
 	if installSkills {
@@ -95,27 +90,27 @@ func (s *Service) runProject(ctx context.Context, opts InitOptions, installSkill
 		}
 		if selected != nil && len(selected) > 0 {
 			spinner.Start(copy.StepInstallingDevwikiSkills)
-			if err := s.installSelectedSkills(s.runtime.Workspace.ProjectDir(), resolved.Agent, resolved.Global, resolved.Lang, selected); err != nil {
+			if err := s.installSelectedSkills(targetDir, resolved.Agent, resolved.Global, resolved.Lang, selected); err != nil {
 				return err
 			}
 			spinner.Stop(fmt.Sprintf(copy.DevwikiInstalledSkillsFmt, len(selected)))
 		}
 	}
 
-	gitignorePaths := []string{filepath.Join(s.runtime.Workspace.ProjectDir(), ".cache")}
+	gitignorePaths := []string{filepath.Join(targetDir, ".cache")}
 	if !resolved.Global {
-		installDir, err := agents.ResolveSkillsDir(resolved.Agent, false, s.runtime.Workspace.ProjectDir())
+		installDir, err := agents.ResolveSkillsDir(resolved.Agent, false, targetDir)
 		if err != nil {
 			return err
 		}
 		gitignorePaths = append(gitignorePaths, installDir)
-		lockPath, err := devwikiLockPath(s.runtime.Workspace.ProjectDir(), false)
+		lockPath, err := devwikiLockPath(targetDir, false)
 		if err != nil {
 			return err
 		}
 		gitignorePaths = append(gitignorePaths, lockPath)
 	}
-	if err := common.EnsureProjectGitignore(s.runtime.Workspace.ProjectDir(), gitignorePaths...); err != nil {
+	if err := common.EnsureProjectGitignore(targetDir, gitignorePaths...); err != nil {
 		return err
 	}
 
@@ -124,6 +119,57 @@ func (s *Service) runProject(ctx context.Context, opts InitOptions, installSkill
 		copy.QMDManualDownloadHint,
 		copy.QMDManualDownloadCommand,
 	})
+	return nil
+}
+
+func (s *Service) linkCodeRepositories(ctx context.Context, opts LinkOptions) error {
+	_ = ctx
+
+	resolved, err := s.normalizeLinkOptions(opts)
+	if err != nil {
+		return err
+	}
+
+	devwikiRoot := resolved.DevwikiRoot
+	codeRepos, err := devwiki.NormalizeCodeRepos(devwikiRoot, resolved.CodeDirs)
+	if err != nil {
+		return err
+	}
+
+	skillsRoot, cleanup, err := devwiki.ExtractBuiltinSkills(resolved.Lang)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	found, err := skills.Discover(skillsRoot)
+	if err != nil {
+		return err
+	}
+	codeSkills, err := s.resolveCodeRepoSkills(found, resolved.Yes)
+	if err != nil {
+		return err
+	}
+
+	spinner := ui.NewStepPrinter()
+	for _, repo := range codeRepos {
+		spinner.Start(ui.Messages().StepLinkingDevwikiCodeRepo)
+		if err := devwiki.EnsureCodeRepoDevwikiLink(repo.Path, devwikiRoot, resolved.Agent, resolved.Lang); err != nil {
+			return err
+		}
+		spinner.Stop(fmt.Sprintf(ui.Messages().DevwikiLinkedCodeRepoFmt, repo.Path))
+		if len(codeSkills) == 0 {
+			continue
+		}
+		spinner.Start(ui.Messages().StepInstallingDevwikiSkills)
+		if err := s.installSelectedSkills(repo.Path, resolved.Agent, false, resolved.Lang, codeSkills); err != nil {
+			return err
+		}
+		spinner.Stop(fmt.Sprintf(ui.Messages().DevwikiInstalledSkillsFmt, len(codeSkills)))
+		if err := ensureProjectInstallGitignore(repo.Path, resolved.Agent); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -271,11 +317,87 @@ func (s *Service) normalizeInitOptions(opts InitOptions) (InitOptions, error) {
 	return opts, nil
 }
 
-func (s *Service) resolveTargetDir(projectName string) (string, error) {
-	if strings.TrimSpace(projectName) == "" {
-		return "", errors.New(ui.Messages().DevwikiProjectNameRequired)
+func (s *Service) normalizeLinkOptions(opts LinkOptions) (LinkOptions, error) {
+	if strings.TrimSpace(opts.DevwikiRoot) == "" {
+		opts.DevwikiRoot = s.runtime.Workspace.CWD
 	}
-	return filepath.Join(s.runtime.Workspace.ProjectDir(), "devwiki-"+devwiki.Slugify(projectName)), nil
+	devwikiRoot, err := filepath.Abs(opts.DevwikiRoot)
+	if err != nil {
+		return opts, err
+	}
+	info, err := os.Stat(devwikiRoot)
+	if err != nil {
+		return opts, err
+	}
+	if !info.IsDir() {
+		return opts, fmt.Errorf("%s is not a directory", devwikiRoot)
+	}
+	opts.DevwikiRoot = devwikiRoot
+
+	if strings.TrimSpace(opts.Agent) == "" {
+		opts.Agent = "codex"
+	}
+	switch opts.Agent {
+	case "codex", "cursor", "claude":
+	default:
+		return opts, fmt.Errorf(ui.Messages().UnsupportedAgentFmt, opts.Agent)
+	}
+	switch opts.Lang {
+	case "", "zh", "en":
+		if opts.Lang == "" {
+			opts.Lang = ui.DefaultLang
+		}
+	default:
+		return opts, fmt.Errorf(ui.Messages().DevwikiUnsupportedLangFmt, opts.Lang)
+	}
+	if len(opts.CodeDirs) == 0 {
+		codeDirs, err := readConfiguredCodeDirs(devwikiRoot)
+		if err != nil {
+			return opts, err
+		}
+		opts.CodeDirs = codeDirs
+	}
+	initOpts, err := s.normalizeInitOptions(InitOptions{
+		ProjectName: "link",
+		Agent:       opts.Agent,
+		Lang:        opts.Lang,
+		CodeDirs:    opts.CodeDirs,
+	})
+	if err != nil {
+		return opts, err
+	}
+	opts.CodeDirs = initOpts.CodeDirs
+	return opts, nil
+}
+
+func readConfiguredCodeDirs(devwikiRoot string) ([]string, error) {
+	data, err := os.ReadFile(filepath.Join(devwikiRoot, "config", "project.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	var config struct {
+		CodeRepos []devwiki.CodeRepo `yaml:"code_repos"`
+	}
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
+	codeDirs := make([]string, 0, len(config.CodeRepos))
+	for _, repo := range config.CodeRepos {
+		if strings.TrimSpace(repo.Path) != "" {
+			codeDirs = append(codeDirs, repo.Path)
+		}
+	}
+	if len(codeDirs) == 0 {
+		return nil, errors.New(ui.Messages().DevwikiCodeDirRequired)
+	}
+	return codeDirs, nil
+}
+
+func (s *Service) resolveTargetDir() (string, error) {
+	if strings.TrimSpace(s.runtime.Workspace.CWD) == "" {
+		return "", errors.New("cwd is empty")
+	}
+	return filepath.Abs(s.runtime.Workspace.CWD)
 }
 
 func (s *Service) resolveSelectedSkills(found []skills.Skill, opts InitOptions) ([]skills.Skill, error) {
@@ -322,6 +444,74 @@ func (s *Service) resolveSelectedSkills(found []skills.Skill, opts InitOptions) 
 		}
 	}
 	return selected, nil
+}
+
+func (s *Service) resolveCodeRepoSkills(found []skills.Skill, yes bool) ([]skills.Skill, error) {
+	candidates := filterDevwikiCodeRepoSkills(found)
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+	if !s.runtime.IsTTY {
+		if yes {
+			return candidates, nil
+		}
+		return nil, nil
+	}
+
+	items := make([]ui.Option, 0, len(candidates))
+	initial := make([]string, 0, len(candidates))
+	for _, skill := range candidates {
+		items = append(items, ui.Option{
+			Value: skill.Name,
+			Label: skill.Name,
+			Hint:  skill.Description,
+		})
+		initial = append(initial, skill.Name)
+	}
+	selectedNames, cancelled, err := ui.SearchMultiselect(ui.SearchMultiselectOptions{
+		Message:         ui.Messages().PromptSelectDevwikiCodeSkills,
+		Items:           items,
+		MaxVisible:      4,
+		InitialSelected: initial,
+		Required:        false,
+	})
+	if err != nil || cancelled {
+		return nil, err
+	}
+	selectedSet := make(map[string]struct{}, len(selectedNames))
+	for _, name := range selectedNames {
+		selectedSet[name] = struct{}{}
+	}
+	selected := make([]skills.Skill, 0, len(selectedNames))
+	for _, skill := range candidates {
+		if _, ok := selectedSet[skill.Name]; ok {
+			selected = append(selected, skill)
+		}
+	}
+	return selected, nil
+}
+
+func filterDevwikiCodeRepoSkills(found []skills.Skill) []skills.Skill {
+	selected := make([]skills.Skill, 0, 2)
+	for _, skill := range found {
+		switch skill.Name {
+		case "devwiki-query", "devwiki-code-to-doc":
+			selected = append(selected, skill)
+		}
+	}
+	return selected
+}
+
+func ensureProjectInstallGitignore(projectRoot, agent string) error {
+	installDir, err := agents.ResolveSkillsDir(agent, false, projectRoot)
+	if err != nil {
+		return err
+	}
+	lockPath, err := devwikiLockPath(projectRoot, false)
+	if err != nil {
+		return err
+	}
+	return common.EnsureProjectGitignore(projectRoot, filepath.Join(projectRoot, ".cache"), installDir, lockPath)
 }
 
 func (s *Service) installSelectedSkills(projectRoot, agent string, global bool, lang string, selected []skills.Skill) error {
@@ -382,6 +572,14 @@ func (s *Service) updateSkills(ctx context.Context) error {
 		return nil
 	}
 
+	installedMissing, err := s.installMissingDevwikiBuiltinSkills(global, devwikiResults)
+	if err != nil {
+		return err
+	}
+	if installedMissing > 0 {
+		fmt.Printf("%s%s%s\n", ui.Green, fmt.Sprintf(copy.DevwikiInstalledSkillsFmt, installedMissing), ui.Reset)
+	}
+
 	var outdated []skills.CheckResult
 	for _, result := range devwikiResults {
 		if result.Status == "outdated" {
@@ -389,7 +587,9 @@ func (s *Service) updateSkills(ctx context.Context) error {
 		}
 	}
 	if len(outdated) == 0 {
-		fmt.Printf("%s%s%s\n", ui.Text, copy.AllUpToDate, ui.Reset)
+		if installedMissing == 0 {
+			fmt.Printf("%s%s%s\n", ui.Text, copy.AllUpToDate, ui.Reset)
+		}
 		return nil
 	}
 
@@ -410,6 +610,139 @@ func (s *Service) updateSkills(ctx context.Context) error {
 		fmt.Printf("%s%s%s\n", ui.Text, copy.AllUpToDate, ui.Reset)
 	}
 	return nil
+}
+
+func (s *Service) installMissingDevwikiBuiltinSkills(global bool, devwikiResults []skills.CheckResult) (int, error) {
+	projectRoot := s.runtime.Workspace.ProjectDir()
+	if !isDevwikiDocumentRoot(projectRoot) {
+		return 0, nil
+	}
+
+	lang := inferDevwikiUpdateLang(devwikiResults)
+	skillsRoot, cleanup, err := devwiki.ExtractBuiltinSkills(lang)
+	if err != nil {
+		return 0, err
+	}
+	defer cleanup()
+
+	found, err := skills.Discover(skillsRoot)
+	if err != nil {
+		return 0, err
+	}
+
+	installedNames := make(map[string]struct{}, len(devwikiResults))
+	for _, result := range devwikiResults {
+		installedNames[result.Asset.Name] = struct{}{}
+	}
+	missing := make([]skills.Skill, 0)
+	for _, skill := range found {
+		if _, ok := installedNames[skill.Name]; ok {
+			continue
+		}
+		missing = append(missing, skill)
+	}
+	if len(missing) == 0 {
+		return 0, nil
+	}
+
+	agentKeys := inferDevwikiUpdateAgents(devwikiResults)
+	lockPath, err := devwikiLockPath(projectRoot, global)
+	if err != nil {
+		return 0, err
+	}
+	lock, err := skills.LoadLock(lockPath)
+	if err != nil {
+		return 0, err
+	}
+	entries := lock.Entries(skills.SkillAsset)
+	source := skills.NewBuiltinSource("devwiki", lang)
+	for _, skill := range missing {
+		var merged skills.InstalledAsset
+		for i, agentKey := range agentKeys {
+			installDir, err := agents.ResolveSkillsDir(agentKey, global, projectRoot)
+			if err != nil {
+				return 0, err
+			}
+			if err := skills.EnsureDir(installDir); err != nil {
+				return 0, err
+			}
+			entry, err := skills.InstallSkill(installDir, source, skill)
+			if err != nil {
+				return 0, err
+			}
+			if i == 0 {
+				merged = entry
+				merged.Agents = []string{}
+				merged.AgentPaths = map[string]string{}
+			}
+			merged.Agents = append(merged.Agents, agentKey)
+			merged.AgentPaths[agentKey] = entry.Path
+		}
+		entries[merged.Name] = merged
+	}
+	if err := skills.SaveLock(lockPath, lock); err != nil {
+		return 0, err
+	}
+	return len(missing), nil
+}
+
+func isDevwikiDocumentRoot(root string) bool {
+	if strings.TrimSpace(root) == "" {
+		return false
+	}
+	if _, err := os.Stat(filepath.Join(root, "config", "project.yaml")); err != nil {
+		return false
+	}
+	if info, err := os.Stat(filepath.Join(root, "wiki")); err != nil || !info.IsDir() {
+		return false
+	}
+	return true
+}
+
+func inferDevwikiUpdateLang(results []skills.CheckResult) string {
+	for _, result := range results {
+		source, err := skills.ParseSource(result.Asset.Source)
+		if err == nil && source.Type == "builtin" && source.Builtin == "devwiki" {
+			switch source.Ref {
+			case "zh", "en":
+				return source.Ref
+			}
+		}
+	}
+	for _, result := range results {
+		switch inferDevwikiSkillLang(result.Asset.Path) {
+		case "zh":
+			return "zh"
+		case "en":
+			return "en"
+		}
+	}
+	return ui.CurrentLang()
+}
+
+func inferDevwikiUpdateAgents(results []skills.CheckResult) []string {
+	seen := map[string]struct{}{}
+	for _, result := range results {
+		for _, agentKey := range result.Asset.Agents {
+			if _, ok := agents.Lookup(agentKey); ok {
+				seen[agentKey] = struct{}{}
+			}
+		}
+		for agentKey := range result.Asset.AgentPaths {
+			if _, ok := agents.Lookup(agentKey); ok {
+				seen[agentKey] = struct{}{}
+			}
+		}
+	}
+	if len(seen) == 0 {
+		return []string{"codex"}
+	}
+	out := make([]string, 0, len(seen))
+	for agentKey := range seen {
+		out = append(out, agentKey)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func (s *Service) resolveUpdateScope() (bool, error) {

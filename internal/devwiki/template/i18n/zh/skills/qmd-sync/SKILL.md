@@ -13,6 +13,7 @@ argument-hint: "[--root <devwiki-root>]"
 
 
 > 为已有 DevWiki 工作区补做或修复 `zatools qmd` collection 注册、索引刷新与状态检查。默认优先给 dry-run 与状态，再决定是否真正执行。
+> fresh init 默认只注册 `wiki` collection；raw 和代码目录不会自动注册，除非用户手动加入 `config/search.yaml`。
 
 ## Inputs
 
@@ -83,7 +84,8 @@ zatools qmd status
 至少确认：
 
 - DevWiki 对应的 collection 已存在
-- `raw / wiki / code` 对应 collection 的文件数不是明显异常的 0
+- 默认 `wiki` collection 的文件数不是明显异常的 0
+- 若用户手动添加 raw 或 code collection，再额外核对这些手动 collection
 - `Pending`、`Updated` 等状态与当前工作区规模相符
 
 ### Step 5: 只在需要时补 embed
@@ -116,7 +118,7 @@ zatools qmd embed
 
 ## Error Handling
 
-- **`config/search.yaml` 缺失**：提示先运行 `/devwiki-setup` 或 `zatools devwiki init`
+- **`config/search.yaml` 缺失**：提示先运行 `zatools devwiki init`
 - **`zatools qmd ...` 无法执行**：停止 apply，打印应执行的命令并说明未启用 `zatools qmd` 检索模式
 - **sync apply 失败**：报告失败，保留 dry-run 输出，不要假装 collection 已注册
 - **status 显示文件数异常或 collection 不存在**：提示继续排查 collection 路径或重新执行 sync

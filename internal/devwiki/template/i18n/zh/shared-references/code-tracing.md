@@ -1,8 +1,8 @@
 # 代码追踪纪律
 
-> 供 `/devwiki-ask`、`/devwiki-feature-doc` 以及所有需要从入口锚点走到真实实现的技能共享使用。
+> 供 `devwiki-query`、`devwiki-code-to-doc` 以及所有需要从入口锚点走到真实实现的技能共享使用。
 
-> 仅当工作流已经确认“这次确实需要看代码”时才使用本规范；如果文档已经能回答问题，`/devwiki-ask` 应先给出文档结论，再把代码核对作为可选补充。
+> 仅当工作流已经确认“这次确实需要看代码”时才使用本规范；如果文档已经能回答问题，`devwiki-query` 应先给出文档结论，再把代码核对作为可选补充。
 
 ---
 
@@ -23,7 +23,7 @@
 - 关键函数
 - 页面路由
 - 明确的特性名称
-- 已知 capability 名称
+- 已知 capability 或 feature 名称
 
 如果这些都没有，就先向用户提问，不要让代码搜索无边界扩散。
 
@@ -40,7 +40,7 @@
 - 接口 URL → 控制器 / 路由 / handler 候选
 - 关键函数 → 直接 symbol 定位
 - 页面路由 → 前端路由 + 后端接口候选
-- 特性名称 → capability 候选 + top-K 代码命中
+- 特性名称 → feature / workflow 候选 + top-K 代码命中
 
 ### Step 2：召回 top-K 候选
 
@@ -104,7 +104,7 @@
 - 关键实现节点
 - 尚未解决的缺口
 
-如果最终写成文档，面对大文件应优先使用 `path + symbol`。
+如果最终写成文档，面对大文件应优先使用 `path + symbol`，并写入 workflow 或 troubleshooting；不要写入 capability 或 feature。
 
 ---
 

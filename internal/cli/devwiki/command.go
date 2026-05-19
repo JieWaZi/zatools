@@ -28,6 +28,7 @@ func NewCommand() *cobra.Command {
 	}
 
 	devwikiCmd.AddCommand(newInitCmd(service))
+	devwikiCmd.AddCommand(newLinkCmd(service))
 	devwikiCmd.AddCommand(newUpdateCmd(service))
 	devwikiCmd.AddCommand(newToolCmd())
 	return devwikiCmd
@@ -53,6 +54,25 @@ func newInitCmd(service *devwikiapp.Service) *cobra.Command {
 	cmd.Flags().StringVar(&opts.Lang, "lang", "", copy.FlagDevwikiLang)
 	cmd.Flags().StringSliceVar(&opts.CodeDirs, "code-dir", nil, copy.FlagDevwikiCodeDir)
 	cmd.Flags().BoolVarP(&opts.Global, "global", "g", false, copy.FlagInstallGlobally)
+	cmd.Flags().BoolVarP(&opts.Yes, "yes", "y", false, copy.FlagSkipPrompts)
+	return cmd
+}
+
+func newLinkCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	var opts devwikiapp.LinkOptions
+
+	cmd := &cobra.Command{
+		Use:   "link",
+		Short: copy.DevwikiLinkShort,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return service.Link(cmd.Context(), opts)
+		},
+	}
+	cmd.Flags().StringVar(&opts.DevwikiRoot, "root", "", copy.FlagDevwikiRoot)
+	cmd.Flags().StringVar(&opts.Agent, "agent", "", copy.FlagDevwikiAgent)
+	cmd.Flags().StringVar(&opts.Lang, "lang", "", copy.FlagDevwikiLang)
+	cmd.Flags().StringSliceVar(&opts.CodeDirs, "code-dir", nil, copy.FlagDevwikiCodeDir)
 	cmd.Flags().BoolVarP(&opts.Yes, "yes", "y", false, copy.FlagSkipPrompts)
 	return cmd
 }

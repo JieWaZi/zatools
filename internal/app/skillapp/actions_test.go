@@ -470,15 +470,19 @@ func TestServiceAddBuiltinDevwikiLibrary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadLock error = %v", err)
 	}
-	entry, ok := lock.Entries(skills.SkillAsset)["devwiki-setup"]
-	if !ok {
-		t.Fatalf("expected devwiki-setup in lock, got %#v", lock.Entries(skills.SkillAsset))
-	}
-	if entry.Source != "zatools/devwiki#en" {
-		t.Fatalf("Source = %q, want %q", entry.Source, "zatools/devwiki#en")
-	}
-	if !strings.HasSuffix(entry.SourceSubdir, "setup") {
-		t.Fatalf("SourceSubdir = %q, want suffix %q", entry.SourceSubdir, "setup")
+	wantSkills := []string{"devwiki-code-to-doc", "devwiki-ingest", "devwiki-maintain", "devwiki-project-router", "devwiki-qmd-sync", "devwiki-query"}
+	for _, name := range wantSkills {
+		entry, ok := lock.Entries(skills.SkillAsset)[name]
+		if !ok {
+			t.Fatalf("expected %s in lock, got %#v", name, lock.Entries(skills.SkillAsset))
+		}
+		if entry.Source != "zatools/devwiki#en" {
+			t.Fatalf("%s Source = %q, want %q", name, entry.Source, "zatools/devwiki#en")
+		}
+		wantSubdir := strings.TrimPrefix(name, "devwiki-")
+		if !strings.HasSuffix(entry.SourceSubdir, wantSubdir) {
+			t.Fatalf("%s SourceSubdir = %q, want suffix %q", name, entry.SourceSubdir, wantSubdir)
+		}
 	}
 }
 

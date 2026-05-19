@@ -24,6 +24,7 @@ type Catalog struct {
 	ListShort                     string
 	InitShort                     string
 	DevwikiInitShort              string
+	DevwikiLinkShort              string
 	RemoveShort                   string
 	CheckShort                    string
 	UpdateShort                   string
@@ -61,6 +62,7 @@ type Catalog struct {
 	FlagDevwikiAgent              string
 	FlagDevwikiLang               string
 	FlagDevwikiCodeDir            string
+	FlagDevwikiRoot               string
 	StepParsingSource             string
 	StepValidateLocalPath         string
 	StepCloneRepository           string
@@ -73,6 +75,7 @@ type Catalog struct {
 	StepInstallingRules           string
 	StepCreatingDevwikiProject    string
 	StepInstallingDevwikiSkills   string
+	StepLinkingDevwikiCodeRepo    string
 	StepDownloadingQMDModels      string
 	TitleInstallSummary           string
 	TitleAvailableSkills          string
@@ -92,6 +95,7 @@ type Catalog struct {
 	PromptDevwikiCodeDirs         string
 	PromptDevwikiScope            string
 	PromptSelectDevwikiSkills     string
+	PromptSelectDevwikiCodeSkills string
 	PromptSelectDevwikiUpdates    string
 	PromptCreateDevwikiNow        string
 	ProjectLabel                  string
@@ -106,6 +110,7 @@ type Catalog struct {
 	RulesLabel                    string
 	DevwikiCodeDirsLabel          string
 	DevwikiInstalledSkillsFmt     string
+	DevwikiLinkedCodeRepoFmt      string
 	DevwikiNoSkillsTracked        string
 	Cancelled                     string
 	InstallationCancelled         string
@@ -188,6 +193,7 @@ var catalogs = map[string]Catalog{
 		ListShort:                     "列出已安装技能",
 		InitShort:                     "创建新的 SKILL.md 模板",
 		DevwikiInitShort:              "生成 DevWiki 项目并安装所选 runtime skills",
+		DevwikiLinkShort:              "将 DevWiki 文档库关联到代码库",
 		RemoveShort:                   "删除已安装技能",
 		CheckShort:                    "检查技能是否有可用更新",
 		UpdateShort:                   "更新已安装技能",
@@ -225,6 +231,7 @@ var catalogs = map[string]Catalog{
 		FlagDevwikiAgent:              "目标 runtime（codex、cursor、claude）",
 		FlagDevwikiLang:               "运行时语言（zh、en）",
 		FlagDevwikiCodeDir:            "代码目录，可重复传入",
+		FlagDevwikiRoot:               "DevWiki 文档库根目录",
 		StepParsingSource:             "解析来源...",
 		StepValidateLocalPath:         "校验本地路径...",
 		StepCloneRepository:           "克隆仓库...",
@@ -237,6 +244,7 @@ var catalogs = map[string]Catalog{
 		StepInstallingRules:           "安装 rules...",
 		StepCreatingDevwikiProject:    "创建 DevWiki 工程...",
 		StepInstallingDevwikiSkills:   "安装 DevWiki skills...",
+		StepLinkingDevwikiCodeRepo:    "关联 DevWiki 与代码库...",
 		StepDownloadingQMDModels:      "预热 QMD models...",
 		TitleInstallSummary:           "安装摘要",
 		TitleAvailableSkills:          "可用技能",
@@ -256,6 +264,7 @@ var catalogs = map[string]Catalog{
 		PromptDevwikiCodeDirs:         "代码目录（逗号分隔）",
 		PromptDevwikiScope:            "选择 DevWiki skill 安装范围",
 		PromptSelectDevwikiSkills:     "选择要安装的 DevWiki skills",
+		PromptSelectDevwikiCodeSkills: "选择要安装到代码库的 DevWiki skills",
 		PromptSelectDevwikiUpdates:    "选择要更新的 DevWiki skills",
 		PromptCreateDevwikiNow:        "现在创建这个 DevWiki 工程？",
 		ProjectLabel:                  "项目级",
@@ -270,6 +279,7 @@ var catalogs = map[string]Catalog{
 		RulesLabel:                    "Rules",
 		DevwikiCodeDirsLabel:          "代码目录",
 		DevwikiInstalledSkillsFmt:     "已安装 %d 个 DevWiki skills",
+		DevwikiLinkedCodeRepoFmt:      "已关联代码库 %s",
 		DevwikiNoSkillsTracked:        "锁文件中没有记录任何 DevWiki skills。",
 		Cancelled:                     "已取消",
 		InstallationCancelled:         "安装已取消",
@@ -350,6 +360,7 @@ var catalogs = map[string]Catalog{
 		ListShort:                     "List installed skills",
 		InitShort:                     "Create a new SKILL.md template",
 		DevwikiInitShort:              "Generate a DevWiki project and install selected runtime skills",
+		DevwikiLinkShort:              "Link a DevWiki document root to code repositories",
 		RemoveShort:                   "Remove installed skills",
 		CheckShort:                    "Check for available skill updates",
 		UpdateShort:                   "Update installed skills",
@@ -387,6 +398,7 @@ var catalogs = map[string]Catalog{
 		FlagDevwikiAgent:              "Target runtime (codex, cursor, claude)",
 		FlagDevwikiLang:               "Runtime language (zh, en)",
 		FlagDevwikiCodeDir:            "Code directory, repeatable",
+		FlagDevwikiRoot:               "DevWiki document root",
 		StepParsingSource:             "Parsing source...",
 		StepValidateLocalPath:         "Validating local path...",
 		StepCloneRepository:           "Cloning repository...",
@@ -399,6 +411,7 @@ var catalogs = map[string]Catalog{
 		StepInstallingRules:           "Installing rules...",
 		StepCreatingDevwikiProject:    "Creating DevWiki project...",
 		StepInstallingDevwikiSkills:   "Installing DevWiki skills...",
+		StepLinkingDevwikiCodeRepo:    "Linking DevWiki to code repository...",
 		StepDownloadingQMDModels:      "Warming qmd models...",
 		TitleInstallSummary:           "Installation Summary",
 		TitleAvailableSkills:          "Available Skills",
@@ -418,6 +431,7 @@ var catalogs = map[string]Catalog{
 		PromptDevwikiCodeDirs:         "Code directories (comma-separated)",
 		PromptDevwikiScope:            "Select DevWiki skill install scope",
 		PromptSelectDevwikiSkills:     "Select DevWiki skills to install",
+		PromptSelectDevwikiCodeSkills: "Select DevWiki skills to install in code repositories",
 		PromptSelectDevwikiUpdates:    "Select DevWiki skills to update",
 		PromptCreateDevwikiNow:        "Create this DevWiki project now?",
 		ProjectLabel:                  "Project",
@@ -432,6 +446,7 @@ var catalogs = map[string]Catalog{
 		RulesLabel:                    "Rules",
 		DevwikiCodeDirsLabel:          "Code Directories",
 		DevwikiInstalledSkillsFmt:     "Installed %d DevWiki skills",
+		DevwikiLinkedCodeRepoFmt:      "linked code repository %s",
 		DevwikiNoSkillsTracked:        "No DevWiki skills are tracked in the lock file.",
 		Cancelled:                     "Cancelled",
 		InstallationCancelled:         "Installation cancelled",
