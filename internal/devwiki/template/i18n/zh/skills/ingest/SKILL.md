@@ -1,6 +1,6 @@
 ---
 name: "devwiki-ingest"
-description: "当用户提供设计文档、需求文档、接口文档、配置说明、部署文档、测试文档、会议纪要、排障记录、代码逻辑片段或讨论结论，并要求消化、导入、生成 Wiki、构建知识库时使用。该 Skill 将原始资料转换为 capability、feature、workflow、troubleshooting、术语、关系和需要对话确认的问题。本版统一使用中文标题，并明确 Capability / Feature / Workflow 三层边界：Capability 是能力地图，Feature 是功能契约，Workflow 是实现路径。"
+description: "当用户提供设计文档、需求文档、接口文档、配置说明、部署文档、测试文档、会议纪要、排障记录、代码逻辑片段或讨论结论，并要求消化、导入、生成 Wiki、构建知识库时使用。该 Skill 将原始资料转换为 capability、feature、workflow、troubleshooting、术语、入口导航和需要对话确认的问题。本版统一使用中文标题，并明确 Capability / Feature / Workflow 三层边界：Capability 是能力地图，Feature 是功能契约，Workflow 是实现路径。"
 argument-hint: "<文档路径、目录、文本片段或待摄入范围>"
 ---
 
@@ -119,7 +119,6 @@ Troubleshooting → 链接 Feature / Workflow，提供排障路径
 - `wiki/features/<slug>.md`
 - `wiki/workflows/<slug>.md`
 - `wiki/troubleshooting/<slug>.md`
-- `wiki/relations.yml`
 - `wiki/index.md`
 - `wiki/glossary.md`
 - `wiki/log.md`
@@ -165,6 +164,7 @@ sources:
 
 - 每个重要事实必须能回到 `raw/`、已有 Wiki 页面或已核对代码证据。
 - 用户粘贴内容使用 `path: "pasted context"`，并在 `notes` 中说明来源。
+- capability / feature 的 `sources` 不写代码文件路径、函数名、handler、调用链或 `kind: code`；代码证据统一写入 workflow 或 troubleshooting 的 `code_refs`。
 - 不确定内容不得写成确定事实。
 - 历史设计、会议纪要、排障记录要标明时间和适用版本。
 - 文档冲突必须进入 proposal，不能静默选择一个版本。
@@ -278,7 +278,6 @@ search_terms: []
 
 1. 先读取或搜索：
     - `wiki/index.md`
-    - `wiki/relations.yml`
     - `wiki/glossary.md`
 2. 再搜索：
     - `wiki/capabilities/`
@@ -360,7 +359,7 @@ zatools qmd search "<关键词>"
 | 内容 | 建议归属 | 不放到其他分类的原因 |
 |---|---|---|
 
-## 关系更新建议
+## 入口和链接更新建议
 
 ## 术语更新建议
 
@@ -389,58 +388,16 @@ zatools qmd search "<关键词>"
 用户确认后再执行：
 
 1. 创建或更新目标页面。
-2. 更新 `wiki/relations.yml`。
-3. 更新 `wiki/index.md`。
-4. 更新 `wiki/glossary.md`。
-5. 追加 `wiki/log.md`。
-6. 如果用户要求保存报告，写入 `wiki/outputs/<slug>.md`。
-7. 执行或提示执行：
+2. 更新 `wiki/index.md`。
+3. 更新 `wiki/glossary.md`。
+4. 追加 `wiki/log.md`。
+5. 如果用户要求保存报告，写入 `wiki/outputs/<slug>.md`。
+6. 执行或提示执行：
 
 ```bash
 zatools qmd update
 zatools qmd status
 ```
-
----
-
-## 七、关系文件规则
-
-`wiki/relations.yml` 只保存摘要关系，不做全量关系数据库。
-
-推荐结构：
-
-```yaml
-capabilities:
-  <capability-slug>:
-    features:
-      - <feature-slug>
-    related_capabilities: []
-
-features:
-  <feature-slug>:
-    capabilities:
-      - <capability-slug>
-    workflow: <workflow-slug>
-    related_features: []
-    troubleshooting: []
-
-workflows:
-  <workflow-slug>:
-    features:
-      - <feature-slug>
-    touches:
-      - path: ""
-        symbol: ""
-
-troubleshooting:
-  <troubleshooting-slug>:
-    features:
-      - <feature-slug>
-    workflows:
-      - <workflow-slug>
-```
-
-完整关系优先写在页面 front matter，未来可由脚本生成 SQLite 索引。
 
 ---
 
@@ -456,7 +413,7 @@ troubleshooting:
 - 是否没有复制其他页面的权威内容；
 - 是否没有编造代码路径、函数、接口、模块名；
 - 是否页面小节标题统一为中文；
-- 是否更新了 `relations.yml`、`index.md`、`glossary.md` 和 `log.md`。
+- 是否更新了 `index.md`、`glossary.md` 和 `log.md`。
 
 ---
 
@@ -532,34 +489,3 @@ troubleshooting:
 - 日志 / 错误码 → Troubleshooting
 单次 ingest 默认最多新增 **3 个** glossary 术语；超过 3 个必须在 proposal 中说明并等待确认。
 ---
-
-## 十、Ingest Report
-
-确认落盘后输出到终端（只能到终端）：
-
-```markdown
-# Ingest Report
-
-## 已处理来源
-
-## 新增页面
-
-## 更新页面
-
-## 关系更新
-
-## 术语更新
-
-## 分类结果
-
-| 页面 | 类型 | 动作 | 说明 |
-|---|---|---|---|
-
-## 跳过内容
-
-## 已确认决策
-
-## 待确认问题
-
-## 下一步建议
-```

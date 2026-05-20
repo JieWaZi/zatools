@@ -22,7 +22,6 @@
 └── wiki/
     ├── index.md                 ← Wiki 总目录与导航入口
     ├── glossary.md              ← 术语表
-    ├── relations.yml            ← 能力 / 功能 / 工程定位关系
     ├── log.md                   ← 追加式操作日志
     ├── capabilities/            ← 系统能力
     ├── features/                ← 具体功能设计
@@ -56,7 +55,6 @@ DevWiki 的人工维护知识页围绕能力、功能、工程定位和排障知
 
 - `wiki/index.md`
 - `wiki/glossary.md`
-- `wiki/relations.yml`
 - `wiki/log.md`
 - `wiki/capabilities/`
 - `wiki/features/`
@@ -88,7 +86,7 @@ DevWiki 的人工维护知识页围绕能力、功能、工程定位和排障知
 - 不带空格
 - slug 一旦发布应尽量保持稳定
 
-`raw` 文件与外部代码文件不使用 wikilink，而是通过页面内联 `sources`、`code_refs`、`api_entries`、`test_refs` 追踪。
+`raw` 文件通过页面内联 `sources` 追踪。外部代码文件不使用 wikilink，也不写入 capability / feature 的 `sources`，只通过 workflow 或 troubleshooting 的 `code_refs`、`api_entries`、`test_refs` 追踪。
 
 ---
 
@@ -291,6 +289,7 @@ sources:
 - 每个关键事实必须能回到 `raw/`、已有 Wiki 页面或已核对代码证据
 - 用户粘贴内容使用 `path: "pasted context"` 并在 `notes` 中说明
 - 不确定内容必须标记 `confidence: low` 或在写入前通过对话确认
+- capability / feature 的 `sources` 不写代码文件路径、函数名、handler、调用链或 `kind: code`；代码证据统一写入 workflow 或 troubleshooting 的 `code_refs`
 
 ---
 
@@ -312,7 +311,7 @@ code_refs:
 - 如果整个文件都相关，直接存文件列表
 - 如果文件很大但只涉及局部逻辑，使用 `path + symbol`
 - 没核对过的路径和 symbol 不得虚构
-- capability 和 feature 页面禁止写代码引用
+- capability 和 feature 页面禁止写代码引用，也禁止在 `sources` 中记录代码文件路径或 `kind: code`
 
 ---
 

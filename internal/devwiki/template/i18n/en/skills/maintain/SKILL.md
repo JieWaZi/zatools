@@ -12,7 +12,7 @@ argument-hint: "<maintenance scope, for example the entire wiki, a specific capa
 raw/source/code = evidence layer, read-only, not directly modified
 current wiki page = current understanding layer, maintainable and rewritable
 outputs/report = maintenance process report, not a factual entry point
-relations/index/glossary = query entry-control layer
+index/glossary = query entry-control layer
 ```
 
 ---
@@ -43,7 +43,7 @@ This Skill must discover and fix:
 - Wiki conclusions lack sources;
 - Differences exist between the design draft and code implementation but have not been properly placed;
 - Outdated pages may still be retrieved by qmd/query and used for answers;
-- relations/index/glossary are not synchronized, causing the Agent to enter the wrong entry point.
+- index/glossary or page entry links are not synchronized, causing the Agent to enter the wrong entry point.
 
 ---
 
@@ -125,7 +125,7 @@ Maintain must classify issues according to the following types.
 | Historical invalidity | Wiki content once applied, but no longer applies to the current version/implementation | Mark historical scope and update the current conclusion |
 | Implementation divergence | Design document and code implementation are inconsistent | Feature writes the functional conclusion, Workflow writes the implementation difference |
 | Difference report mistakenly landed | maintain wrote errata/report as active Wiki | Move to outputs/report or delete, and merge conclusions back into authoritative pages |
-| Relationship error | relations/index/glossary points incorrectly or is missing | Fix relationships and entry points |
+| Entry error | index/glossary or page links point incorrectly or are missing | Fix entry points and page links |
 | Query pollution | Old pages or report pages are hit by query and mislead answers | Downgrade, exclude, change entry points, and update the index |
 | Template non-compliance | Title, frontmatter, source, or status fields do not conform to the specification | Low-risk direct fix |
 
@@ -140,7 +140,7 @@ The following conditions may be fixed directly:
 - Markdown section titles are inconsistent;
 - frontmatter fields are missing;
 - source path format is incorrect;
-- index/relations/glossary updates are missing;
+- index/glossary updates are missing;
 - obvious broken links;
 - search_terms are missing;
 - page status fields are missing;
@@ -189,12 +189,12 @@ If the user does not specify a scope, check in the following priority order by d
 1. Pages related to the issue the user just pointed out;
 2. active pages;
 3. pages frequently hit by query;
-4. pages used as entry points in relations/index/glossary;
+4. pages used as entry points in index/glossary;
 5. recently updated pages.
 
 ### Phase 2: Read Context
 
-Do not modify after reading only one page. At minimum, read: the target Wiki page, frontmatter sources, the corresponding raw/source, related Capability / Feature / Workflow / Troubleshooting, `relations.yml`, `index.md`, and `glossary.md`. When implementation differences are involved, verify code; when errata/report is involved, read the raw/code it references and determine where the conclusions should be placed.
+Do not modify after reading only one page. At minimum, read: the target Wiki page, frontmatter sources, the corresponding raw/source, related Capability / Feature / Workflow / Troubleshooting, `index.md`, and `glossary.md`. When implementation differences are involved, verify code; when errata/report is involved, read the raw/code it references and determine where the conclusions should be placed.
 
 ### Phase 3: Evidence Audit
 
@@ -248,7 +248,7 @@ Check conflicts between pages, conflicts between raw/source/code, historical mec
 
 ### Phase 7: Query Pollution Check
 
-Focus on preventing query from continuing to answer with old content or maintenance reports. Check whether outdated pages and errata/report are active, whether report lacks `exclude_from_query: true`, whether index/relations/glossary still point to old pages or reports, and whether qmd search ranks old pages/reports ahead of authoritative pages.
+Focus on preventing query from continuing to answer with old content or maintenance reports. Check whether outdated pages and errata/report are active, whether report lacks `exclude_from_query: true`, whether index/glossary or page entry links still point to old pages or reports, and whether qmd search ranks old pages/reports ahead of authoritative pages.
 
 ### Phase 8: Output Maintain Proposal
 
@@ -280,7 +280,7 @@ High-risk changes must first output a proposal.
 
 ### Phase 9: Apply After Confirmation
 
-After user confirmation, apply high-risk changes: update authoritative pages, merge valid conclusions from errata/report back into authoritative pages; write the maintenance report into `wiki/outputs/` and set `exclude_from_query: true`; update `relations.yml`, `index.md`, `glossary.md`, and `log.md`; finally execute or prompt execution of:
+After user confirmation, apply high-risk changes: update authoritative pages, merge valid conclusions from errata/report back into authoritative pages; write the maintenance report into `wiki/outputs/` and set `exclude_from_query: true`; update `index.md`, `glossary.md`, and `log.md`; finally execute or prompt execution of:
 
 ```bash
 zatools qmd update
@@ -291,7 +291,7 @@ It is forbidden to write the maintenance report as an active Wiki page.
 
 ### Phase 10: Post-Maintenance Verification
 
-Search the original question keywords again; check whether qmd prioritizes authoritative pages; whether errata/report will not become a query entry point; whether old pages are clearly marked historical/deprecated; whether relations/index/glossary point to the current mechanism; and use 2 to 5 seed questions to test whether query will still answer with old content.
+Search the original question keywords again; check whether qmd prioritizes authoritative pages; whether errata/report will not become a query entry point; whether old pages are clearly marked historical/deprecated; whether index/glossary and page entry links point to the current mechanism; and use 2 to 5 seed questions to test whether query will still answer with old content.
 
 ---
 
@@ -306,7 +306,7 @@ Search the original question keywords again; check whether qmd prioritizes autho
 - Do not handle conflicts silently.
 - Do not skip proposal and directly make high-risk changes.
 - Do not delete pages unless the user explicitly confirms.
-- Do not finish maintaining Wiki without updating index/relations/glossary.
+- Do not finish maintaining Wiki without updating index/glossary and page entry links.
 - Do not finish maintaining Wiki without updating the qmd index.
 
 ### 10.2 Difference Report Prohibitions
@@ -316,7 +316,7 @@ Search the original question keywords again; check whether qmd prioritizes autho
 - Do not let errata/report become the main query entry point.
 - Do not cite maintain report in Feature/Workflow sources to support facts.
 - Do not only write a difference report without merging back into authoritative pages.
-- Do not point index/relations/glossary to errata/report as the current conclusion.
+- Do not point index/glossary or page entry links to errata/report as the current conclusion.
 - Do not describe a report as “this page + code is authoritative”; the current conclusion should be based on Feature/Workflow.
 
 ### 10.3 Evidence Prohibitions
@@ -338,7 +338,7 @@ Search the original question keywords again; check whether qmd prioritizes autho
 ### 10.5 Query Pollution Prevention Prohibitions
 
 - Do not only modify the body without modifying summary/status/search_terms.
-- Do not only modify pages without modifying index/relations/glossary.
+- Do not only modify pages without modifying index/glossary and page entry links.
 - Do not keep multiple conflicting active entry points.
 - Do not let old pages continue as the main entry point.
 - Do not let glossary point old terms preferentially to old mechanisms.

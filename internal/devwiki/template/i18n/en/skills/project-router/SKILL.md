@@ -34,8 +34,8 @@ Then run the target Skill workflow. If the target Skill is not available, state 
 
 | Intent | Target Skill | Use for |
 |---|---|---|
-| `ingest` | `devwiki-ingest` | Convert raw material into capability, feature, workflow, troubleshooting, terms, and relations |
-| `maintain` | `devwiki-maintain` | Maintain evidence consistency, stale content, missing citations, relation errors, and query pollution in existing Wiki knowledge |
+| `ingest` | `devwiki-ingest` | Convert raw material into capability, feature, workflow, troubleshooting, terms, and entry navigation |
+| `maintain` | `devwiki-maintain` | Maintain evidence consistency, stale content, missing citations, entry errors, and query pollution in existing Wiki knowledge |
 | `query` | `devwiki-query` | Answer capability, feature, engineering-location, code-location, and troubleshooting questions |
 | `code_to_doc` | `devwiki-code-to-doc` | Generate or update Wiki pages from real code, APIs, routes, config keys, or log anchors |
 | `qmd_sync` | `devwiki-qmd-sync` | Register or repair qmd collections, refresh indexes, and check retrieval readiness |
@@ -53,7 +53,7 @@ Route to `devwiki-maintain` when the user:
 - asks to maintain Wiki, check Wiki health, audit consistency, or run a maintain pass
 - says query answered with old rules, stale mechanisms, or an outdated page
 - asks to compare raw/wiki/code consistency or check whether a Feature omitted key design points
-- asks to fix conflicts, stale pages, broken links, orphan pages, missing citations, or relation/index/glossary errors
+- asks to fix conflicts, stale pages, broken links, orphan pages, missing citations, or index/glossary/page-entry errors
 - wants old content marked historical, stale pages downgraded, or query pollution reduced
 
 Route to `devwiki-query` when the user asks:

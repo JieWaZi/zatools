@@ -1,6 +1,6 @@
 ---
 name: "devwiki-ingest"
-description: "Used when a user provides design documents, requirements specs, interface specs, configuration guides, deployment guides, test plans, meeting minutes, troubleshooting logs, code snippets, or discussion conclusions, and requests that these materials be digested, imported, used to generate Wiki pages, or used to build a knowledge base. This Skill transforms raw source materials into capabilities, features, workflows, troubleshooting guides, terminology, relationships, and questions requiring conversational clarification. This version exclusively uses Chinese titles and clearly defines the boundaries between the three layers: Capability, Feature, and Workflow—where Capability represents the capability map, Feature represents the functional contract, and Workflow represents the implementation path."
+description: "Used when a user provides design documents, requirements specs, interface specs, configuration guides, deployment guides, test plans, meeting minutes, troubleshooting logs, code snippets, or discussion conclusions, and requests that these materials be digested, imported, used to generate Wiki pages, or used to build a knowledge base. This Skill transforms raw source materials into capabilities, features, workflows, troubleshooting guides, terminology, entry navigation, and questions requiring conversational clarification. This version exclusively uses Chinese titles and clearly defines the boundaries between the three layers: Capability, Feature, and Workflow—where Capability represents the capability map, Feature represents the functional contract, and Workflow represents the implementation path."
 argument-hint: "<Document Path, Directory, Text Snippet, or Scope for Ingestion>"
 ---
 
@@ -113,7 +113,6 @@ Each ingest operation is permitted to create or update only the following files:
 - `wiki/features/<slug>.md`
 - `wiki/workflows/<slug>.md`
 - `wiki/troubleshooting/<slug>.md`
-- `wiki/relations.yml`
 - `wiki/index.md`
 - `wiki/glossary.md`
 - `wiki/log.md`
@@ -159,6 +158,7 @@ Requirements:
 
 - Every significant factual statement must be traceable back to a file in the `raw/` directory, an existing Wiki page, or verified code evidence.
 - For content pasted directly by the user, use `path: "pasted context"` and specify the actual source within the `notes` field.
+- Capability / Feature `sources` must not contain code file paths, function names, handlers, call chains, or `kind: code`; code evidence belongs in Workflow or Troubleshooting `code_refs`.
 - Speculative or unconfirmed information must not be presented as established fact.
 - Historical design documents, meeting minutes, and troubleshooting logs must clearly indicate the relevant date and applicable version.
 - Any conflicts or discrepancies found within the documentation must be addressed via a formal proposal; one version must not be silently selected over another.

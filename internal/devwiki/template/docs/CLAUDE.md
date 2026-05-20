@@ -20,7 +20,6 @@
 └── wiki/
     ├── index.md
     ├── glossary.md
-    ├── relations.yml
     ├── log.md
     ├── capabilities/
     ├── features/
@@ -38,7 +37,6 @@
 - `wiki/workflows/{slug}.md`
 - `wiki/troubleshooting/{slug}.md`
 - `wiki/log.md`
-- `wiki/relations.yml`
 - `raw/requirements/`
 - `raw/designs/`
 - `raw/features/`
@@ -166,6 +164,8 @@ code_refs:
     confidence: 0.9
 ```
 
+代码文件路径、函数名、handler 和调用链不写入 capability / feature 的 `sources`；Feature 的 `sources` 只记录 raw、已有 Wiki 或用户提供的非代码资料。由代码反向生成 Feature 时，代码证据必须写到对应 Workflow 的 `code_refs`，Feature 只通过 `workflow` 或正文链接指向实现定位。
+
 ## 检索顺序
 
 - 能力问题：`capabilities → features`
@@ -179,7 +179,7 @@ code_refs:
 
 - `raw/` 只读
 - 页面中的 `sources` 必须记录真实路径和 hash
-- capability 和 feature 禁止写代码引用
+- capability 和 feature 禁止写代码引用，也禁止在 `sources` 中记录代码文件路径或 `kind: code`
 - workflow 负责工程定位和修改影响
 - 待确认问题优先通过对话和用户对齐
 - 中高风险写入必须先给 proposal，再落盘
@@ -190,8 +190,8 @@ code_refs:
 - 使用 `zatools devwiki init` 在当前目录初始化 DevWiki 文档库并安装 skills
 - 使用 `zatools devwiki link` 将已有 DevWiki 文档库关联到代码库
 - 使用 `devwiki-project-router` 作为项目知识任务的默认总入口
-- 使用 `devwiki-ingest` 吸收 raw 文档并生成或更新三层 Wiki 页面、术语和关系
-- 使用 `devwiki-maintain` 维护已有 Wiki 的证据一致性、过期内容、引用缺失、关系错误和 query 污染
+- 使用 `devwiki-ingest` 吸收 raw 文档并生成或更新三层 Wiki 页面、术语和入口导航
+- 使用 `devwiki-maintain` 维护已有 Wiki 的证据一致性、过期内容、引用缺失、入口错误和 query 污染
 - 使用 `devwiki-query` 查询 Wiki、raw、代码线索、设计意图和排障知识
 - 使用 `devwiki-code-to-doc` 从代码、接口、配置项、日志或路由反向生成或更新 workflow 页面
 

@@ -291,6 +291,8 @@ search_terms:
 - ...
 ```
 
+Feature `sources` 只记录 raw、已有 Wiki 或用户提供的非代码资料。即使 Feature 是从代码追踪中反向生成，也不要在 Feature `sources` 中写代码文件路径、函数名、handler、调用链或 `kind: code`；代码证据必须写入对应 Workflow 的 `code_refs`，Feature 只通过 `workflow` 字段或正文链接指向实现定位。
+
 ---
 
 ## 五、可选扩展小节
@@ -452,4 +454,5 @@ search_terms:
 - 是否写清与其他功能的关系；
 - 是否把实现细节交给 workflow；
 - 是否每个关键事实都有来源；
+- 是否没有在 `sources` 中写代码文件路径或 `kind: code`；
 - 是否把不确定内容写入来源说明。

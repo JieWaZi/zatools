@@ -185,11 +185,13 @@ func TestInitCreatesProjectAndInstallsCodexSkillsIntoCurrentProjectRoot(t *testi
 		"AGENTS.md",
 		"config/project.yaml",
 		"wiki/index.md",
-		"wiki/relations.yml",
 	} {
 		if _, err := os.Stat(filepath.Join(docRoot, rel)); err != nil {
 			t.Fatalf("missing %s: %v", rel, err)
 		}
+	}
+	if _, err := os.Stat(filepath.Join(docRoot, "wiki/relations.yml")); err == nil {
+		t.Fatal("wiki/relations.yml should not be generated")
 	}
 	if _, err := os.Stat(filepath.Join(docRoot, "CLAUDE.md")); err == nil {
 		t.Fatal("codex init should not generate CLAUDE.md")

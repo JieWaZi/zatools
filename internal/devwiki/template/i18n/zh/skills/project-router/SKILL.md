@@ -35,8 +35,8 @@ argument-hint: "<问题、任务或文档范围>"
 
 | 意图类型 | 目标 Skill | 职责 |
 |---|---|---|
-| ingest | `devwiki-ingest` | 从原始资料建立或更新 DevWiki，生成 capability、feature、workflow、troubleshooting、术语和关系 |
-| maintain | `devwiki-maintain` | 对已有 Wiki 做证据一致性、过期内容、引用缺失、关系错误和 query 污染维护 |
+| ingest | `devwiki-ingest` | 从原始资料建立或更新 DevWiki，生成 capability、feature、workflow、troubleshooting、术语和入口导航 |
+| maintain | `devwiki-maintain` | 对已有 Wiki 做证据一致性、过期内容、引用缺失、入口错误和 query 污染维护 |
 | query | `devwiki-query` | 查询已有 Wiki、raw 和必要的代码线索，回答能力、功能、工程定位和排障问题 |
 | code_to_doc | `devwiki-code-to-doc` | 从代码、接口、配置项、日志或路由反向生成或更新 DevWiki 页面 |
 | qmd_sync | `devwiki-qmd-sync` | 补做或修复 qmd collection 注册、索引刷新与状态检查 |
@@ -67,7 +67,7 @@ devwiki-ingest
 - 用户说「维护 Wiki」「检查 Wiki 健康」「maintain」「体检一下」
 - 用户指出 query 回答用了旧规则、旧机制或过期页面
 - 用户要求检查 raw/wiki/code 是否一致，或检查 feature 是否遗漏关键设计
-- 用户要求修正冲突、过期、断链、孤立页、引用缺失、relations/index/glossary 错误
+- 用户要求修正冲突、过期、断链、孤立页、引用缺失、index/glossary 或页面入口错误
 - 用户要求把旧内容标记为历史、降低旧页面检索命中，或避免 query 继续命中过期结论
 
 路由到：
@@ -76,7 +76,7 @@ devwiki-ingest
 devwiki-maintain
 ```
 
-默认需要读取目标 Wiki、source、relations/index/glossary；涉及实现偏差时需要代码搜索。中高风险修正必须先输出 Maintain Proposal，再按确认落盘。
+默认需要读取目标 Wiki、source、index/glossary 和页面入口链接；涉及实现偏差时需要代码搜索。中高风险修正必须先输出 Maintain Proposal，再按确认落盘。
 
 ### 3. 查询类
 

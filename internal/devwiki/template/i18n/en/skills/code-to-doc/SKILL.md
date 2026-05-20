@@ -61,6 +61,7 @@ Default output priority:
 2. `wiki/features/<slug>.md`
     - Update only when code tracing confirms functional behavior, parameter semantics, linkage, boundaries, or acceptance concerns.
     - Feature must not contain code references; it only links to Workflow.
+    - Feature `sources` must not contain code file paths or `kind: code`; code evidence belongs only in the corresponding Workflow `code_refs`.
 
 3. `wiki/troubleshooting/<slug>.md`
     - Update only when the input anchor is a log, error code, symptom, or code tracing confirms a diagnosis/recovery path.
@@ -234,6 +235,7 @@ Evidence requirements:
 - Uncertain code clues must not be marked high confidence.
 - Put only verified code in `code_refs`.
 - `code_refs` belongs only in Workflow, never in Feature or Capability.
+- Feature `sources` may record only raw material, existing Wiki pages, or user-provided non-code context. Even when a Feature conclusion comes from code verification, do not write code file paths, function names, or `kind: code` into Feature.
 
 ---
 
@@ -366,11 +368,10 @@ After user confirmation:
 3. update `wiki/features/<slug>.md` if necessary;
 4. update `wiki/troubleshooting/<slug>.md` if necessary;
 5. output a Capability adjustment proposal if necessary;
-6. update `wiki/relations.yml`;
-7. update `wiki/index.md`;
-8. update `wiki/glossary.md`;
-9. append `wiki/log.md`;
-10. run or prompt:
+6. update `wiki/index.md`;
+7. update `wiki/glossary.md`;
+8. append `wiki/log.md`;
+9. run or prompt:
 
 ```bash
 zatools qmd update
@@ -396,6 +397,7 @@ zatools qmd status
 - Do not write unverified inference as fact.
 - Do not fabricate code paths, functions, interfaces, or module names.
 - Do not put code references in Capability or Feature.
+- Do not put code file paths, function names, or `kind: code` in Feature `sources`.
 - Do not copy the full Feature business description into Workflow.
 - Do not turn Workflow into line-by-line code explanation.
 - Do not write historical raw design as current implementation by default.
@@ -411,31 +413,3 @@ zatools qmd status
 - Do not write definite conclusions when dynamic dispatch cannot be confirmed.
 
 ---
-
-## 14. Completion Report
-
-After confirmed writing, output:
-
-```markdown
-# Code-to-Doc Report
-
-## Input Anchors
-
-## Created Pages
-
-## Updated Pages
-
-## Code Evidence
-
-## Differences from Wiki / Raw
-
-## Unconfirmed Content
-
-## Relation Updates
-
-## Glossary Updates
-
-## Recommended Verification
-
-## Next Steps
-```

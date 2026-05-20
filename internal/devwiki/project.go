@@ -187,9 +187,6 @@ func ensureRepoLayout(root string) error {
 	if err := os.WriteFile(filepath.Join(root, "wiki", "index.md"), []byte("# Wiki Index\n"), 0o644); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(root, "wiki", "relations.yml"), []byte("relations: {}\n"), 0o644); err != nil {
-		return err
-	}
 	if err := os.WriteFile(filepath.Join(root, "wiki", "glossary.md"), []byte("# Glossary\n"), 0o644); err != nil {
 		return err
 	}

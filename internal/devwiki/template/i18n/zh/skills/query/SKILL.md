@@ -1,6 +1,6 @@
 ---
 name: "devwiki-query"
-description: "当用户询问项目功能、设计细节、能力边界、代码位置、流程、配置、排障、对外说明或已有知识时使用。该 Skill 基于 DevWiki、glossary、relations.yml、zatools qmd 检索和必要的 rg 代码搜索回答问题。"
+description: "当用户询问项目功能、设计细节、能力边界、代码位置、流程、配置、排障、对外说明或已有知识时使用。该 Skill 基于 DevWiki、glossary、zatools qmd 检索和必要的 rg 代码搜索回答问题。"
 argument-hint: "<问题>"
 ---
 
@@ -39,7 +39,6 @@ argument-hint: "<问题>"
 - `config/search.yaml`
 - `wiki/index.md`
 - `wiki/glossary.md`
-- `wiki/relations.yml`
 - `wiki/capabilities/*.md`
 - `wiki/features/*.md`
 - `wiki/workflows/*.md`
@@ -96,7 +95,7 @@ argument-hint: "<问题>"
 ### Step 1: 意图识别与范围收敛
 
 1. 读取 `config/project.yaml`，确定代码仓配置和默认语言。
-2. 读取 `wiki/index.md`、`wiki/glossary.md`、`wiki/relations.yml`，建立全局上下文。
+2. 读取 `wiki/index.md`、`wiki/glossary.md`，建立全局上下文。
 3. 判断用户身份：
    - 默认 `developer`
    - 用户说“客户、外部用户、官网、对外说明”时，按 `external_user`
@@ -113,7 +112,7 @@ design_detail
 change_impact
 ```
 
-如果 `wiki/index.md`、`wiki/glossary.md` 或 `wiki/relations.yml` 缺失，输出：
+如果 `wiki/index.md` 或 `wiki/glossary.md` 缺失，输出：
 
 ```text
 当前 Project Brain 没有足够信息支持该结论。
@@ -131,8 +130,8 @@ devwiki-ingest
 
 1. 用户原始问题中的关键词、接口、配置项、错误码、日志片段、功能名。
 2. `wiki/glossary.md` 中的术语、别名、注意事项。
-3. `wiki/relations.yml` 中关联的 capability / feature / workflow / troubleshooting。
-4. `config/aliases.yml`（如果存在）。
+3. `wiki/index.md` 中的 capability / feature / workflow / troubleshooting 入口。
+4. 候选页面 frontmatter 和正文链接中的 capability / feature / workflow / troubleshooting 关系。
 
 召回规则：
 

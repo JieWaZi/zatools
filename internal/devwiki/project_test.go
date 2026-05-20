@@ -40,7 +40,6 @@ func TestGenerateProjectCreatesExpectedFiles(t *testing.T) {
 		"wiki/troubleshooting/.gitkeep",
 		"wiki/outputs/.gitkeep",
 		"wiki/index.md",
-		"wiki/relations.yml",
 		"wiki/glossary.md",
 		"wiki/log.md",
 	} {
@@ -58,6 +57,7 @@ func TestGenerateProjectCreatesExpectedFiles(t *testing.T) {
 		"wiki/graph",
 		"wiki/sources",
 		"wiki/modules",
+		"wiki/relations.yml",
 		"wiki/open_questions.md",
 	} {
 		if _, err := os.Stat(filepath.Join(target, rel)); err == nil {
@@ -210,7 +210,6 @@ func TestGenerateProjectRendersReadmeAndRuntimeTemplates(t *testing.T) {
 		"wiki/workflows/",
 		"wiki/troubleshooting/",
 		"wiki/log.md",
-		"wiki/relations.yml",
 		"wiki/glossary.md",
 		"当前目录还会持有项目级 DevWiki skills、`.cache/` 和 `.zatools-lock.json`",
 	) {
@@ -277,7 +276,6 @@ func TestGenerateProjectRendersLatestRuntimeTemplates(t *testing.T) {
 				"wiki/workflows/{slug}.md",
 				"wiki/troubleshooting/{slug}.md",
 				"wiki/log.md",
-				"wiki/relations.yml",
 				"raw/requirements/",
 				"raw/designs/",
 				"raw/features/",
@@ -287,7 +285,7 @@ func TestGenerateProjectRendersLatestRuntimeTemplates(t *testing.T) {
 			) {
 				t.Fatalf("%s content missing expected latest runtime guidance:\n%s", tc.runtimeFile, content)
 			}
-			if containsAny(content, "{{", "}}", "setup.sh", "setup.ps1", "i18n/", "project.yaml.example", "claude-settings.local.json.example", "codex-config.example.yaml", "search/", "tools/", "wiki/documents/{doc-type}/{slug}.md", "wiki/changes/{slug}.md", "wiki/graph/", "wiki/sources/", "wiki/modules/", "wiki/open_questions.md", "raw/api/", "raw/code-summaries/", "raw/postmortems/") {
+			if containsAny(content, "{{", "}}", "setup.sh", "setup.ps1", "i18n/", "project.yaml.example", "claude-settings.local.json.example", "codex-config.example.yaml", "search/", "tools/", "wiki/documents/{doc-type}/{slug}.md", "wiki/changes/{slug}.md", "wiki/graph/", "wiki/sources/", "wiki/modules/", "wiki/relations.yml", "wiki/open_questions.md", "raw/api/", "raw/code-summaries/", "raw/postmortems/") {
 				t.Fatalf("%s still contains unresolved placeholders or outdated paths:\n%s", tc.runtimeFile, content)
 			}
 		})
@@ -507,11 +505,13 @@ func TestExtractBuiltinSkillsIncludesMaintainGuidance(t *testing.T) {
 		"exclude_from_query: true",
 		"# Maintain Proposal",
 		"# DevWiki Maintain Report",
-		"relations.yml",
 		"glossary.md",
 		"zatools qmd update",
 	) {
 		t.Fatalf("maintain/SKILL.md missing maintain guidance:\n%s", content)
+	}
+	if containsAny(content, "relations.yml", "relations/index/glossary", "index/relations/glossary") {
+		t.Fatalf("maintain/SKILL.md still references relations.yml:\n%s", content)
 	}
 }
 
@@ -541,7 +541,6 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 		"生成 workflow 页面前，优先读取 `references/workflow_template.md`",
 		"wiki/workflows/<slug>.md",
 		"wiki/troubleshooting/<slug>.md",
-		"wiki/relations.yml",
 		"wiki/glossary.md",
 		"页面小节标题统一使用中文",
 		"## 需要你确认的问题",
@@ -550,7 +549,7 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 	) {
 		t.Fatalf("ingest/SKILL.md missing structured ingest guidance:\n%s", content)
 	}
-	if containsAny(content, "wiki/sources/<source-id>.md", "wiki/modules/<slug>.md", "wiki/open_questions.md", "CREATE / EDIT `wiki/sources", "CREATE / EDIT `wiki/modules", "EDIT `wiki/open_questions.md`") {
+	if containsAny(content, "wiki/relations.yml", "relations.yml", "wiki/sources/<source-id>.md", "wiki/modules/<slug>.md", "wiki/open_questions.md", "CREATE / EDIT `wiki/sources", "CREATE / EDIT `wiki/modules", "EDIT `wiki/open_questions.md`") {
 		t.Fatalf("ingest/SKILL.md still references removed wiki paths:\n%s", content)
 	}
 	for _, rel := range []string{
@@ -583,7 +582,6 @@ func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
 		"explain_feature",
 		"locate_code",
 		"public_answer",
-		"wiki/relations.yml",
 		"wiki/glossary.md",
 		"代码定位线索",
 		"## 目录选择规则",
@@ -597,7 +595,7 @@ func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
 	) {
 		t.Fatalf("query/SKILL.md missing query guidance:\n%s", content)
 	}
-	if containsAny(content, "wiki/sources/", "wiki/modules/", "wiki/open_questions.md", "modules →", "modules ->") {
+	if containsAny(content, "wiki/relations.yml", "relations.yml", "wiki/sources/", "wiki/modules/", "wiki/open_questions.md", "modules →", "modules ->") {
 		t.Fatalf("query/SKILL.md still references removed wiki paths:\n%s", content)
 	}
 }
@@ -621,11 +619,11 @@ func TestExtractBuiltinSkillsIncludesCodeToDocGuidance(t *testing.T) {
 		"默认写入 `wiki/workflows/<slug>.md`",
 		"wiki/workflows/",
 		"wiki/troubleshooting/",
-		"references/trace-playbook.md",
+		"Feature 的 sources 不写代码文件路径或 `kind: code`",
 	) {
 		t.Fatalf("code-to-doc/SKILL.md missing code-to-doc guidance:\n%s", content)
 	}
-	if containsAny(content, "wiki/modules/", "Source Card") {
+	if containsAny(content, "wiki/relations.yml", "relations.yml", "wiki/modules/", "Source Card") {
 		t.Fatalf("code-to-doc/SKILL.md still references removed module/source behavior:\n%s", content)
 	}
 }

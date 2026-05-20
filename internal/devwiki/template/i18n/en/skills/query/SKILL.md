@@ -1,6 +1,6 @@
 ---
 name: "devwiki-query"
-description: "Use when the user asks about project features, design details, capability boundaries, code locations, flows, configuration, troubleshooting, public-facing explanations, or existing knowledge. This skill answers from DevWiki, glossary, relations.yml, zatools qmd retrieval, and necessary rg code search."
+description: "Use when the user asks about project features, design details, capability boundaries, code locations, flows, configuration, troubleshooting, public-facing explanations, or existing knowledge. This skill answers from DevWiki, glossary, zatools qmd retrieval, and necessary rg code search."
 argument-hint: "<question>"
 ---
 
@@ -30,7 +30,6 @@ Answer from Project Brain. Do not invent project facts; check DevWiki first, ver
 - `config/search.yaml`
 - `wiki/index.md`
 - `wiki/glossary.md`
-- `wiki/relations.yml`
 - `wiki/capabilities/*.md`
 - `wiki/features/*.md`
 - `wiki/workflows/*.md`
@@ -73,7 +72,7 @@ Other pages may be used only as summaries or navigation.
 
 ### Step 1: Narrow Intent
 
-Read `config/project.yaml`, `wiki/index.md`, `wiki/glossary.md`, and `wiki/relations.yml`. Classify the question as:
+Read `config/project.yaml`, `wiki/index.md`, and `wiki/glossary.md`. Classify the question as:
 
 ```text
 explain_feature
@@ -85,7 +84,7 @@ design_detail
 change_impact
 ```
 
-If `wiki/index.md`, `wiki/glossary.md`, or `wiki/relations.yml` is missing, answer:
+If `wiki/index.md` or `wiki/glossary.md` is missing, answer:
 
 ```text
 The current Project Brain does not have enough information to support that conclusion.
@@ -95,7 +94,7 @@ and suggest `devwiki-ingest`.
 
 ### Step 2: Retrieve Evidence
 
-Use query terms from the user question, `wiki/glossary.md`, `wiki/relations.yml`, and optional `config/aliases.yml`.
+Use query terms from the user question, `wiki/glossary.md`, `wiki/index.md`, relationships in candidate page frontmatter/body links, and optional `config/aliases.yml`.
 
 Search the primary directory first. If local matches are insufficient, use `zatools qmd search` according to `references/zatools-qmd.md`. Use `zatools qmd query` only for concept/design/intent retrieval when cheaper steps are insufficient.
 

@@ -5,3 +5,4 @@ skills-lock.json
 .codex
 .claude
 dist/
+.DS_Store

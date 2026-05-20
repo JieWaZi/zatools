@@ -21,7 +21,6 @@ DevWiki 是一个单产品知识底座。文档库可以独立存在，并通过
 同时保留辅助根文件和报告目录：
 
 - `outputs`
-- `relations.yml`
 - `glossary.md`
 
 ## 为什么不是临时 RAG
@@ -157,7 +156,7 @@ qmd:
 
 1. 用 `devwiki-project-router` 描述错误回答、旧机制、冲突页面或待维护范围
 2. Router 路由到 `devwiki-maintain`
-3. Agent 审计 Wiki、source、relations、index、glossary，必要时核对代码
+3. Agent 审计 Wiki、source、index、glossary，必要时核对代码
 4. 对中高风险知识修正先输出 Maintain Proposal，确认后再落盘并刷新 qmd 索引
 
 ## 核心能力
@@ -166,8 +165,8 @@ qmd:
 |------|------|
 | `devwiki-qmd-sync` | 为已有工作区补做或修复 `zatools qmd` collection 注册、索引刷新与状态检查 |
 | `devwiki-project-router` | 总入口，先判断意图、身份、证据需求、qmd / 代码检索边界，再路由到具体 Skill |
-| `devwiki-ingest` | 增量消化需求、设计、测试或会议资料，更新三层 Wiki 页面和关系 |
-| `devwiki-maintain` | 维护已有 Wiki 的证据一致性、过期内容、引用缺失、关系错误和 query 污染 |
+| `devwiki-ingest` | 增量消化需求、设计、测试或会议资料，更新三层 Wiki 页面、术语和入口导航 |
+| `devwiki-maintain` | 维护已有 Wiki 的证据一致性、过期内容、引用缺失、入口错误和 query 污染 |
 | `devwiki-query` | 查询已有 Wiki、raw 和必要的代码线索，回答功能、设计、流程、代码定位和排障问题 |
 | `devwiki-code-to-doc` | 从代码、接口、配置项、日志或路由反向生成或更新 workflow / 代码定位页面 |
 
@@ -188,7 +187,6 @@ qmd:
 └── wiki/
     ├── index.md
     ├── glossary.md
-    ├── relations.yml
     ├── log.md
     ├── capabilities/
     ├── features/
@@ -205,7 +203,6 @@ qmd:
 - `wiki/workflows/` 是工程定位页，合并流程和模块定位
 - `wiki/troubleshooting/` 是排障知识页
 - `wiki/outputs/` 保存 ingest / maintain / query / code-to-doc / qmd-sync 报告
-- `wiki/relations.yml` 保存能力、功能、工程定位和排障关系
 - `wiki/glossary.md` 保存术语表
 - 当前目录还会持有项目级 DevWiki skills、`.cache/` 和 `.zatools-lock.json`
 
@@ -216,7 +213,7 @@ qmd:
 - `features` 只写功能设计、参数、取值、联动和功能流转，不写代码引用
 - `workflows` 合并原 workflow/module，负责调用链、关键文件、关键函数、状态落点、修改影响和测试入口
 - 待确认问题优先通过对话和用户对齐，不默认写入文件
-- `relations.yml` 负责跨 capability / feature / workflow / troubleshooting 的结构化关系
+- 页面之间的结构化关系直接写在页面 frontmatter、正文链接和 `index.md` 导航中，不再维护单独关系文件
 - DevWiki 任务先由 `devwiki-project-router` 统一判断意图和证据边界
 - 已有 Wiki 出现旧结论、缺证据、断链、关系错误或 query 污染时，使用 `devwiki-maintain` 做证据一致性维护
 - 中高风险动作必须先提案、后确认
