@@ -136,11 +136,13 @@ devwiki-ingest
 召回规则：
 
 1. 根据“目录选择规则”确定首查目录。
-2. 如果问题已有明确锚点，先本地搜索首查目录、`wiki/` 根文件和必要的 `raw/`。
-3. 如果只有关键词或主题，使用 `zatools qmd search` 召回首查目录和辅助目录，再按事实归属去重。
-4. 对 `public_answer` 只读取 public 可见页面和可公开摘录，不读代码仓库。
-5. 只有当前两档不足，且问题是概念 / 设计 / 意图类时，才考虑 `zatools qmd query`。
+2. 默认先本地搜索 DevWiki 文档层：首查目录、辅助目录、`wiki/index.md`、`wiki/glossary.md`，必要时再查 `raw/`。
+3. 召回分档、低置信升档和 qmd fallback 统一遵守 `references/zatools-qmd.md`。
+4. `zatools qmd search` 只作为候选排序；命中后必须读取真实 `wiki/` / `raw/` 页面，再按事实归属去重。
+5. 对 `public_answer` 只读取 public 可见页面和可公开摘录，不读代码仓库。
 6. 候选数量受控：top-K（K ≤ 12），优先读高相关页面。
+
+如果 `qmd search/query` 报错、超时、collection 未注册、cache 不可写或模型缺失，按 `references/zatools-qmd.md` 降级为本地 Wiki 搜索，并在回答中明示“本轮 qmd 不可用，已降级”。
 
 如果文档已经足够回答，就不要为了“更稳”再默认展开代码阅读。
 

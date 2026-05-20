@@ -15,7 +15,13 @@ argument-hint: "<文档路径、目录、文本片段或待摄入范围>"
 > - 生成 feature 页面前，优先读取 `references/feature_template.md`
 > - 生成 workflow 页面前，优先读取 `references/workflow_template.md`
 
-将一份或一批原始资料转成可维护知识。不要直接写散文总结；必须先做分类、控粒度、给 proposal，等用户确认中高风险内容后再落盘。
+将一份或一批原始资料转成可维护知识。不要直接写散文总结；必须先做分类、控粒度、给 proposal，等用户在 proposal 之后显式确认后再落盘。
+
+## 写入门禁
+
+本 Skill 默认处于 `discussion_only` 模式。用户要求“生成 Wiki / 导入资料 / 构建知识库”只表示启动 ingest 分析流程，不等于允许落盘。
+
+完整写入门禁见 `references/mutation-safety.md`。本 Skill 只补充 ingest 专属要求：必须先输出 Ingest Proposal，列出拟写路径、动作、修改摘要、证据、风险和待确认问题；只有用户在 proposal 后明确回复“确认落盘”或“按 proposal 写入”后，才允许进入 `confirmed_write`。
 
 本 Skill 的核心目标：
 
@@ -27,9 +33,7 @@ argument-hint: "<文档路径、目录、文本片段或待摄入范围>"
 
 ---
 
-## 一、三层主模型
-
-DevWiki 的主知识围绕三层和排障组织：
+## 一、知识层级
 
 | 层级 | 路径 | 作用 |
 |---|---|---|---|
@@ -37,9 +41,6 @@ DevWiki 的主知识围绕三层和排障组织：
 | feature | `wiki/features/<slug>.md` | 功能契约/功能知识：功能目标、核心行为、关键规则、关键概念、重要配置、联动、边界、验收关注点 |
 | workflow | `wiki/workflows/<slug>.md` | 面向编程的工程定位：入口、调用链、关键逻辑、代码引用、修改影响、实现差异核对 |
 | troubleshooting | `wiki/troubleshooting/<slug>.md` | 故障现象、日志、错误码、诊断路径、证据、修复建议 |
----
-
-## 二、Capability / Feature / Workflow 三层边界
 
 一句话区分：
 
@@ -49,56 +50,11 @@ Feature = 具体功能的行为和规则是什么
 Workflow = 功能在代码中的实现路径怎么走
 ```
 
-三层页面不能互相复制内容。每一层只维护自己负责的“权威事实”，其他层只做摘要和链接。
-
-| 层级 | 核心问题 | 权威内容 | 不应该写什么 |
-|---|---|---|---|
-| Capability | 系统具备什么能力？能力边界是什么？ | 能力定义、业务价值、能力范围、覆盖 Feature、能力间关系、能力级约束 | 具体功能规则、状态机、决策表、代码路径 |
-| Feature | 这个功能怎么表现？有哪些关键规则？ | 功能目标、用户场景、触发条件、核心行为、关键规则、关键概念、重要配置、边界异常、验收关注点 | 代码入口、函数名、调用链、实现分支、完整排障步骤 |
-| Workflow | 这个功能在代码里怎么实现？ | 代码入口、调用链、类/模块/函数、状态读写、配置处理、异常实现、测试引用、修改影响 | 完整业务背景、完整 Feature 规则复述、能力价值说明 |
+页面边界和 `code_refs` 结构以 `references/evidence-grounding.md` 及页面模板为准。`SKILL.md` 只保留 ingest 流程，不重复维护页面模板细节。
 
 ---
 
-### 2.1 三层之间的引用方式
-
-正确关系：
-
-```text
-Capability → 列出并链接 Feature
-Feature → 说明功能规则，并链接 Workflow
-Workflow → 映射 Feature 规则到代码实现
-Troubleshooting → 链接 Feature / Workflow，提供排障路径
-```
-
-推荐写法：
-
-* [[feature-vip-failover]]：负责 VIP 接管行为，详细规则见 Feature 页面。
-
-* 实现定位见：[[workflow-vip-failover]]
-
----
-
-### 2.2 三层归属判断表
-
-| 信息类型 | 写入位置 | 说明 |
-|---|---|---|
-| 能力定义、业务价值、能力边界 | Capability | 作为能力页权威事实 |
-| 覆盖哪些功能 | Capability | 只列 Feature 摘要和链接 |
-| 功能目标、功能行为、功能规则 | Feature | 作为功能页权威事实 |
-| 用户场景、触发条件、边界异常 | Feature | 面向理解和测试 |
-| 状态/角色的功能含义 | Feature | 只解释功能影响 |
-| 具体状态判断代码 | Workflow | 写代码入口和判断位置 |
-| 决策规则的功能结果 | Feature | 保留规则摘要或关键表 |
-| 决策规则的代码分支 | Workflow | 映射到实现位置 |
-| 配置对行为的影响 | Feature | 写功能影响 |
-| 配置读取/校验/下发代码 | Workflow | 写实现路径 |
-| 代码路径、函数名、调用链 | Workflow | Feature 禁止写 |
-| 故障现象、日志、修复步骤 | Troubleshooting | Feature 只链接 |
-| 修改影响文件、测试文件 | Workflow | 写工程影响 |
-
----
-
-## 三、输入
+## 二、输入
 - `raw/**/*.md`：已放入 DevWiki 的原始需求、设计、功能说明、测试方案等；
 - `config/project.yaml`：项目名称、语言、agent、代码仓配置；
 - `config/search.yaml`：qmd collection 和模型配置。
@@ -111,9 +67,9 @@ Troubleshooting → 链接 Feature / Workflow，提供排障路径
 
 ---
 
-## 四、输出
+## 三、输出
 
-每次 ingest 只允许创建或更新：
+进入 `confirmed_write` 后，每次 ingest 最多允许创建或更新：
 
 - `wiki/capabilities/<slug>.md`
 - `wiki/features/<slug>.md`
@@ -126,7 +82,7 @@ Troubleshooting → 链接 Feature / Workflow，提供排障路径
 
 ---
 
-## 五、粒度规则
+## 四、粒度规则
 
 默认一个功能主题最多对应：
 
@@ -146,7 +102,7 @@ Troubleshooting → 链接 Feature / Workflow，提供排障路径
 
 ---
 
-## 六、来源规则
+## 五、来源规则
 
 来源信息内联写入目标页面：
 
@@ -165,6 +121,7 @@ sources:
 - 每个重要事实必须能回到 `raw/`、已有 Wiki 页面或已核对代码证据。
 - 用户粘贴内容使用 `path: "pasted context"`，并在 `notes` 中说明来源。
 - capability / feature 的 `sources` 不写代码文件路径、函数名、handler、调用链或 `kind: code`；代码证据统一写入 workflow 或 troubleshooting 的 `code_refs`。
+- `code_refs` 的文件级结构和 symbol 数量限制见 `references/evidence-grounding.md`。
 - 不确定内容不得写成确定事实。
 - 历史设计、会议纪要、排障记录要标明时间和适用版本。
 - 文档冲突必须进入 proposal，不能静默选择一个版本。
@@ -172,24 +129,24 @@ sources:
 
 ---
 
-## 七、页面模板
+## 六、页面模板
 
-### 7.1 Capability 模板
+### 6.1 Capability 模板
 
+```text
+references/capability_template.md
+```
+### 6.2 Feature 模板
 ```text
 references/feature_template.md
 ```
-### 7.2 Feature 模板
-```text
-references/feature_template.md
-```
-### 7.3 Workflow 模板
+### 6.3 Workflow 模板
 
 ```text
 references/workflow_template.md
 ```
 
-### 7.4 Troubleshooting 模板
+### 6.4 Troubleshooting 模板
 
 ```markdown
 ---
@@ -228,7 +185,7 @@ search_terms: []
 
 ---
 
-## 五、工作流程
+## 七、工作流程
 
 ### Phase 1：解析输入
 
@@ -284,13 +241,14 @@ search_terms: []
     - `wiki/features/`
     - `wiki/workflows/`
     - `wiki/troubleshooting/`
-3. 本地命中不足时，按 `references/zatools-qmd.md` 使用：
+3. 按 `references/zatools-qmd.md` 判断本地 Wiki 命中质量；低置信或噪声过大时再使用：
 
 ```bash
 zatools qmd search "<关键词>"
 ```
 
-4. 命中相似页面时，判断是：
+4. 如果 `zatools qmd search` 报错、超时、collection 未注册或 cache 不可写，降级为本地 Wiki 搜索，并在 proposal 中说明本轮 qmd 不可用。
+5. 命中相似页面时，判断是：
     - 更新已有页面；
     - 新增页面；
     - 标记冲突；
@@ -349,10 +307,10 @@ zatools qmd search "<关键词>"
 
 ## 输入来源
 
-## 建议写入
+## 拟写入文件
 
-| 页面 | 类型 | 动作 | 原因 | 置信度 |
-|---|---|---|---|---|
+| 路径 | 类型 | 动作 | 风险等级 | 原因 | 置信度 |
+|---|---|---|---|---|---|
 
 ## 分类判断
 
@@ -361,6 +319,9 @@ zatools qmd search "<关键词>"
 
 ## 入口和链接更新建议
 
+| 路径 | 动作 | 原因 |
+|---|---|---|
+
 ## 术语更新建议
 
 ## 冲突与不确定内容
@@ -368,6 +329,10 @@ zatools qmd search "<关键词>"
 ## 需要你确认的问题
 
 ## 暂不写入的内容
+
+## 等待确认
+
+如果以上路径、动作和内容摘要都认可，请明确回复“确认落盘”或“按 proposal 写入”。
 ```
 
 必须先确认的情况：
@@ -385,7 +350,7 @@ zatools qmd search "<关键词>"
 
 ### Phase 7：确认后落盘
 
-用户确认后再执行：
+只有在用户明确确认 Ingest Proposal 后，才进入 `confirmed_write` 并执行：
 
 1. 创建或更新目标页面。
 2. 更新 `wiki/index.md`。
@@ -405,6 +370,11 @@ zatools qmd status
 
 落盘前检查：
 
+- 是否处于 `confirmed_write` 模式；
+- 是否有用户在 Ingest Proposal 后的明确确认；
+- 实际写入路径是否完全包含在 Ingest Proposal 的“拟写入文件”表内；
+- 实际写入动作是否完全匹配 Ingest Proposal；
+- 是否没有写入 proposal 未列出的文件；
 - 是否已读取对应模板；
 - 是否每个重要事实都有来源；
 - 是否没有跳过 proposal；

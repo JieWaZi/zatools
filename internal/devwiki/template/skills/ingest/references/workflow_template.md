@@ -110,6 +110,15 @@ Workflow 可以引用 Feature 的规则，但不要完整复制 Feature。
 
 不能凭猜测编造代码路径。
 
+`code_refs` 必须按文件归并：
+
+- 同一个 `path` 只能出现一条 `code_refs`。
+- 顶层 `note` 必须是文件级职责，不写每个方法的说明。
+- `symbols` 是关键入口索引，不是文件内方法清单。
+- `symbols` 最多 4 个，只列关键入口。
+- 不得为了完整性列出文件内所有方法。
+- `symbols` 使用 `<symbol>#<kind>: "<短说明>"` 格式，不再维护独立的 symbol 说明 map。
+
 ---
 
 ### 3.4 区分“设计意图”和“当前实现”
@@ -143,9 +152,11 @@ sources:
     notes: ""
 code_refs:
   - path: "<代码文件路径>"
-    symbol: "<类/函数/方法/常量>"
-    kind: "<class/function/method/constant/config/test>"
+    kind: file
+    note: "<文件级职责>"
     confidence: medium
+    symbols:
+      "<关键类/函数/方法/常量>#<class/function/method/constant/handler/config/task>": "<关键入口短说明>"
 api_entries: []
 test_refs: []
 visibility: internal
@@ -290,9 +301,9 @@ flowchart TD
 
 ## 代码引用
 
-列出已核对的代码引用。
+列出已核对的代码引用。`code_refs` 以文件为粒度；同一文件内的关键 symbol 只作为入口索引，不列全量方法。
 
-| 路径 | 符号 | 类型 | 说明 |
+| 路径 | 文件级职责 | 关键入口 symbols（最多 4 个） | 置信度 |
 |---|---|---|---|
 |  |  |  |  |
 

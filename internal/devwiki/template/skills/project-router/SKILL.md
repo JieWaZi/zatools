@@ -185,13 +185,7 @@ internal_non_developer
 
 ### 需要项目知识时
 
-按 `references/zatools-qmd.md` 的阶梯召回规则执行：
-
-1. 如果请求中已有明确锚点（文件、函数、接口、错误码、feature slug、capability slug），先本地搜索和直接读相关文件
-2. 如果只有关键词或主题，使用 `zatools qmd search` 召回默认的 `wiki` collection；只有用户手动配置 raw/code collection 时才覆盖这些额外目录
-3. 如果前两档不足，且问题属于概念、设计、意图类，再考虑 `zatools qmd query`
-4. 无 GPU / 加速时，按共享规则降级为 `qmd search` + 本地文本搜索，不要静默卡住
-5. 任一档拿到足够强的 top-K 即停，不要为了“保险”无边界扩大搜索
+按 `references/zatools-qmd.md` 的“本地 Wiki 优先，低置信升档”规则执行。Router 只判断是否需要项目知识、qmd 和代码搜索；具体分档、短词处理、fallback 和停止条件都由该 reference 统一维护。
 
 ### 必须查询项目知识的场景
 

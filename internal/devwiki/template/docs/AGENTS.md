@@ -301,15 +301,22 @@ sources:
 code_refs:
   - path: "services/user/service.ts"
     kind: file
-    symbol: ""
-    note: "用户 CRUD 主服务入口"
-    confidence: 0.9
+    note: "用户资料读写和状态同步的主服务实现。"
+    confidence: high
+    symbols:
+      UserService#class: "用户资料服务主类。"
+      UserService#updateProfile#method: "状态写入入口，修改时需要同步检查缓存刷新。"
 ```
 
 使用规则：
 
-- 如果整个文件都相关，直接存文件列表
-- 如果文件很大但只涉及局部逻辑，使用 `path + symbol`
+- `code_refs` 以代码文件 `path` 为唯一粒度
+- 同一个 `path` 在同一页面中只能出现一条 `code_refs`
+- 顶层 `note` 只写文件级职责，不写每个方法的说明
+- `symbols` 是关键入口索引，不是文件内方法清单
+- `symbols` 最多 4 个，只列主入口、关键状态读写、配置处理、外发、副作用、恢复或排障入口
+- `symbols` 使用 `<symbol>#<kind>: "<短说明>"` 格式，value 只写入口职责、风险点或排障关键说明
+- 不得为了完整性列出文件内所有方法
 - 没核对过的路径和 symbol 不得虚构
 - capability 和 feature 页面禁止写代码引用，也禁止在 `sources` 中记录代码文件路径或 `kind: code`
 

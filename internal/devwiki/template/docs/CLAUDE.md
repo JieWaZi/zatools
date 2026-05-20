@@ -159,10 +159,14 @@ sources:
 code_refs:
   - path: "services/user/service.ts"
     kind: file
-    symbol: ""
-    note: "用户 CRUD 主服务入口"
-    confidence: 0.9
+    note: "用户资料读写和状态同步的主服务实现。"
+    confidence: high
+    symbols:
+      UserService#class: "用户资料服务主类。"
+      UserService#updateProfile#method: "状态写入入口，修改时需要同步检查缓存刷新。"
 ```
+
+`code_refs` 以代码文件 `path` 为唯一粒度；同一个 `path` 在同一页面中只能出现一条。顶层 `note` 只写文件级职责，不写每个方法的说明。`symbols` 是关键入口索引，不是文件内方法清单，最多 4 个；使用 `<symbol>#<kind>: "<短说明>"` 格式，value 只写入口职责、风险点或排障关键说明；不得为了完整性列出文件内所有方法。
 
 代码文件路径、函数名、handler 和调用链不写入 capability / feature 的 `sources`；Feature 的 `sources` 只记录 raw、已有 Wiki 或用户提供的非代码资料。由代码反向生成 Feature 时，代码证据必须写到对应 Workflow 的 `code_refs`，Feature 只通过 `workflow` 或正文链接指向实现定位。
 

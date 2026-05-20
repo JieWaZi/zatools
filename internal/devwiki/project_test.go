@@ -542,11 +542,11 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 	content := string(data)
 	if !containsAll(content,
 		`name: "devwiki-ingest"`,
-		"三层主模型",
-		"Capability / Feature / Workflow 三层边界",
 		"Capability 是能力地图",
 		"Feature 是功能契约",
 		"Workflow 是实现路径",
+		"页面边界和 `code_refs` 结构以 `references/evidence-grounding.md` 及页面模板为准",
+		"完整写入门禁见 `references/mutation-safety.md`",
 		"生成 capability 页面前，优先读取 `references/capability_template.md`",
 		"生成 feature 页面前，优先读取 `references/feature_template.md`",
 		"生成 workflow 页面前，优先读取 `references/workflow_template.md`",
@@ -557,10 +557,30 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 		"## 需要你确认的问题",
 		"落盘前检查",
 		"# Ingest Proposal",
+		"discussion_only",
+		"confirmed_write",
+		"确认落盘",
+		"按 proposal 写入",
+		"用户要求“生成 Wiki / 导入资料 / 构建知识库”只表示启动 ingest 分析流程，不等于允许落盘",
+		"实际写入路径是否完全包含在 Ingest Proposal 的“拟写入文件”表内",
 	) {
 		t.Fatalf("ingest/SKILL.md missing structured ingest guidance:\n%s", content)
 	}
-	if containsAny(content, "wiki/relations.yml", "relations.yml", "wiki/sources/<source-id>.md", "wiki/modules/<slug>.md", "wiki/open_questions.md", "CREATE / EDIT `wiki/sources", "CREATE / EDIT `wiki/modules", "EDIT `wiki/open_questions.md`") {
+	if containsAny(content,
+		"wiki/relations.yml",
+		"relations.yml",
+		"wiki/sources/<source-id>.md",
+		"wiki/modules/<slug>.md",
+		"wiki/open_questions.md",
+		"CREATE / EDIT `wiki/sources",
+		"CREATE / EDIT `wiki/modules",
+		"EDIT `wiki/open_questions.md`",
+		"| `discussion_only` |",
+		"| `dry_run` |",
+		"Capability → 列出并链接 Feature",
+		"| 信息类型 | 写入位置 |",
+		"`code_refs` 顶层 `note` 只写文件级职责",
+	) {
 		t.Fatalf("ingest/SKILL.md still references removed wiki paths:\n%s", content)
 	}
 	for _, rel := range []string{
@@ -571,6 +591,36 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(root, rel)); err != nil {
 			t.Fatalf("missing ingest reference %s: %v", rel, err)
 		}
+	}
+}
+
+func TestExtractBuiltinSkillsIncludesHardMutationSafetyGate(t *testing.T) {
+	t.Parallel()
+
+	root, cleanup, err := ExtractBuiltinSkills("zh")
+	if err != nil {
+		t.Fatalf("ExtractBuiltinSkills error = %v", err)
+	}
+	defer cleanup()
+
+	data, err := os.ReadFile(filepath.Join(root, "ingest", "references", "mutation-safety.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(mutation-safety.md) error = %v", err)
+	}
+	content := string(data)
+	if !containsAll(content,
+		"默认写入模式为 `discussion_only`",
+		"任何写入都必须先输出 proposal",
+		"所有写入，无论风险高低，都必须等用户在 proposal 之后显式确认",
+		"用户要求“生成 / 导入 / 整理 / 更新 / 维护 Wiki”只表示进入分析和 proposal 流程，不等于落盘确认",
+		"确认落盘",
+		"按 proposal 写入",
+		"风险等级只影响 proposal 的详细程度，不影响是否需要确认",
+	) {
+		t.Fatalf("mutation-safety.md missing hard write gate:\n%s", content)
+	}
+	if containsAny(content, "低风险且确定性的维护动作，在 workflow 已经隐含授权时可以直接执行", "中风险和高风险变更，写入前必须拿到") {
+		t.Fatalf("mutation-safety.md still allows implicit or risk-limited writes:\n%s", content)
 	}
 }
 
@@ -600,14 +650,210 @@ func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
 		"能力问题：`capabilities → features`",
 		"代码问题：`workflows → features → rg`",
 		"如果文档已经足够回答，就不要为了“更稳”再默认展开代码阅读。",
+		"召回分档、低置信升档和 qmd fallback 统一遵守 `references/zatools-qmd.md`",
+		"本轮 qmd 不可用，已降级",
 		"### Step 7: 按需沉淀答案",
 		"当前 Project Brain 没有足够信息支持该结论。",
 		"沉淀建议：值得 / 不需要",
 	) {
 		t.Fatalf("query/SKILL.md missing query guidance:\n%s", content)
 	}
-	if containsAny(content, "wiki/relations.yml", "relations.yml", "wiki/sources/", "wiki/modules/", "wiki/open_questions.md", "modules →", "modules ->") {
+	if containsAny(content,
+		"wiki/relations.yml",
+		"relations.yml",
+		"wiki/sources/",
+		"wiki/modules/",
+		"wiki/open_questions.md",
+		"modules →",
+		"modules ->",
+		"low：0 命中、短词命中过泛、超过 20 条散点",
+		"`ssh`、`vip`、`auth`、`token`、`query`、`sync` 这类短词不是强锚点",
+	) {
 		t.Fatalf("query/SKILL.md still references removed wiki paths:\n%s", content)
+	}
+}
+
+func TestExtractBuiltinSkillsIncludesLocalWikiFirstQmdFallbackGuidance(t *testing.T) {
+	t.Parallel()
+
+	root, cleanup, err := ExtractBuiltinSkills("zh")
+	if err != nil {
+		t.Fatalf("ExtractBuiltinSkills error = %v", err)
+	}
+	defer cleanup()
+
+	data, err := os.ReadFile(filepath.Join(root, "query", "references", "zatools-qmd.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(zatools-qmd.md) error = %v", err)
+	}
+	content := string(data)
+	if !containsAll(content,
+		"本地 Wiki 优先，低置信升档",
+		"这里的“本地优先”首先指 `wiki/`，不是代码仓全局搜索",
+		"意图识别 → 本地 Wiki 搜索 → 命中质量判断 → qmd search → qmd query → raw/code 核对",
+		"`locate_exact`",
+		"`explain_feature`",
+		"`trace_implementation`",
+		"`troubleshoot`",
+		"`design_intent`",
+		"不要把所有关键词都当成精确锚点",
+		"`ssh`、`vip`、`auth`、`token`、`query`、`sync` 这类短词只是中锚点",
+		"默认先检索 DevWiki 文档层",
+		"low | 0 命中；超过 20 条散点命中",
+		"必须升到 `zatools qmd search`",
+		"qmd 失败 fallback",
+		"本轮 qmd 不可用，已降级为本地 Wiki 搜索",
+		"raw/code 仍需本地核对",
+	) {
+		t.Fatalf("zatools-qmd.md missing local-wiki-first qmd fallback guidance:\n%s", content)
+	}
+	if containsAny(content,
+		"当问题里已经包含具体锚点时，**优先本地搜索**，不走 `zatools qmd ...`",
+		"若未检测到 GPU / 加速器，或确认当前环境只能在 CPU 上跑 embed / rerank，直接报告",
+	) {
+		t.Fatalf("zatools-qmd.md still contains old overly strict local-first or GPU gate guidance:\n%s", content)
+	}
+}
+
+func TestExtractBuiltinSkillsIncludesCodeRefsFileLevelGuidance(t *testing.T) {
+	t.Parallel()
+
+	root, cleanup, err := ExtractBuiltinSkills("zh")
+	if err != nil {
+		t.Fatalf("ExtractBuiltinSkills error = %v", err)
+	}
+	defer cleanup()
+
+	checks := []struct {
+		relative string
+		wants    []string
+		rejects  []string
+	}{
+		{
+			relative: filepath.Join("query", "references", "evidence-grounding.md"),
+			wants: []string{
+				"`code_refs` 以代码文件 `path` 为唯一粒度",
+				"同一个 `path` 在同一页面中只能出现一条 `code_refs`",
+				"顶层 `note` 只写文件级职责",
+				"`symbols` 是关键入口索引，不是文件内方法清单",
+				"`symbols` 默认最多 4 个",
+				"`symbols` 使用 map：key 格式为 `<symbol>#<kind>`",
+				"value 是该关键入口的短说明",
+			},
+			rejects: []string{
+				"是整个文件相关，还是只有某个 symbol 相关",
+				"symbol_notes",
+			},
+		},
+		{
+			relative: filepath.Join("ingest", "references", "workflow_template.md"),
+			wants: []string{
+				"同一个 `path` 只能出现一条 `code_refs`",
+				"顶层 `note` 必须是文件级职责",
+				"`symbols` 最多 4 个，只列关键入口",
+				"不得为了完整性列出文件内所有方法",
+				"symbols:",
+				`"<关键类/函数/方法/常量>#<class/function/method/constant/handler/config/task>": "<关键入口短说明>"`,
+			},
+			rejects: []string{
+				`symbol: "<类/函数/方法/常量>"`,
+				"| 路径 | 符号 | 类型 | 说明 |",
+				"symbol_notes",
+			},
+		},
+		{
+			relative: filepath.Join("code-to-doc", "SKILL.md"),
+			wants: []string{
+				"代码证据结构遵守 `references/evidence-grounding.md` 中的 `code_refs` 文件级规则",
+				"追踪深度和停止条件遵守 `references/code-tracing.md`",
+			},
+			rejects: []string{
+				"写入 `code_refs` 前必须先按 `path` 分组",
+				"顶层 `note` 只写文件级职责",
+				"`symbols` 使用 `<symbol>#<kind>: \"<短说明>\"` 格式",
+				"symbol_notes",
+			},
+		},
+		{
+			relative: filepath.Join("query", "references", "code-tracing.md"),
+			wants: []string{
+				"按代码文件归并",
+				"`code_refs` 以代码文件 `path` 为粒度",
+				"同一文件只能一条",
+				"最多 4 个关键入口 symbol",
+				"不要列出文件内所有方法",
+			},
+		},
+		{
+			relative: filepath.Join("query", "references", "evidence-grounding.md"),
+			wants: []string{
+				"symbols:",
+				"UserService#updateProfile#method",
+			},
+			rejects: []string{"symbol_notes"},
+		},
+	}
+
+	for _, check := range checks {
+		data, err := os.ReadFile(filepath.Join(root, check.relative))
+		if err != nil {
+			t.Fatalf("ReadFile(%s) error = %v", check.relative, err)
+		}
+		content := string(data)
+		if !containsAll(content, check.wants...) {
+			t.Fatalf("%s missing file-level code_refs guidance:\n%s", check.relative, content)
+		}
+		if containsAny(content, check.rejects...) {
+			t.Fatalf("%s still contains old symbol-level code_refs guidance:\n%s", check.relative, content)
+		}
+	}
+}
+
+func TestGenerateProjectDocsIncludeCodeRefsFileLevelGuidance(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		agent    string
+		filename string
+	}{
+		{agent: "codex", filename: "AGENTS.md"},
+		{agent: "claude", filename: "CLAUDE.md"},
+	}
+
+	for _, tt := range cases {
+		root := filepath.Join(t.TempDir(), tt.agent)
+		spec := ProjectSpec{
+			ProjectName: "Demo",
+			ProjectSlug: "demo",
+			Agent:       tt.agent,
+			Lang:        "zh",
+			CodeRepos: []CodeRepo{
+				{Name: "api", Slug: "api", Path: "/tmp/api", Default: true},
+			},
+		}
+		if err := GenerateProject(root, spec); err != nil {
+			t.Fatalf("GenerateProject(%s) error = %v", tt.agent, err)
+		}
+
+		data, err := os.ReadFile(filepath.Join(root, tt.filename))
+		if err != nil {
+			t.Fatalf("ReadFile(%s/%s) error = %v", tt.agent, tt.filename, err)
+		}
+		content := string(data)
+		if !containsAll(content,
+			"`code_refs` 以代码文件 `path` 为唯一粒度",
+			"同一个 `path` 在同一页面中只能出现一条",
+			"顶层 `note` 只写文件级职责",
+			"`symbols`",
+			"最多 4 个",
+			"不得为了完整性列出文件内所有方法",
+			"UserService#updateProfile#method",
+		) {
+			t.Fatalf("%s missing generated doc code_refs file-level guidance:\n%s", tt.filename, content)
+		}
+		if containsAny(content, `symbol: ""`, "path + symbol", "symbol_notes") {
+			t.Fatalf("%s still contains old code_refs symbol-level guidance:\n%s", tt.filename, content)
+		}
 	}
 }
 

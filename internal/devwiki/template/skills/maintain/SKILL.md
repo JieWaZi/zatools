@@ -95,21 +95,7 @@ visibility: internal
 | 维护过程对照表、审计表 | outputs/report，不进入 active query |
 
 
-本 Skill 默认处于 `discussion_only` 模式，除非用户明确授权写入，否则不得修改任何 Wiki 文件。
-
-### 写入模式
-
-| 模式 | 说明 | 允许动作 |
-|---|---|---|
-| `discussion_only` | 只讨论、只分析、只输出 proposal | 不得创建、修改、删除任何文件 |
-| `dry_run` | 模拟写入，展示将要修改的内容 | 不得真正落盘 |
-| `confirmed_write` | 用户明确授权写入 | 可按 proposal 修改 Wiki 文件 |
-
-默认模式：
-
-```text
-discussion_only
-```
+本 Skill 默认处于 `discussion_only` 模式，除非用户在 proposal 之后明确授权写入，否则不得修改任何 Wiki 文件。完整写入模式、风险分层和确认协议见 `references/mutation-safety.md`。
 ---
 
 ## 五、问题类型
@@ -133,9 +119,9 @@ Maintain 必须按以下类型归类问题。
 
 ## 七、维护等级
 
-### 7.1 可直接修正
+### 7.1 confirmed_write 后可直接修正
 
-满足以下条件可直接修：
+以下低风险问题仍必须先输出 proposal，并等用户确认进入 `confirmed_write`。进入 `confirmed_write` 后，满足以下条件可按 proposal 直接修正，无需再次逐项追问：
 
 - Markdown 小节标题不统一；
 - frontmatter 字段缺失；
@@ -148,7 +134,7 @@ Maintain 必须按以下类型归类问题。
 - 维护报告误放 active 且未被其他页面引用，可移入 outputs 并加 `exclude_from_query: true`；
 - 低风险措辞统一。
 
-直接修正后仍需写维护报告。
+修正后仍需写维护报告。
 
 ### 7.2 需要 proposal 后修正
 
@@ -252,7 +238,7 @@ Maintain 必须按以下类型归类问题。
 
 ### Phase 8：输出维护 Proposal
 
-高风险改动必须先输出 proposal。
+维护写入必须按 `references/mutation-safety.md` 先输出 proposal。Maintain Proposal 还需要额外说明差异归位和 query 污染风险。
 
 ```markdown
 # Maintain Proposal
@@ -280,7 +266,7 @@ Maintain 必须按以下类型归类问题。
 
 ### Phase 9：确认后落盘
 
-用户确认后再执行高风险修改：更新权威页面，把 errata/report 中的有效结论合并回权威页面；维护报告写入 `wiki/outputs/` 并设置 `exclude_from_query: true`；更新 `index.md`、`glossary.md`、`log.md`；最后执行或提示执行：
+用户明确确认 Maintain Proposal 后，才进入 `confirmed_write` 并执行 proposal 中列出的修改：更新权威页面，把 errata/report 中的有效结论合并回权威页面；维护报告写入 `wiki/outputs/` 并设置 `exclude_from_query: true`；更新 `index.md`、`glossary.md`、`log.md`；最后执行或提示执行：
 
 ```bash
 zatools qmd update
