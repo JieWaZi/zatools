@@ -22,11 +22,11 @@ func TestParseSourceRecognizesBuiltinDevwikiLibrary(t *testing.T) {
 	if source.Builtin != "devwiki" {
 		t.Fatalf("Builtin = %q, want %q", source.Builtin, "devwiki")
 	}
-	if source.Ref != "en" {
-		t.Fatalf("Ref = %q, want %q", source.Ref, "en")
+	if source.Ref != "zh" {
+		t.Fatalf("Ref = %q, want %q", source.Ref, "zh")
 	}
-	if source.Original != "zatools/devwiki#en" {
-		t.Fatalf("Original = %q, want %q", source.Original, "zatools/devwiki#en")
+	if source.Original != "zatools/devwiki#zh" {
+		t.Fatalf("Original = %q, want %q", source.Original, "zatools/devwiki#zh")
 	}
 }
 
@@ -51,6 +51,35 @@ func TestResolveSourceBuiltinDevwikiExtractsEmbeddedSkills(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(searchRoot, "qmd-sync", "SKILL.md")); err != nil {
 		t.Fatalf("missing builtin qmd-sync skill: %v", err)
+	}
+}
+
+func TestBuiltinDevwikiIgnoresLegacyLanguageVariant(t *testing.T) {
+	t.Parallel()
+
+	source, err := ParseSource("zatools/devwiki#en")
+	if err != nil {
+		t.Fatalf("ParseSource returned error: %v", err)
+	}
+	if source.Ref != "zh" || source.Original != "zatools/devwiki#zh" {
+		t.Fatalf("source = %#v, want zh builtin source", source)
+	}
+
+	resolved, err := ResolveSource(t.Context(), source)
+	if err != nil {
+		t.Fatalf("ResolveSource returned error: %v", err)
+	}
+	defer func() {
+		if cleanupErr := resolved.Cleanup(); cleanupErr != nil {
+			t.Fatalf("cleanup resolved source: %v", cleanupErr)
+		}
+	}()
+	searchRoot, err := resolved.SearchRoot()
+	if err != nil {
+		t.Fatalf("SearchRoot returned error: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(searchRoot, "query", "SKILL.md")); err != nil {
+		t.Fatalf("missing builtin query skill: %v", err)
 	}
 }
 

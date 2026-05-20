@@ -7,9 +7,7 @@ argument-hint: "[--root <devwiki-root>]"
 # /devwiki-qmd-sync
 
 > 先阅读通用约束：
-> - `references/evidence-grounding.md`
 > - `references/zatools-qmd.md`
-> - 涉及写入、重分类或破坏性操作时，再读 `references/mutation-safety.md`
 
 
 > 为已有 DevWiki 工作区补做或修复 `zatools qmd` collection 注册、索引刷新与状态检查。默认优先给 dry-run 与状态，再决定是否真正执行。

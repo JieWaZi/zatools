@@ -147,8 +147,8 @@ zatools rule add ./examples/rules --yes
 ## DevWiki 命令
 
 ```bash
-zatools devwiki init [project-name] [--agent <codex|cursor|claude>] [--lang <zh|en>] [--code-dir <dir>]... [--global] [--yes]
-zatools devwiki link [--root <devwiki-root>] [--agent <codex|cursor|claude>] [--lang <zh|en>] [--code-dir <dir>]... [--yes]
+zatools devwiki init [project-name] [--agent <codex|cursor|claude>] [--code-dir <dir>]... [--global] [--yes]
+zatools devwiki link [--root <devwiki-root>] [--agent <codex|cursor|claude>] [--code-dir <dir>]... [--yes]
 zatools devwiki update
 zatools devwiki tool reset --scope <wiki|raw|log|checkpoints|all> [--project-root <dir>] [--yes]
 zatools devwiki tool log --wiki-root <dir> --message "<text>"

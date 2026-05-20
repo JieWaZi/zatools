@@ -32,7 +32,7 @@ DevWiki 中每一个重要结论，至少要能回溯到以下三类之一：
 - workflow 的工程定位、调用链、代码引用和修改影响
 - troubleshooting 的故障现象、诊断路径和修复建议
 
-如果 `wiki/` 与 `raw/` 冲突，应优先相信真实来源，并在回答或 proposal 中显式列出冲突；需要保存时写入 `wiki/outputs/` 中的报告。
+如果 `wiki/` 与 `raw/` 冲突，理论上按照wiki最新的为准，因为raw可能是过时文件，可在回答或 proposal 中显式列出冲突；
 
 ### 代码证据层
 

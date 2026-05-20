@@ -44,10 +44,10 @@ DevWiki 是一个单产品知识底座。文档库可以独立存在，并通过
 zatools devwiki init
 ```
 
-如果你已经明确项目名称、agent、语言和代码目录，也可以一次性传完：
+如果你已经明确项目名称、agent 和代码目录，也可以一次性传完：
 
 ```bash
-zatools devwiki init "{{PROJECT_NAME}}" --agent {{AGENT}} --lang {{LANG}} --code-dir "{{PRIMARY_CODE_DIR}}" --yes
+zatools devwiki init "{{PROJECT_NAME}}" --agent {{AGENT}} --code-dir "{{PRIMARY_CODE_DIR}}" --yes
 ```
 
 `zatools devwiki init` 会完成以下动作：

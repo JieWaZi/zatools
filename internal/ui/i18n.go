@@ -60,7 +60,6 @@ type Catalog struct {
 	FlagRuleListOnly              string
 	FlagRemoveAllRules            string
 	FlagDevwikiAgent              string
-	FlagDevwikiLang               string
 	FlagDevwikiCodeDir            string
 	FlagDevwikiRoot               string
 	StepParsingSource             string
@@ -91,7 +90,6 @@ type Catalog struct {
 	PromptInstallRulesNow         string
 	PromptDevwikiProjectName      string
 	PromptDevwikiAgent            string
-	PromptDevwikiLang             string
 	PromptDevwikiCodeDirs         string
 	PromptDevwikiScope            string
 	PromptSelectDevwikiSkills     string
@@ -163,7 +161,6 @@ type Catalog struct {
 	AlreadyExistsFmt              string
 	UnsupportedAgentFmt           string
 	UnsupportedRuleAgentFmt       string
-	DevwikiUnsupportedLangFmt     string
 	DevwikiProjectNameRequired    string
 	DevwikiCodeDirRequired        string
 	DevwikiCodeDirNotDirectoryFmt string
@@ -229,7 +226,6 @@ var catalogs = map[string]Catalog{
 		FlagRuleListOnly:              "仅列出规则，不执行安装",
 		FlagRemoveAllRules:            "删除全部已安装规则",
 		FlagDevwikiAgent:              "目标 runtime（codex、cursor、claude）",
-		FlagDevwikiLang:               "运行时语言（zh、en）",
 		FlagDevwikiCodeDir:            "代码目录，可重复传入",
 		FlagDevwikiRoot:               "DevWiki 文档库根目录",
 		StepParsingSource:             "解析来源...",
@@ -260,7 +256,6 @@ var catalogs = map[string]Catalog{
 		PromptInstallRulesNow:         "现在安装已选规则？",
 		PromptDevwikiProjectName:      "DevWiki 项目名称",
 		PromptDevwikiAgent:            "选择 DevWiki runtime",
-		PromptDevwikiLang:             "选择语言",
 		PromptDevwikiCodeDirs:         "代码目录（逗号分隔）",
 		PromptDevwikiScope:            "选择 DevWiki skill 安装范围",
 		PromptSelectDevwikiSkills:     "选择要安装的 DevWiki skills",
@@ -332,7 +327,6 @@ var catalogs = map[string]Catalog{
 		AlreadyExistsFmt:              "%s 已存在",
 		UnsupportedAgentFmt:           "不支持的 Agent %q",
 		UnsupportedRuleAgentFmt:       "规则目前仅支持安装到 cursor 或 claude，收到 agent: %q",
-		DevwikiUnsupportedLangFmt:     "不支持的语言 %q",
 		DevwikiProjectNameRequired:    "项目名称不能为空",
 		DevwikiCodeDirRequired:        "至少需要一个代码目录",
 		DevwikiCodeDirNotDirectoryFmt: "代码目录不是有效目录：%s",
@@ -396,7 +390,6 @@ var catalogs = map[string]Catalog{
 		FlagRuleListOnly:              "List rules without installing",
 		FlagRemoveAllRules:            "Remove all installed rules",
 		FlagDevwikiAgent:              "Target runtime (codex, cursor, claude)",
-		FlagDevwikiLang:               "Runtime language (zh, en)",
 		FlagDevwikiCodeDir:            "Code directory, repeatable",
 		FlagDevwikiRoot:               "DevWiki document root",
 		StepParsingSource:             "Parsing source...",
@@ -427,7 +420,6 @@ var catalogs = map[string]Catalog{
 		PromptInstallRulesNow:         "Install selected rules now?",
 		PromptDevwikiProjectName:      "DevWiki project name",
 		PromptDevwikiAgent:            "Select DevWiki runtime",
-		PromptDevwikiLang:             "Select language",
 		PromptDevwikiCodeDirs:         "Code directories (comma-separated)",
 		PromptDevwikiScope:            "Select DevWiki skill install scope",
 		PromptSelectDevwikiSkills:     "Select DevWiki skills to install",
@@ -499,7 +491,6 @@ var catalogs = map[string]Catalog{
 		AlreadyExistsFmt:              "%s already exists",
 		UnsupportedAgentFmt:           "unsupported agent %q",
 		UnsupportedRuleAgentFmt:       "rules currently support only the cursor and claude agents, got: %q",
-		DevwikiUnsupportedLangFmt:     "unsupported language %q",
 		DevwikiProjectNameRequired:    "project name is required",
 		DevwikiCodeDirRequired:        "at least one code directory is required",
 		DevwikiCodeDirNotDirectoryFmt: "code directory is not a directory: %s",

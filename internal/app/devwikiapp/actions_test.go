@@ -68,6 +68,32 @@ func TestNormalizeInitOptionsDefaultsToProjectScope(t *testing.T) {
 	if len(opts.CodeDirs) != 1 || opts.CodeDirs[0] != root {
 		t.Fatalf("CodeDirs = %#v, want [%q]", opts.CodeDirs, root)
 	}
+	if opts.Lang != "zh" {
+		t.Fatalf("Lang = %q, want zh", opts.Lang)
+	}
+}
+
+func TestNormalizeInitOptionsForcesZhLang(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	service := NewServiceWithRuntime(common.Runtime{
+		Workspace: skills.NewWorkspace(root),
+		IsTTY:     false,
+	})
+
+	opts, err := service.normalizeInitOptions(InitOptions{
+		ProjectName: "Sample",
+		Agent:       "codex",
+		Lang:        "en",
+		CodeDirs:    []string{"."},
+	})
+	if err != nil {
+		t.Fatalf("normalizeInitOptions error = %v", err)
+	}
+	if opts.Lang != "zh" {
+		t.Fatalf("Lang = %q, want zh", opts.Lang)
+	}
 }
 
 func TestNormalizeInitOptionsAcceptsCursorRuntime(t *testing.T) {

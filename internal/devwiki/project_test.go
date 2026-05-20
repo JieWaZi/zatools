@@ -1,6 +1,7 @@
 package devwiki
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -404,6 +405,13 @@ func TestSlugifyProducesStableDirectoryNames(t *testing.T) {
 func TestExtractBuiltinSkillsMaterializesSharedReferencesIntoEachSkill(t *testing.T) {
 	t.Parallel()
 
+	if got := BuiltinSkillsPath("zh"); got != "template/skills" {
+		t.Fatalf("BuiltinSkillsPath = %q, want template/skills", got)
+	}
+	if _, err := fs.Stat(TemplateFS(), "template/skills/shared-references/code-tracing.md"); err != nil {
+		t.Fatalf("missing flat shared reference path: %v", err)
+	}
+
 	root, cleanup, err := ExtractBuiltinSkills("zh")
 	if err != nil {
 		t.Fatalf("ExtractBuiltinSkills error = %v", err)
@@ -422,6 +430,9 @@ func TestExtractBuiltinSkillsMaterializesSharedReferencesIntoEachSkill(t *testin
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
+		}
+		if entry.Name() == "shared-references" {
+			t.Fatal("extracted builtin skills should not include shared-references as an installable directory")
 		}
 		gotNames = append(gotNames, entry.Name())
 		for _, shared := range []string{"code-tracing.md", "zatools-qmd.md"} {
@@ -504,7 +515,7 @@ func TestExtractBuiltinSkillsIncludesMaintainGuidance(t *testing.T) {
 		"差异报告误落盘",
 		"exclude_from_query: true",
 		"# Maintain Proposal",
-		"# DevWiki Maintain Report",
+		"这是维护过程报告，不是功能事实来源",
 		"glossary.md",
 		"zatools qmd update",
 	) {

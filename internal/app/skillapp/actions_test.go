@@ -476,8 +476,8 @@ func TestServiceAddBuiltinDevwikiLibrary(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected %s in lock, got %#v", name, lock.Entries(skills.SkillAsset))
 		}
-		if entry.Source != "zatools/devwiki#en" {
-			t.Fatalf("%s Source = %q, want %q", name, entry.Source, "zatools/devwiki#en")
+		if entry.Source != "zatools/devwiki#zh" {
+			t.Fatalf("%s Source = %q, want %q", name, entry.Source, "zatools/devwiki#zh")
 		}
 		wantSubdir := strings.TrimPrefix(name, "devwiki-")
 		if !strings.HasSuffix(entry.SourceSubdir, wantSubdir) {

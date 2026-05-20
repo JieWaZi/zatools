@@ -87,8 +87,8 @@ func NormalizeCodeRepos(baseDir string, codeDirs []string) ([]CodeRepo, error) {
 }
 
 // BuiltinSkillsPath 返回内置技能模板在嵌入文件系统中的路径。
-func BuiltinSkillsPath(lang string) string {
-	return path.Join("template", "i18n", lang, "skills")
+func BuiltinSkillsPath(_ string) string {
+	return path.Join("template", "skills")
 }
 
 // GenerateProject 把内置模板渲染到指定 DevWiki 工程目录。
@@ -139,6 +139,12 @@ func ExtractBuiltinSkills(lang string) (string, func(), error) {
 			return nil
 		}
 		rel := strings.TrimPrefix(name, root+"/")
+		if rel == "shared-references" || strings.HasPrefix(rel, "shared-references/") {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
 		dest := filepath.Join(tempRoot, filepath.FromSlash(rel))
 		if d.IsDir() {
 			return os.MkdirAll(dest, 0o755)
@@ -343,18 +349,7 @@ func EnsureCodeRepoDevwikiLink(codeRoot string, devwikiRoot string, agent string
 }
 
 func renderCodeRepoDevwikiLinkBlock(devwikiRoot string, runtimePath string, lang string) string {
-	if lang == "en" {
-		return strings.Join([]string{
-			codeLinkStartMarker,
-			"## Linked DevWiki",
-			fmt.Sprintf("DevWiki document root: `%s`.", devwikiRoot),
-			fmt.Sprintf("Before answering project-knowledge questions or running `devwiki-query` / `devwiki-code-to-doc` from this code repository, read `%s`.", runtimePath),
-			"Use the linked DevWiki root for `wiki/`, `raw/`, `config/search.yaml`, and `wiki/outputs/` writes.",
-			"`devwiki-code-to-doc` must write generated workflow/code-location pages under the linked DevWiki root, not in this code repository.",
-			codeLinkEndMarker,
-			"",
-		}, "\n")
-	}
+	_ = lang
 
 	return strings.Join([]string{
 		codeLinkStartMarker,
@@ -369,13 +364,10 @@ func renderCodeRepoDevwikiLinkBlock(devwikiRoot string, runtimePath string, lang
 }
 
 func upsertManagedFileBlock(targetPath string, block string, lang string) error {
+	_ = lang
 	data, err := os.ReadFile(targetPath)
 	if os.IsNotExist(err) {
-		title := "# Repository Runtime\n\n"
-		if lang != "en" {
-			title = "# 仓库运行时入口\n\n"
-		}
-		return os.WriteFile(targetPath, []byte(title+block), 0o644)
+		return os.WriteFile(targetPath, []byte("# 仓库运行时入口\n\n"+block), 0o644)
 	}
 	if err != nil {
 		return err
@@ -426,16 +418,7 @@ func runtimeFilenameForAgent(agent string) (string, error) {
 }
 
 func renderRuntimeBridgeBlock(relativePath string, lang string) string {
-	if lang == "en" {
-		return strings.Join([]string{
-			runtimeBridgeStartMarker,
-			"## DevWiki Runtime",
-			fmt.Sprintf("Before handling DevWiki tasks in this repository, always read and follow `%s`.", relativePath),
-			"If that DevWiki runtime file conflicts with other repository notes here, prefer it for DevWiki work.",
-			runtimeBridgeEndMarker,
-			"",
-		}, "\n")
-	}
+	_ = lang
 
 	return strings.Join([]string{
 		runtimeBridgeStartMarker,
@@ -448,11 +431,8 @@ func renderRuntimeBridgeBlock(relativePath string, lang string) string {
 }
 
 func renderNewRuntimeBridgeFile(block string, lang string) string {
-	title := "# Repository Runtime\n\n"
-	if lang != "en" {
-		title = "# 仓库运行时入口\n\n"
-	}
-	return title + block
+	_ = lang
+	return "# 仓库运行时入口\n\n" + block
 }
 
 func upsertRuntimeBridgeBlock(content string, block string) string {
@@ -494,7 +474,8 @@ func upsertDelimitedBlock(content string, block string, startMarker string, endM
 }
 
 func materializeSharedReferences(skillsRoot string, lang string) error {
-	sharedRoot := path.Join("template", "i18n", lang, "shared-references")
+	_ = lang
+	sharedRoot := path.Join(BuiltinSkillsPath(lang), "shared-references")
 	entries, err := os.ReadDir(skillsRoot)
 	if err != nil {
 		return err

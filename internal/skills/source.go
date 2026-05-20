@@ -17,7 +17,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"zatools/internal/devwiki"
-	"zatools/internal/ui"
 )
 
 // Source 表示一条技能来源配置。
@@ -91,6 +90,7 @@ var sourceAliases = map[string]string{
 
 // cloneTimeout 限制远端 clone 的最长时间，避免命令无限阻塞。
 const cloneTimeout = 60 * time.Second
+const defaultBuiltinDevwikiLang = "zh"
 
 // ParseSource 把用户输入的来源字符串解析为统一的 Source 结构。
 func ParseSource(input string) (Source, error) {
@@ -169,8 +169,8 @@ func ParseSource(input string) (Source, error) {
 // NewBuiltinSource 构造一个稳定的内置库来源描述。
 func NewBuiltinSource(library string, variant string) Source {
 	library = strings.TrimSpace(library)
-	if variant == "" {
-		variant = ui.CurrentLang()
+	if library == "devwiki" || variant == "" {
+		variant = defaultBuiltinDevwikiLang
 	}
 	base := builtinSourceNamespace + "/" + library
 	return Source{
@@ -237,8 +237,8 @@ func resolveBuiltinSource(source Source) (ResolvedSource, error) {
 	switch source.Builtin {
 	case "devwiki":
 		variant := source.Ref
-		if variant == "" {
-			variant = ui.CurrentLang()
+		if variant != defaultBuiltinDevwikiLang {
+			variant = defaultBuiltinDevwikiLang
 		}
 		root, cleanup, err := devwiki.ExtractBuiltinSkills(variant)
 		if err != nil {
@@ -432,7 +432,7 @@ func parseBuiltinSource(input, ref string) (Source, bool, error) {
 		return Source{}, true, fmt.Errorf("builtin source %q does not support nested paths", input)
 	}
 	if ref == "" {
-		ref = ui.CurrentLang()
+		ref = defaultBuiltinDevwikiLang
 	}
 	return NewBuiltinSource(parts[1], ref), true, nil
 }

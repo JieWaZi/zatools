@@ -30,10 +30,26 @@ func TestDevwikiInitFlags(t *testing.T) {
 		t.Fatalf("Find(init) error = %v", err)
 	}
 
-	for _, flag := range []string{"agent", "lang", "code-dir", "global", "yes"} {
+	for _, flag := range []string{"agent", "code-dir", "global", "yes"} {
 		if initCmd.Flags().Lookup(flag) == nil {
 			t.Fatalf("init command missing flag %q", flag)
 		}
+	}
+	if initCmd.Flags().Lookup("lang") != nil {
+		t.Fatal("init command should not expose lang flag")
+	}
+}
+
+func TestDevwikiLinkDoesNotExposeLangFlag(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	linkCmd, _, err := cmd.Find([]string{"link"})
+	if err != nil {
+		t.Fatalf("Find(link) error = %v", err)
+	}
+	if linkCmd.Flags().Lookup("lang") != nil {
+		t.Fatal("link command should not expose lang flag")
 	}
 }
 

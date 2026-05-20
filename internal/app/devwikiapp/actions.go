@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"unicode"
 
 	"gopkg.in/yaml.v3"
 
@@ -209,26 +208,7 @@ func (s *Service) collectInitOptions(opts InitOptions, includeInstall bool) (Ini
 		}
 	}
 
-	if strings.TrimSpace(opts.Lang) == "" {
-		if s.runtime.IsTTY {
-			value, cancelled, err := ui.SelectOne(ui.SelectOneOptions{
-				Message: copy.PromptDevwikiLang,
-				Items: []ui.Option{
-					{Value: "zh", Label: "zh"},
-					{Value: "en", Label: "en"},
-				},
-			})
-			if err != nil {
-				return opts, err
-			}
-			if cancelled {
-				return InitOptions{}, nil
-			}
-			opts.Lang = value
-		} else {
-			opts.Lang = ui.DefaultLang
-		}
-	}
+	opts.Lang = ui.DefaultLang
 
 	if len(opts.CodeDirs) == 0 {
 		if !s.runtime.IsTTY {
@@ -278,14 +258,7 @@ func (s *Service) normalizeInitOptions(opts InitOptions) (InitOptions, error) {
 		return opts, fmt.Errorf(copy.UnsupportedAgentFmt, opts.Agent)
 	}
 
-	switch opts.Lang {
-	case "", "zh", "en":
-		if opts.Lang == "" {
-			opts.Lang = ui.DefaultLang
-		}
-	default:
-		return opts, fmt.Errorf(copy.DevwikiUnsupportedLangFmt, opts.Lang)
-	}
+	opts.Lang = ui.DefaultLang
 
 	codeDirs := make([]string, 0, len(opts.CodeDirs))
 	for _, raw := range opts.CodeDirs {
@@ -342,14 +315,7 @@ func (s *Service) normalizeLinkOptions(opts LinkOptions) (LinkOptions, error) {
 	default:
 		return opts, fmt.Errorf(ui.Messages().UnsupportedAgentFmt, opts.Agent)
 	}
-	switch opts.Lang {
-	case "", "zh", "en":
-		if opts.Lang == "" {
-			opts.Lang = ui.DefaultLang
-		}
-	default:
-		return opts, fmt.Errorf(ui.Messages().DevwikiUnsupportedLangFmt, opts.Lang)
-	}
+	opts.Lang = ui.DefaultLang
 	if len(opts.CodeDirs) == 0 {
 		codeDirs, err := readConfiguredCodeDirs(devwikiRoot)
 		if err != nil {
@@ -704,20 +670,12 @@ func inferDevwikiUpdateLang(results []skills.CheckResult) string {
 		source, err := skills.ParseSource(result.Asset.Source)
 		if err == nil && source.Type == "builtin" && source.Builtin == "devwiki" {
 			switch source.Ref {
-			case "zh", "en":
+			case "zh":
 				return source.Ref
 			}
 		}
 	}
-	for _, result := range results {
-		switch inferDevwikiSkillLang(result.Asset.Path) {
-		case "zh":
-			return "zh"
-		case "en":
-			return "en"
-		}
-	}
-	return ui.CurrentLang()
+	return ui.DefaultLang
 }
 
 func inferDevwikiUpdateAgents(results []skills.CheckResult) []string {
@@ -826,17 +784,8 @@ func isDevwikiInstalledSkill(entry skills.InstalledAsset) bool {
 	return strings.HasPrefix(entry.Name, "devwiki-") || strings.HasPrefix(entry.Source, "zatools/devwiki")
 }
 
-func inferDevwikiSkillLang(installPath string) string {
-	data, err := os.ReadFile(filepath.Join(installPath, "SKILL.md"))
-	if err != nil {
-		return ui.CurrentLang()
-	}
-	for _, r := range string(data) {
-		if unicode.Is(unicode.Han, r) {
-			return "zh"
-		}
-	}
-	return "en"
+func inferDevwikiSkillLang(_ string) string {
+	return ui.DefaultLang
 }
 
 func devwikiLockPath(targetDir string, global bool) (string, error) {
