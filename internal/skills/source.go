@@ -86,6 +86,7 @@ const builtinSourceNamespace = "zatools"
 
 var sourceAliases = map[string]string{
 	"coinbase/agentWallet": "coinbase/agentic-wallet-skills",
+	"devwiki":              "zatools/devwiki",
 }
 
 // cloneTimeout 限制远端 clone 的最长时间，避免命令无限阻塞。

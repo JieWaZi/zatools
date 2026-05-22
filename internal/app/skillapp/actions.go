@@ -274,10 +274,14 @@ func (s *Service) Check(ctx context.Context, global bool) error {
 	return nil
 }
 
-// Update 更新当前作用域下所有已经过期的技能。
-func (s *Service) Update(ctx context.Context, global bool) error {
+// Update 更新当前作用域下所有已经过期的技能；传入 targets 时仅更新指定技能或内置库别名。
+func (s *Service) Update(ctx context.Context, global bool, targets ...string) error {
 	copy := ui.Messages()
 	results, err := s.CheckInstalled(ctx, global)
+	if err != nil {
+		return err
+	}
+	results, err = filterUpdateResults(results, targets)
 	if err != nil {
 		return err
 	}
@@ -289,6 +293,55 @@ func (s *Service) Update(ctx context.Context, global bool) error {
 		fmt.Printf("%s%s%s\n", ui.Text, copy.AllUpToDate, ui.Reset)
 	}
 	return nil
+}
+
+func filterUpdateResults(results []skills.CheckResult, targets []string) ([]skills.CheckResult, error) {
+	if len(targets) == 0 {
+		return results, nil
+	}
+	requested := make(map[string]struct{}, len(targets))
+	for _, target := range targets {
+		target = strings.TrimSpace(target)
+		if target == "" {
+			continue
+		}
+		requested[target] = struct{}{}
+	}
+	if len(requested) == 0 {
+		return results, nil
+	}
+
+	var filtered []skills.CheckResult
+	matched := map[string]struct{}{}
+	for _, result := range results {
+		for target := range requested {
+			if updateTargetMatches(result.Asset, target) {
+				filtered = append(filtered, result)
+				matched[target] = struct{}{}
+				break
+			}
+		}
+	}
+	if len(matched) != len(requested) {
+		missing := make([]string, 0, len(requested)-len(matched))
+		for target := range requested {
+			if _, ok := matched[target]; !ok {
+				missing = append(missing, target)
+			}
+		}
+		sort.Strings(missing)
+		return nil, fmt.Errorf(ui.Messages().NoneRequestedSkillsFmt, missing)
+	}
+	return filtered, nil
+}
+
+func updateTargetMatches(entry skills.InstalledAsset, target string) bool {
+	switch target {
+	case "devwiki", "zatools/devwiki":
+		return strings.HasPrefix(entry.Name, "devwiki-") || strings.HasPrefix(entry.Source, "zatools/devwiki")
+	default:
+		return entry.Name == target
+	}
 }
 
 func (s *Service) updateResults(ctx context.Context, global bool, results []skills.CheckResult) (int, error) {

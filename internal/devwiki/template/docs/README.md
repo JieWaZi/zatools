@@ -228,10 +228,22 @@ qmd:
 zatools qmd sync --root .
 ```
 
-更新当前作用域下已变化的 DevWiki runtime skills：
+更新当前作用域下已变化的 DevWiki runtime skills，并顺带刷新 qmd 注册、索引和向量；qmd 失败只会提示告警：
 
 ```bash
 zatools devwiki update
+```
+
+从 capability / feature / workflow 页面生成图谱数据并启动本地页面：
+
+```bash
+zatools devwiki graph
+```
+
+只校验页面关系，不生成页面或启动服务：
+
+```bash
+zatools devwiki graph --check
 ```
 
 执行 `zatools qmd` 注册：

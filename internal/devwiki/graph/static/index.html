@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevWiki Graph</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/cytoscape.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">⌬</div>
+        <div>DevWiki Graph</div>
+      </div>
+      <label class="search">
+        <span>⌕</span>
+        <input id="searchInput" placeholder="搜索标题、slug、summary、search_terms..." />
+        <span class="shortcut">⌘K</span>
+      </label>
+      <div></div>
+      <div class="status-area">
+        <span class="status-ok"><span class="dot"></span><span id="loadState">加载中</span></span>
+        <button class="warning-link" id="warningBtn" type="button">⚠ <span id="warningCount">0</span> warnings</button>
+      </div>
+    </header>
+    <main class="main">
+      <aside class="left-panel">
+        <section class="left-summary-card">
+          <div class="left-hero">
+            <div>
+              <div class="left-eyebrow" id="projectSlug">DevWiki Graph</div>
+              <h2 id="projectName">项目总览</h2>
+            </div>
+            <span class="left-status"><span class="dot"></span><span id="leftState">已加载</span></span>
+          </div>
+          <div class="left-hint-card">
+            <svg class="hint-art" viewBox="0 0 80 80" fill="none" aria-hidden="true">
+              <path d="M24 10L42 22L35 44L15 48L8 28L24 10Z" stroke="#9AA7B8" stroke-width="2" />
+              <path d="M42 22L62 18L70 38L52 54L35 44" stroke="#9AA7B8" stroke-width="2" />
+              <circle cx="24" cy="10" r="4" fill="#9AA7B8"/><circle cx="42" cy="22" r="4" fill="#9AA7B8"/><circle cx="35" cy="44" r="4" fill="#9AA7B8"/><circle cx="15" cy="48" r="4" fill="#9AA7B8"/><circle cx="62" cy="18" r="4" fill="#9AA7B8"/><circle cx="70" cy="38" r="4" fill="#9AA7B8"/><circle cx="52" cy="54" r="4" fill="#9AA7B8"/>
+            </svg>
+            <div class="hint-text">
+              <strong id="hintTitle">未选中节点</strong>
+              <span id="hintText">在图中选择一个节点，查看详细信息和相关文档。</span>
+            </div>
+          </div>
+          <div class="left-metrics">
+            <div class="left-metric blue"><strong id="capCount">0</strong><span>Capability</span></div>
+            <div class="left-metric green"><strong id="featureCount">0</strong><span>Feature</span></div>
+            <div class="left-metric orange"><strong id="workflowCount">0</strong><span>Workflow</span></div>
+            <div class="left-metric"><strong id="edgeCount">0</strong><span>边数量</span></div>
+          </div>
+          <div class="left-build-card">
+            <div class="build-row"><span>构建时间</span><strong id="builtAt">-</strong></div>
+            <div class="build-row"><span>Warnings</span><strong class="warn-text" id="warningCountCard">0</strong></div>
+            <div class="build-row"><span>数据文件</span><strong>graph.json</strong></div>
+          </div>
+          <button class="left-warning-btn" id="leftWarningBtn" type="button">查看 warning 列表 <span>›</span></button>
+        </section>
+      </aside>
+      <section class="canvas-wrap">
+        <div class="graph-card" id="graphCard">
+          <div class="graph-controls top-controls">
+            <label class="select-control">
+              <span>维度</span>
+              <select id="typeSelect">
+                <option value="all">全部</option>
+                <option value="capability">Capability</option>
+                <option value="feature">Feature</option>
+                <option value="workflow">Workflow</option>
+              </select>
+            </label>
+            <label class="select-control compact">
+              <span>关系</span>
+              <select id="depthSelect">
+                <option value="1">包含</option>
+                <option value="2" selected>相关</option>
+              </select>
+            </label>
+            <label class="select-control compact">
+              <span>布局</span>
+              <select id="layoutSelect">
+                <option value="preset" selected>分层布局</option>
+                <option value="force">力导向</option>
+              </select>
+            </label>
+          </div>
+          <div class="graph-toolbar compact">
+            <button class="tool-square" id="fitBtnTop" title="适应画布" type="button">⛶</button>
+            <button class="tool-square" id="zoomInBtn" title="放大" type="button">＋</button>
+            <button class="tool-square" id="zoomOutBtnTop" title="缩小" type="button">－</button>
+          </div>
+          <div id="cy"></div>
+          <div class="cy-fallback" id="cyFallback">
+            <div id="fallbackText">正在加载图谱数据...</div>
+          </div>
+          <div class="graph-bottom-legend">
+            <div class="legend-inline-group">
+              <span class="legend-inline-title">节点类型</span>
+              <span class="legend-inline-item"><i class="legend-dot cap"></i>能力</span>
+              <span class="legend-inline-item"><i class="legend-dot feat"></i>功能</span>
+              <span class="legend-inline-item"><i class="legend-dot flow"></i>流程</span>
+            </div>
+            <div class="legend-inline-divider"></div>
+            <div class="legend-inline-group">
+              <span class="legend-inline-title">关系类型</span>
+              <span class="legend-inline-item"><i class="line-symbol"></i>包含</span>
+              <span class="legend-inline-item"><i class="line-symbol arrow"></i>实现</span>
+              <span class="legend-inline-item"><i class="line-symbol dashed"></i>相关</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <aside class="right-panel">
+        <div class="detail-body">
+          <div class="detail-header">
+            <div>
+              <div class="eyebrow" id="detailEyebrow">当前选中</div>
+              <div class="selected-title">
+                <div class="detail-icon" id="detailIcon">⌬</div>
+                <div class="detail-title-text">
+                  <span id="detailTitle">项目总览</span>
+                  <span class="type-badge" id="detailType">Overview</span>
+                </div>
+              </div>
+            </div>
+            <button class="close" id="clearBtn" type="button">×</button>
+          </div>
+          <div class="kv"><div class="k">Slug</div><div class="v" id="detailSlug">-</div></div>
+          <div class="kv"><div class="k">摘要</div><div class="v" id="detailSummary">未选中节点时，右侧展示项目总览、构建时间、warning 数量和图谱基础统计。</div></div>
+          <div class="kv"><div class="k">状态</div><div class="v"><span class="ok-state"><span class="dot"></span><span id="detailStatus">已加载</span></span></div></div>
+          <div class="kv"><div class="k">置信度</div><div class="v" id="detailConfidence">-</div></div>
+          <section class="detail-section">
+            <h3 id="relationTitle1">Capability 数量</h3>
+            <div class="related-list" id="relationList1"></div>
+          </section>
+          <section class="detail-section">
+            <h3 id="relationTitle2">Feature 数量</h3>
+            <div class="related-list" id="relationList2"></div>
+          </section>
+          <section class="detail-section">
+            <h3 id="relationTitle3">Workflow 数量</h3>
+            <div class="related-list" id="relationList3"></div>
+          </section>
+          <section class="detail-section">
+            <h3 id="relationTitle4">Warnings</h3>
+            <div class="related-list" id="warningList"></div>
+          </section>
+        </div>
+        <div class="preview-current">
+          <button id="previewCurrentBtn" type="button">预览当前 Markdown</button>
+        </div>
+      </aside>
+    </main>
+  </div>
+  <div class="markdown-modal" id="markdownModal" aria-hidden="true">
+    <div class="markdown-backdrop" id="markdownBackdrop"></div>
+    <section class="markdown-dialog">
+      <header class="markdown-header">
+        <div>
+          <div class="markdown-eyebrow">Markdown Preview</div>
+          <h2 id="markdownTitle">文档预览</h2>
+          <p id="markdownMeta"></p>
+        </div>
+        <button class="markdown-close" id="markdownClose" title="关闭预览" type="button">×</button>
+      </header>
+      <article class="markdown-content" id="markdownContent"></article>
+    </section>
+  </div>
+  <div class="toast" id="toast">操作成功</div>
+  <script src="/assets/app.js"></script>
+</body>
+</html>

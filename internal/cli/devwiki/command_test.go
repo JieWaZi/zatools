@@ -19,6 +19,9 @@ func TestNewCommandIncludesInitAndToolSubcommands(t *testing.T) {
 	if sub, _, err := cmd.Find([]string{"update"}); err != nil || sub == nil {
 		t.Fatalf("missing subcommand %q: %v", "update", err)
 	}
+	if sub, _, err := cmd.Find([]string{"graph"}); err != nil || sub == nil {
+		t.Fatalf("missing subcommand %q: %v", "graph", err)
+	}
 }
 
 func TestDevwikiInitFlags(t *testing.T) {
@@ -89,6 +92,24 @@ func TestDevwikiToolCommands(t *testing.T) {
 	for _, sub := range toolCmd.Commands() {
 		if sub.Name() == "qmd" {
 			t.Fatalf("devwiki tool should not expose qmd subcommand anymore")
+		}
+	}
+}
+
+func TestDevwikiGraphCommandFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	graphCmd, _, err := cmd.Find([]string{"graph"})
+	if err != nil {
+		t.Fatalf("Find(graph) error = %v", err)
+	}
+	if graphCmd == nil {
+		t.Fatal("graph command is nil")
+	}
+	for _, flag := range []string{"root", "host", "port", "no-open", "force", "check"} {
+		if graphCmd.Flags().Lookup(flag) == nil {
+			t.Fatalf("graph command missing flag %q", flag)
 		}
 	}
 }

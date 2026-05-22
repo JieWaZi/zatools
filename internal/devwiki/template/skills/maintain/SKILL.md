@@ -273,6 +273,14 @@ zatools qmd update
 zatools qmd status
 ```
 
+如果维护动作涉及 capability / feature / workflow 的关系、重命名、拆分、合并、断链或入口修复，confirmed_write 后必须执行：
+
+```bash
+zatools devwiki graph --check
+```
+
+校验失败时，不得把维护任务标记为完成。错误必须修复；warning 可作为维护建议，但自动补齐关系仍必须遵守 proposal / confirmed_write 规则。
+
 禁止把维护报告写成 active Wiki 页面。
 
 ### Phase 10：维护后验证

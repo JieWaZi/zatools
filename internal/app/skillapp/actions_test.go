@@ -452,7 +452,7 @@ func TestServiceAddBuiltinDevwikiLibrary(t *testing.T) {
 	t.Setenv("ZATOOLS_LANG", "en")
 
 	err := captureStdout(t, func() error {
-		return service.Add(context.Background(), "zatools/devwiki", AddOptions{
+		return service.Add(context.Background(), "devwiki", AddOptions{
 			Yes:           true,
 			ScopeProvided: true,
 			Agents:        []string{"codex"},
@@ -483,6 +483,69 @@ func TestServiceAddBuiltinDevwikiLibrary(t *testing.T) {
 		if !strings.HasSuffix(entry.SourceSubdir, wantSubdir) {
 			t.Fatalf("%s SourceSubdir = %q, want suffix %q", name, entry.SourceSubdir, wantSubdir)
 		}
+	}
+}
+
+func TestServiceUpdateCanTargetDevwikiBuiltinSkills(t *testing.T) {
+	service := newTestService(t)
+	projectDir := service.runtime.Workspace.ProjectDir()
+
+	if err := captureStdout(t, func() error {
+		return service.Add(context.Background(), "devwiki", AddOptions{
+			Yes:           true,
+			ScopeProvided: true,
+			Agents:        []string{"codex"},
+		})
+	}); err != nil {
+		t.Fatalf("Service.Add(devwiki) error = %v", err)
+	}
+
+	localSource := filepath.Join(projectDir, "custom-skill")
+	mustWriteFileApp(t, filepath.Join(localSource, "SKILL.md"), "---\nname: custom\ndescription: custom\n---\n")
+	mustWriteFileApp(t, filepath.Join(localSource, "content.txt"), "v1")
+	if err := captureStdout(t, func() error {
+		return service.Add(context.Background(), localSource, AddOptions{
+			Yes:           true,
+			ScopeProvided: true,
+			Agents:        []string{"codex"},
+		})
+	}); err != nil {
+		t.Fatalf("Service.Add(custom) error = %v", err)
+	}
+
+	lockPath, err := service.runtime.Workspace.LockFilePath(false)
+	if err != nil {
+		t.Fatalf("LockFilePath error = %v", err)
+	}
+	lock, err := skills.LoadLock(lockPath)
+	if err != nil {
+		t.Fatalf("LoadLock error = %v", err)
+	}
+	devEntry := lock.Entries(skills.SkillAsset)["devwiki-ingest"]
+	devEntry.Hash = "stale-devwiki"
+	lock.Entries(skills.SkillAsset)["devwiki-ingest"] = devEntry
+	customEntry := lock.Entries(skills.SkillAsset)["custom"]
+	customEntry.Hash = "stale-custom"
+	lock.Entries(skills.SkillAsset)["custom"] = customEntry
+	if err := skills.SaveLock(lockPath, lock); err != nil {
+		t.Fatalf("SaveLock error = %v", err)
+	}
+
+	if err := captureStdout(t, func() error {
+		return service.Update(context.Background(), false, "devwiki")
+	}); err != nil {
+		t.Fatalf("Service.Update(devwiki) error = %v", err)
+	}
+
+	updatedLock, err := skills.LoadLock(lockPath)
+	if err != nil {
+		t.Fatalf("LoadLock(updated) error = %v", err)
+	}
+	if updatedLock.Entries(skills.SkillAsset)["devwiki-ingest"].Hash == "stale-devwiki" {
+		t.Fatal("expected targeted devwiki update to refresh devwiki-ingest")
+	}
+	if updatedLock.Entries(skills.SkillAsset)["custom"].Hash != "stale-custom" {
+		t.Fatal("expected targeted devwiki update to leave custom skill untouched")
 	}
 }
 

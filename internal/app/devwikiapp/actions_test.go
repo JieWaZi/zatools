@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	common "zatools/internal/app/common"
 	"zatools/internal/app/skillapp"
 	"zatools/internal/devwiki"
+	"zatools/internal/qmd"
 	"zatools/internal/skills"
 )
 
@@ -587,6 +589,90 @@ func TestUpdateInstallsMissingBuiltinSkillsInDevwikiRoot(t *testing.T) {
 	}
 }
 
+func TestUpdateRefreshesQMDIndexAfterSkillUpdate(t *testing.T) {
+	root := t.TempDir()
+	codeRoot := t.TempDir()
+	if err := devwiki.GenerateProject(root, devwiki.ProjectSpec{
+		ProjectName: "Sample",
+		ProjectSlug: "sample",
+		Agent:       "codex",
+		Lang:        "zh",
+		CodeRepos: []devwiki.CodeRepo{
+			{Name: "code", Slug: "code", Path: codeRoot, Default: true},
+		},
+	}); err != nil {
+		t.Fatalf("GenerateProject error = %v", err)
+	}
+
+	service := NewServiceWithRuntime(common.Runtime{
+		Workspace: skills.NewWorkspace(root),
+		IsTTY:     false,
+	})
+
+	builtinRoot, cleanup, err := devwiki.ExtractBuiltinSkills("zh")
+	if err != nil {
+		t.Fatalf("ExtractBuiltinSkills error = %v", err)
+	}
+	defer cleanup()
+	found, err := skills.Discover(builtinRoot)
+	if err != nil {
+		t.Fatalf("Discover builtin skills error = %v", err)
+	}
+	if err := service.installSelectedSkills(root, "codex", false, "zh", found); err != nil {
+		t.Fatalf("installSelectedSkills error = %v", err)
+	}
+
+	ctx := qmd.WithCommandRunner(context.Background(), devwikiQMDHelperRunner(t, ""))
+	var output string
+	if err := captureDevwikiStdoutText(t, func() error {
+		return service.Update(ctx)
+	}, &output); err != nil {
+		t.Fatalf("Service.Update error = %v", err)
+	}
+
+	for _, want := range []string{
+		"argv=qmd collection add " + filepath.Join(root, "wiki") + " --name devwiki-sample-wiki",
+		"argv=qmd update",
+		"argv=qmd embed",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("update output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestUpdateReportsQMDRefreshFailureWithoutFailing(t *testing.T) {
+	root := t.TempDir()
+	codeRoot := t.TempDir()
+	if err := devwiki.GenerateProject(root, devwiki.ProjectSpec{
+		ProjectName: "Sample",
+		ProjectSlug: "sample",
+		Agent:       "codex",
+		Lang:        "zh",
+		CodeRepos: []devwiki.CodeRepo{
+			{Name: "code", Slug: "code", Path: codeRoot, Default: true},
+		},
+	}); err != nil {
+		t.Fatalf("GenerateProject error = %v", err)
+	}
+
+	service := NewServiceWithRuntime(common.Runtime{
+		Workspace: skills.NewWorkspace(root),
+		IsTTY:     false,
+	})
+
+	ctx := qmd.WithCommandRunner(context.Background(), devwikiQMDHelperRunner(t, "update"))
+	var output string
+	if err := captureDevwikiStdoutText(t, func() error {
+		return service.Update(ctx)
+	}, &output); err != nil {
+		t.Fatalf("Service.Update should not fail when qmd update fails: %v", err)
+	}
+	if !strings.Contains(output, "qmd update") || !strings.Contains(output, "失败") {
+		t.Fatalf("expected qmd failure warning in output:\n%s", output)
+	}
+}
+
 func mustWriteFileDevwikiApp(t *testing.T, path string, content string) {
 	t.Helper()
 
@@ -642,4 +728,38 @@ func containsAll(text string, parts ...string) bool {
 		}
 	}
 	return true
+}
+
+func devwikiQMDHelperRunner(t *testing.T, failSubcommand string) func(context.Context, string, ...string) *exec.Cmd {
+	t.Helper()
+
+	return func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		commandArgs := []string{"-test.run=TestDevwikiQMDHelperProcess", "--", name}
+		commandArgs = append(commandArgs, args...)
+		cmd := exec.CommandContext(ctx, os.Args[0], commandArgs...)
+		cmd.Env = append(os.Environ(),
+			"GO_WANT_DEVWIKI_QMD_HELPER_PROCESS=1",
+			"GO_WANT_DEVWIKI_QMD_FAIL="+failSubcommand,
+		)
+		return cmd
+	}
+}
+
+func TestDevwikiQMDHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_DEVWIKI_QMD_HELPER_PROCESS") != "1" {
+		return
+	}
+	args := os.Args
+	for i, arg := range os.Args {
+		if arg == "--" {
+			args = os.Args[i+1:]
+			break
+		}
+	}
+	if fail := os.Getenv("GO_WANT_DEVWIKI_QMD_FAIL"); fail != "" && len(args) > 1 && args[1] == fail {
+		_, _ = os.Stderr.WriteString("qmd failed\n")
+		os.Exit(1)
+	}
+	_, _ = os.Stdout.WriteString("argv=" + strings.Join(args, " ") + "\n")
+	os.Exit(0)
 }

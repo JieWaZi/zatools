@@ -127,10 +127,10 @@ func newSkillUpdateCmd(service *skillapp.Service) *cobra.Command {
 	copy := ui.Messages()
 	var global bool
 	cmd := &cobra.Command{
-		Use:   "update",
+		Use:   "update [skills...]",
 		Short: copy.UpdateShort,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return service.Update(cmd.Context(), global)
+			return service.Update(cmd.Context(), global, args...)
 		},
 	}
 	cmd.Flags().BoolVarP(&global, "global", "g", false, copy.FlagUpdateGlobal)

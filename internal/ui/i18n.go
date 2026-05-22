@@ -25,6 +25,7 @@ type Catalog struct {
 	InitShort                     string
 	DevwikiInitShort              string
 	DevwikiLinkShort              string
+	DevwikiGraphShort             string
 	RemoveShort                   string
 	CheckShort                    string
 	UpdateShort                   string
@@ -62,6 +63,11 @@ type Catalog struct {
 	FlagDevwikiAgent              string
 	FlagDevwikiCodeDir            string
 	FlagDevwikiRoot               string
+	FlagDevwikiGraphHost          string
+	FlagDevwikiGraphPort          string
+	FlagDevwikiGraphNoOpen        string
+	FlagDevwikiGraphForce         string
+	FlagDevwikiGraphCheck         string
 	StepParsingSource             string
 	StepValidateLocalPath         string
 	StepCloneRepository           string
@@ -110,6 +116,7 @@ type Catalog struct {
 	DevwikiInstalledSkillsFmt     string
 	DevwikiLinkedCodeRepoFmt      string
 	DevwikiNoSkillsTracked        string
+	DevwikiQMDRefreshFailedFmt    string
 	Cancelled                     string
 	InstallationCancelled         string
 	RemovalCancelled              string
@@ -191,6 +198,7 @@ var catalogs = map[string]Catalog{
 		InitShort:                     "创建新的 SKILL.md 模板",
 		DevwikiInitShort:              "生成 DevWiki 项目并安装所选 runtime skills",
 		DevwikiLinkShort:              "将 DevWiki 文档库关联到代码库",
+		DevwikiGraphShort:             "生成并打开 DevWiki 图谱",
 		RemoveShort:                   "删除已安装技能",
 		CheckShort:                    "检查技能是否有可用更新",
 		UpdateShort:                   "更新已安装技能",
@@ -228,6 +236,11 @@ var catalogs = map[string]Catalog{
 		FlagDevwikiAgent:              "目标 runtime（codex、cursor、claude）",
 		FlagDevwikiCodeDir:            "代码目录，可重复传入",
 		FlagDevwikiRoot:               "DevWiki 文档库根目录",
+		FlagDevwikiGraphHost:          "图谱本地服务监听地址",
+		FlagDevwikiGraphPort:          "图谱本地服务端口，0 表示自动选择",
+		FlagDevwikiGraphNoOpen:        "不自动打开浏览器",
+		FlagDevwikiGraphForce:         "忽略缓存并强制重建图谱",
+		FlagDevwikiGraphCheck:         "只校验图谱关系，不生成页面或启动服务",
 		StepParsingSource:             "解析来源...",
 		StepValidateLocalPath:         "校验本地路径...",
 		StepCloneRepository:           "克隆仓库...",
@@ -276,6 +289,7 @@ var catalogs = map[string]Catalog{
 		DevwikiInstalledSkillsFmt:     "已安装 %d 个 DevWiki skills",
 		DevwikiLinkedCodeRepoFmt:      "已关联代码库 %s",
 		DevwikiNoSkillsTracked:        "锁文件中没有记录任何 DevWiki skills。",
+		DevwikiQMDRefreshFailedFmt:    "%s 失败：%v",
 		Cancelled:                     "已取消",
 		InstallationCancelled:         "安装已取消",
 		RemovalCancelled:              "删除已取消",
@@ -355,6 +369,7 @@ var catalogs = map[string]Catalog{
 		InitShort:                     "Create a new SKILL.md template",
 		DevwikiInitShort:              "Generate a DevWiki project and install selected runtime skills",
 		DevwikiLinkShort:              "Link a DevWiki document root to code repositories",
+		DevwikiGraphShort:             "Build and open the DevWiki graph",
 		RemoveShort:                   "Remove installed skills",
 		CheckShort:                    "Check for available skill updates",
 		UpdateShort:                   "Update installed skills",
@@ -392,6 +407,11 @@ var catalogs = map[string]Catalog{
 		FlagDevwikiAgent:              "Target runtime (codex, cursor, claude)",
 		FlagDevwikiCodeDir:            "Code directory, repeatable",
 		FlagDevwikiRoot:               "DevWiki document root",
+		FlagDevwikiGraphHost:          "Graph local server host",
+		FlagDevwikiGraphPort:          "Graph local server port, 0 chooses automatically",
+		FlagDevwikiGraphNoOpen:        "Do not open the browser automatically",
+		FlagDevwikiGraphForce:         "Ignore cache and rebuild the graph",
+		FlagDevwikiGraphCheck:         "Only validate graph relations without generating or serving",
 		StepParsingSource:             "Parsing source...",
 		StepValidateLocalPath:         "Validating local path...",
 		StepCloneRepository:           "Cloning repository...",
@@ -440,6 +460,7 @@ var catalogs = map[string]Catalog{
 		DevwikiInstalledSkillsFmt:     "Installed %d DevWiki skills",
 		DevwikiLinkedCodeRepoFmt:      "linked code repository %s",
 		DevwikiNoSkillsTracked:        "No DevWiki skills are tracked in the lock file.",
+		DevwikiQMDRefreshFailedFmt:    "%s failed: %v",
 		Cancelled:                     "Cancelled",
 		InstallationCancelled:         "Installation cancelled",
 		RemovalCancelled:              "Removal cancelled",

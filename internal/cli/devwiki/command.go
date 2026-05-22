@@ -30,6 +30,7 @@ func NewCommand() *cobra.Command {
 	devwikiCmd.AddCommand(newInitCmd(service))
 	devwikiCmd.AddCommand(newLinkCmd(service))
 	devwikiCmd.AddCommand(newUpdateCmd(service))
+	devwikiCmd.AddCommand(newGraphCmd(service))
 	devwikiCmd.AddCommand(newToolCmd())
 	return devwikiCmd
 }
@@ -84,6 +85,26 @@ func newUpdateCmd(service *devwikiapp.Service) *cobra.Command {
 			return service.Update(cmd.Context())
 		},
 	}
+}
+
+func newGraphCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	var opts devwikiapp.GraphOptions
+
+	cmd := &cobra.Command{
+		Use:   "graph",
+		Short: copy.DevwikiGraphShort,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return service.Graph(cmd.Context(), opts)
+		},
+	}
+	cmd.Flags().StringVar(&opts.Root, "root", ".", copy.FlagDevwikiRoot)
+	cmd.Flags().StringVar(&opts.Host, "host", "127.0.0.1", copy.FlagDevwikiGraphHost)
+	cmd.Flags().IntVar(&opts.Port, "port", 0, copy.FlagDevwikiGraphPort)
+	cmd.Flags().BoolVar(&opts.NoOpen, "no-open", false, copy.FlagDevwikiGraphNoOpen)
+	cmd.Flags().BoolVar(&opts.Force, "force", false, copy.FlagDevwikiGraphForce)
+	cmd.Flags().BoolVar(&opts.Check, "check", false, copy.FlagDevwikiGraphCheck)
+	return cmd
 }
 
 func newToolCmd() *cobra.Command {

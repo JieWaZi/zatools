@@ -11,22 +11,24 @@ import (
 func TestParseSourceRecognizesBuiltinDevwikiLibrary(t *testing.T) {
 	t.Setenv("ZATOOLS_LANG", "en")
 
-	source, err := ParseSource("zatools/devwiki")
-	if err != nil {
-		t.Fatalf("ParseSource returned error: %v", err)
-	}
+	for _, input := range []string{"zatools/devwiki", "devwiki"} {
+		source, err := ParseSource(input)
+		if err != nil {
+			t.Fatalf("ParseSource(%q) returned error: %v", input, err)
+		}
 
-	if source.Type != "builtin" {
-		t.Fatalf("Type = %q, want %q", source.Type, "builtin")
-	}
-	if source.Builtin != "devwiki" {
-		t.Fatalf("Builtin = %q, want %q", source.Builtin, "devwiki")
-	}
-	if source.Ref != "zh" {
-		t.Fatalf("Ref = %q, want %q", source.Ref, "zh")
-	}
-	if source.Original != "zatools/devwiki#zh" {
-		t.Fatalf("Original = %q, want %q", source.Original, "zatools/devwiki#zh")
+		if source.Type != "builtin" {
+			t.Fatalf("ParseSource(%q) Type = %q, want %q", input, source.Type, "builtin")
+		}
+		if source.Builtin != "devwiki" {
+			t.Fatalf("ParseSource(%q) Builtin = %q, want %q", input, source.Builtin, "devwiki")
+		}
+		if source.Ref != "zh" {
+			t.Fatalf("ParseSource(%q) Ref = %q, want zh", input, source.Ref)
+		}
+		if source.Original != "zatools/devwiki#zh" {
+			t.Fatalf("ParseSource(%q) Original = %q, want zatools/devwiki#zh", input, source.Original)
+		}
 	}
 }
 

@@ -92,7 +92,7 @@ zatools skill list [--global]
 zatools skill init [name]
 zatools skill remove [skills...] [--skill <name>] [--all] [--global] [--yes]
 zatools skill check [--global]
-zatools skill update [--global]
+zatools skill update [skills...] [--global]
 ```
 
 示例：
@@ -115,6 +115,10 @@ zatools skill add owner/repo#main
 
 # 全局安装
 zatools skill add ./examples/skills --global --yes
+
+# 安装或更新 DevWiki 内置 skills
+zatools skill add devwiki
+zatools skill update devwiki
 ```
 
 ---
@@ -150,6 +154,7 @@ zatools rule add ./examples/rules --yes
 zatools devwiki init [project-name] [--agent <codex|cursor|claude>] [--code-dir <dir>]... [--global] [--yes]
 zatools devwiki link [--root <devwiki-root>] [--agent <codex|cursor|claude>] [--code-dir <dir>]... [--yes]
 zatools devwiki update
+zatools devwiki graph [--root <dir>] [--host 127.0.0.1] [--port 0] [--no-open] [--force] [--check]
 zatools devwiki tool reset --scope <wiki|raw|log|checkpoints|all> [--project-root <dir>] [--yes]
 zatools devwiki tool log --wiki-root <dir> --message "<text>"
 ```
@@ -158,7 +163,8 @@ zatools devwiki tool log --wiki-root <dir> --message "<text>"
 
 - `devwiki init`：初始化 DevWiki 文档库，并安装运行时所需 skills
 - `devwiki link`：将已有 DevWiki 文档库关联到代码库
-- `devwiki update`：更新当前作用域内的 DevWiki 内置 skills
+- `devwiki update`：更新当前作用域内的 DevWiki 内置 skills，并尽力执行 qmd 注册、索引和向量刷新；qmd 失败只提示告警
+- `devwiki graph`：从 capability / feature / workflow 页面生成图谱数据并启动本地页面；`--check` 只校验页面关系，适合 Agent 写入后验证
 - `tool reset`：默认只输出 dry-run 计划，加 `--yes` 后才会执行
 - `tool log`：向 `wiki/log.md` 追加操作记录
 
@@ -212,6 +218,7 @@ zatools qmd query "payment retry policy"
 | GitLab tree URL | `https://gitlab.com/group/repo/-/tree/main/rules/demo` |
 | 直接 git URL | `https://example.com/repo.git` |
 | 指定 ref | `owner/repo#main` |
+| 内置 DevWiki skills | `devwiki` 或 `zatools/devwiki` |
 
 约束：
 

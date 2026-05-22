@@ -16,6 +16,7 @@ import (
 	"zatools/internal/app/skillapp"
 	"zatools/internal/devwiki"
 	"zatools/internal/platform/agents"
+	"zatools/internal/qmd"
 	"zatools/internal/skills"
 	"zatools/internal/ui"
 )
@@ -535,7 +536,7 @@ func (s *Service) updateSkills(ctx context.Context) error {
 	}
 	if len(devwikiResults) == 0 {
 		fmt.Printf("%s%s%s\n", ui.Dim, copy.DevwikiNoSkillsTracked, ui.Reset)
-		return nil
+		return s.refreshDevwikiQMD(ctx)
 	}
 
 	installedMissing, err := s.installMissingDevwikiBuiltinSkills(global, devwikiResults)
@@ -556,7 +557,7 @@ func (s *Service) updateSkills(ctx context.Context) error {
 		if installedMissing == 0 {
 			fmt.Printf("%s%s%s\n", ui.Text, copy.AllUpToDate, ui.Reset)
 		}
-		return nil
+		return s.refreshDevwikiQMD(ctx)
 	}
 
 	selected, err := s.selectDevwikiUpdates(outdated)
@@ -575,7 +576,44 @@ func (s *Service) updateSkills(ctx context.Context) error {
 	if updated == 0 {
 		fmt.Printf("%s%s%s\n", ui.Text, copy.AllUpToDate, ui.Reset)
 	}
+	return s.refreshDevwikiQMD(ctx)
+}
+
+func (s *Service) refreshDevwikiQMD(ctx context.Context) error {
+	projectRoot := s.runtime.Workspace.ProjectDir()
+	if !isDevwikiDocumentRoot(projectRoot) {
+		return nil
+	}
+
+	models, err := qmd.ResolveModels(projectRoot, qmd.Models{})
+	if err != nil {
+		printDevwikiQMDWarning("qmd models", err)
+		models = qmd.DefaultModels()
+	}
+
+	collections, err := qmd.LoadCollections(projectRoot)
+	if err != nil {
+		printDevwikiQMDWarning("qmd sync", err)
+	} else {
+		commands, err := qmd.BuildCollectionCommands(projectRoot, collections)
+		if err != nil {
+			printDevwikiQMDWarning("qmd sync", err)
+		} else if err := qmd.RunCollectionCommandsInDir(ctx, projectRoot, commands, models, os.Stdout, os.Stderr); err != nil {
+			printDevwikiQMDWarning("qmd sync", err)
+		}
+	}
+
+	if err := qmd.RunCommandInDir(ctx, projectRoot, []string{"update"}, models, os.Stdout, os.Stderr); err != nil {
+		printDevwikiQMDWarning("qmd update", err)
+	}
+	if err := qmd.RunCommandInDir(ctx, projectRoot, []string{"embed"}, models, os.Stdout, os.Stderr); err != nil {
+		printDevwikiQMDWarning("qmd embed", err)
+	}
 	return nil
+}
+
+func printDevwikiQMDWarning(step string, err error) {
+	fmt.Printf("%s!%s %s\n", ui.Yellow, ui.Reset, fmt.Sprintf(ui.Messages().DevwikiQMDRefreshFailedFmt, step, err))
 }
 
 func (s *Service) installMissingDevwikiBuiltinSkills(global bool, devwikiResults []skills.CheckResult) (int, error) {

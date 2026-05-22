@@ -1,7 +1,7 @@
-# DevWiki — 运行时 Schema
+# DevWiki — 运行时规则
 
 > 面向研发场景的 DevWiki，由 Claude Code 与 Codex 共同驱动。
-> 本文件是 wiki 的运行时入口，定义目录结构、页面 schema、链接规范、检索顺序与 workflow 约束。
+> 本文件是 wiki 的运行时入口，只定义项目级目录、链接规范、检索顺序与 workflow 约束。
 
 ## 目录结构
 
@@ -42,133 +42,41 @@
 - `raw/features/`
 - `raw/tests/`
 
-## 页面类型
+## Wiki 目录
 
-| 目录 | 文件名 | 职责 |
-|------|--------|------|
-| `wiki/capabilities/` | `{slug}.md` | 业务能力或系统能力中心页 |
-| `wiki/features/` | `{slug}.md` | 具体功能设计页，说明参数、联动、边界和功能流转 |
-| `wiki/workflows/` | `{slug}.md` | 工程定位页，合并流程与模块定位，说明入口、调用链、关键逻辑、代码引用和修改影响 |
-| `wiki/troubleshooting/` | `{slug}.md` | 排障现象、诊断路径、证据、修复建议和适用版本 |
+| 目录 | 文件名 |
+|------|--------|
+| `wiki/capabilities/` | `{slug}.md` |
+| `wiki/features/` | `{slug}.md` |
+| `wiki/workflows/` | `{slug}.md` |
+| `wiki/troubleshooting/` | `{slug}.md` |
 
-## 页面模板
+具体页面模板、字段结构、页面边界和证据写入规则由对应 DevWiki skill 和 `references/` 维护。本文不重复定义各类页面边界、页面模板、frontmatter 字段、`sources` 与 `code_refs` 结构，避免和 skill 内的模板规则冲突。
 
-### wiki/capabilities/{slug}.md
+## 链接语法
 
-```yaml
----
-title: ""
-slug: ""
-status: active
-summary: ""
-features: []
-related_capabilities: []
-sources: []
-visibility: internal
-confidence: medium
-last_verified_at: YYYY-MM-DD
----
+内部 Wiki 页面使用 Obsidian wikilink：
+
+```markdown
+[[slug]]
+[[user-management]]
 ```
 
-正文：`Overview`、`Business Value`、`Capability Boundary`、`Covered Features`、`Related Capabilities`、`Source Notes`。
+slug 使用小写连字符，发布后应尽量保持稳定。外部 raw 文件、代码文件、接口入口和测试入口不是 Wiki 页面，不使用 wikilink。
 
-Capability 只写能力边界、业务价值、覆盖功能和能力协作，不写代码引用、接口、函数或测试入口。
+## Cross Reference 规则
 
-### wiki/features/{slug}.md
+当写入正向关系时，只要反向对象仍是一等 wiki 页面，就必须在同一次编辑中同步写入反向关系。
 
-```yaml
----
-title: ""
-slug: ""
-status: active
-summary: ""
-capabilities: []
-workflow: ""
-related_features: []
-sources: []
-visibility: internal
-confidence: medium
-last_verified_at: YYYY-MM-DD
----
-```
+| 正向操作 | 必须同步的反向操作 |
+|----------|-------------------|
+| capability/A 写入 `features: [[feature-F]]` | feature/F 的 `capabilities` 追加 A |
+| capability/A 写入 `related_capabilities: [[capability-B]]` | capability/B 的 `related_capabilities` 追加 A |
+| feature/F 写入 `workflow: [[workflow-W]]` | workflow/W 的 `features` 追加 F |
+| feature/F 写入 `related_features: [[feature-G]]` | feature/G 的 `related_features` 追加 F |
+| troubleshooting/T 写入 `features: [[feature-F]]` | feature/F 的排障入口摘要追加 T |
 
-正文：`Summary`、`User Scenarios`、`Functional Design`、`Parameters`、`Behavior Flow`、`Interactions`、`Constraints`、`Acceptance Notes`、`Engineering Entry`、`Source Notes`。
-
-Feature 只写功能设计、参数取值、联动、边界和功能流转，不写代码路径、函数名、`code_refs`、`api_entries` 或 `test_refs`。需要指向实现时，只写 “实现定位见 [[workflow-slug]]”。
-
-### wiki/workflows/{slug}.md
-
-```yaml
----
-title: ""
-slug: ""
-status: active
-summary: ""
-features: []
-sources: []
-code_refs: []
-api_entries: []
-test_refs: []
-visibility: internal
-confidence: medium
-last_verified_at: YYYY-MM-DD
----
-```
-
-正文：`Summary`、`Entry Points`、`Call Chain`、`Key Logic`、`Data and State`、`Code References`、`Test References`、`Change Impact`、`Source Notes`。
-
-Workflow 是面向编程的工程定位页。默认每个 feature 最多一个 workflow；只有用户确认，或两条调用链属于不同运行时服务且修改影响完全不同，才拆多个 workflow。
-
-### wiki/troubleshooting/{slug}.md
-
-```yaml
----
-title: ""
-slug: ""
-status: active
-summary: ""
-features: []
-workflows: []
-sources: []
-symptoms: []
-visibility: internal
-confidence: medium
-last_verified_at: YYYY-MM-DD
----
-```
-
-正文：`Symptoms`、`Diagnosis`、`Evidence`、`Fix / Mitigation`、`Related Features`、`Related Workflows`、`Source Notes`。
-
-## 来源和代码引用
-
-来源信息内联到页面：
-
-```yaml
-sources:
-  - path: "raw/designs/example.md"
-    kind: design
-    hash: ""
-    title: ""
-    confidence: medium
-    notes: ""
-```
-
-`code_refs` 只写在 `wiki/workflows/` 或 `wiki/troubleshooting/`：
-
-```yaml
-code_refs:
-  - path: "services/user/service.ts"
-    kind: file
-    note: "用户资料读写和状态同步的主服务实现。"
-    confidence: high
-    symbols:
-      UserService#class: "用户资料服务主类。"
-      UserService#updateProfile#method: "状态写入入口，修改时需要同步检查缓存刷新。"
-```
-
-`code_refs` 以代码文件 `path` 为唯一粒度；同一个 `path` 在同一页面中只能出现一条。顶层 `note` 只写文件级职责，不写每个方法的说明。`symbols` 是关键入口索引，不是文件内方法清单，最多 4 个；使用 `<symbol>#<kind>: "<短说明>"` 格式，value 只写入口职责、风险点或排障关键说明；不得为了完整性列出文件内所有方法。
-
-代码文件路径、函数名、handler 和调用链不写入 capability / feature 的 `sources`；Feature 的 `sources` 只记录 raw、已有 Wiki 或用户提供的非代码资料。由代码反向生成 Feature 时，代码证据必须写到对应 Workflow 的 `code_refs`，Feature 只通过 `workflow` 或正文链接指向实现定位。
+外部 raw 文件、代码文件、接口入口和测试入口没有反向页面要求。
 
 ## 检索顺序
 
@@ -182,9 +90,10 @@ code_refs:
 ## Workflow 约束
 
 - `raw/` 只读
-- 页面中的 `sources` 必须记录真实路径和 hash
-- capability 和 feature 禁止写代码引用，也禁止在 `sources` 中记录代码文件路径或 `kind: code`
-- workflow 负责工程定位和修改影响
+- facts 与 inference 必须分开表达
+- 仅凭检索输出或其他派生内容，不能单独作为证据
+- 页面写入和证据字段更新必须遵守对应 DevWiki skill 的模板和引用规则
+- 项目知识任务先由 `devwiki-project-router` 判断意图、身份、证据需求和检索边界，再路由到 `devwiki-ingest`、`devwiki-maintain`、`devwiki-query`、`devwiki-code-to-doc` 或 `devwiki-qmd-sync`
 - 待确认问题优先通过对话和用户对齐
 - 中高风险写入必须先给 proposal，再落盘
 - 多个候选归属、拆分边界不清、页面合并/重命名、代码证据不足时必须先问用户
@@ -194,9 +103,9 @@ code_refs:
 - 使用 `zatools devwiki init` 在当前目录初始化 DevWiki 文档库并安装 skills
 - 使用 `zatools devwiki link` 将已有 DevWiki 文档库关联到代码库
 - 使用 `devwiki-project-router` 作为项目知识任务的默认总入口
-- 使用 `devwiki-ingest` 吸收 raw 文档并生成或更新三层 Wiki 页面、术语和入口导航
+- 使用 `devwiki-ingest` 吸收 raw 文档并生成或更新 Wiki 页面、术语和入口导航
 - 使用 `devwiki-maintain` 维护已有 Wiki 的证据一致性、过期内容、引用缺失、入口错误和 query 污染
 - 使用 `devwiki-query` 查询 Wiki、raw、代码线索、设计意图和排障知识
 - 使用 `devwiki-code-to-doc` 从代码、接口、配置项、日志或路由反向生成或更新 workflow 页面
 
-这份 schema 应保持稳定，只在 DevWiki 的数据模型或工作流发生真实变化时修改。
+这份运行时规则应保持稳定，只在 DevWiki 的项目目录、链接规范或工作流约束发生真实变化时修改。

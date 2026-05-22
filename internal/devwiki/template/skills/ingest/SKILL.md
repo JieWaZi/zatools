@@ -1,42 +1,48 @@
 ---
 name: "devwiki-ingest"
-description: "当用户提供设计文档、需求文档、接口文档、配置说明、部署文档、测试文档、会议纪要、排障记录、代码逻辑片段或讨论结论，并要求消化、导入、生成 Wiki、构建知识库时使用。该 Skill 将原始资料转换为 capability、feature、workflow、troubleshooting、术语、入口导航和需要对话确认的问题。本版统一使用中文标题，并明确 Capability / Feature / Workflow 三层边界：Capability 是能力地图，Feature 是功能契约，Workflow 是实现路径。"
+description: "当用户提供设计文档、需求文档、接口文档、配置说明、部署文档、测试文档、会议纪要、排障记录、代码逻辑片段或讨论结论，并要求消化、导入、生成 Wiki、构建知识库时使用。该 Skill 将原始资料转换为 capability、feature、workflow、troubleshooting、术语、入口导航和需要对话确认的问题。"
 argument-hint: "<文档路径、目录、文本片段或待摄入范围>"
 ---
 
 # /devwiki-ingest
 
-> 先阅读通用约束：
-> - `references/evidence-grounding.md`
-> - `references/zatools-qmd.md`
-> - 涉及写入、重分类或破坏性操作时，再读 `references/mutation-safety.md`
-> - 涉及代码追踪、代码归因或实现核对时，再读 `references/code-tracing.md`
-> - 生成 capability 页面前，优先读取 `references/capability_template.md`
-> - 生成 feature 页面前，优先读取 `references/feature_template.md`
-> - 生成 workflow 页面前，优先读取 `references/workflow_template.md`
+将一份或一批原始资料转成可维护知识。不要直接写散文总结；必须先分类、控粒度、检查已有 Wiki、输出 proposal，等用户在 proposal 之后显式确认后再落盘。
 
-将一份或一批原始资料转成可维护知识。不要直接写散文总结；必须先做分类、控粒度、给 proposal，等用户在 proposal 之后显式确认后再落盘。
+## 快速执行规则
 
-## 写入门禁
-
-本 Skill 默认处于 `discussion_only` 模式。用户要求“生成 Wiki / 导入资料 / 构建知识库”只表示启动 ingest 分析流程，不等于允许落盘。
-
-完整写入门禁见 `references/mutation-safety.md`。本 Skill 只补充 ingest 专属要求：必须先输出 Ingest Proposal，列出拟写路径、动作、修改摘要、证据、风险和待确认问题；只有用户在 proposal 后明确回复“确认落盘”或“按 proposal 写入”后，才允许进入 `confirmed_write`。
+1. 默认处于 `discussion_only`：用户要求“生成 Wiki / 导入资料 / 构建知识库”只表示启动 ingest 分析流程，不等于允许落盘。
+2. 写入前必须先输出 Ingest Proposal；只有用户在 proposal 后明确回复“确认落盘”或“按 proposal 写入”，才进入 `confirmed_write`。
+3. 不要从原始资料直接跳到最终页面；先抽取知识信号，再判断写入位置。
+4. 写新页面前必须先检查 `wiki/index.md`、`wiki/glossary.md` 和相关 Wiki 目录，避免重复建页。
+5. 默认一个功能主题最多对应 1 个 Capability、1 个 Feature、1 个 Workflow；拆分、合并、重命名或改主关系前必须让用户确认。
+6. Capability / Feature 只写业务和功能事实；代码路径、函数名、handler、调用链和 `kind: code` 只进入 Workflow 或 Troubleshooting。
+7. 页面小节标题统一使用中文，避免中英文小节名混用。
 
 本 Skill 的核心目标：
 
-1. 从原始资料中抽取可复用的知识，而不是搬运原文；
-2. 保留后续问答、开发、测试、排障会依赖的关键设计信号；
-3. 避免 capability / feature / workflow / troubleshooting 之间重复维护；
-4. 避免 feature 过薄，导致后续 Agent 无法回答规则、边界、联动问题；
-5. Markdown 标题统一使用中文，避免中英文小节名混用。
+- 从原始资料中抽取可复用的知识，而不是搬运原文；
+- 保留后续问答、开发、测试、排障会依赖的关键设计信号；
+- 避免 capability / feature / workflow / troubleshooting 之间重复维护；
+- 避免 feature 过薄，导致后续 Agent 无法回答规则、边界、联动问题。
 
----
+## Reference 读取策略
 
-## 一、知识层级
+默认只读本文件，不要在任务开始时一次性读取所有 references。只有触发条件满足时再读取对应 reference：
+
+| 触发条件 | 读取 |
+|---|---|
+| 写入、重命名、拆分、合并或改主关系前 | `references/mutation-safety.md` |
+| 判断页面边界、事实来源、`sources` 或 `code_refs` 时 | `references/evidence-grounding.md` |
+| 本地 Wiki 命中低置信、噪声过大或需要 qmd 时 | `references/zatools-qmd.md` |
+| 需要结合当前代码、核对实现或写入 `code_refs` 时 | `references/code-tracing.md` |
+| 确认要生成 Capability / Feature / Workflow 页面草稿时 | 只读取对应模板：`references/capability_template.md`、`references/feature_template.md` 或 `references/workflow_template.md` |
+
+模板和共享 reference 是决策点工具，不是启动成本。先按本文件完成分类和 proposal；进入具体页面草稿或证据细节时再读取对应文件。
+
+## 知识层级
 
 | 层级 | 路径 | 作用 |
-|---|---|---|---|
+|---|---|---|
 | capability | `wiki/capabilities/<slug>.md` | 业务/系统能力：能力边界、作用效果、覆盖功能、能力协作 |
 | feature | `wiki/features/<slug>.md` | 功能契约/功能知识：功能目标、核心行为、关键规则、关键概念、重要配置、联动、边界、验收关注点 |
 | workflow | `wiki/workflows/<slug>.md` | 面向编程的工程定位：入口、调用链、关键逻辑、代码引用、修改影响、实现差异核对 |
@@ -45,29 +51,18 @@ argument-hint: "<文档路径、目录、文本片段或待摄入范围>"
 一句话区分：
 
 ```text
-Capability = 系统具备什么能力、能力边界是什么
-Feature = 具体功能的行为和规则是什么
-Workflow = 功能在代码中的实现路径怎么走
+Capability 是能力地图：系统具备什么能力、能力边界是什么
+Feature 是功能契约：具体功能的行为和规则是什么
+Workflow 是实现路径：功能在代码中的实现路径怎么走
 ```
 
-页面边界和 `code_refs` 结构以 `references/evidence-grounding.md` 及页面模板为准。`SKILL.md` 只保留 ingest 流程，不重复维护页面模板细节。
+## 输入和输出
 
----
+输入可以来自：
 
-## 二、输入
-- `raw/**/*.md`：已放入 DevWiki 的原始需求、设计、功能说明、测试方案等；
-- `config/project.yaml`：项目名称、语言、agent、代码仓配置；
-- `config/search.yaml`：qmd collection 和模型配置。
-
-可处理资料类型：
-
-- 设计文档、需求文档、接口文档、配置说明、部署文档、测试文档；
-- 会议纪要、排障记录、变更评审记录；
-- 用户粘贴的代码逻辑、运行日志或用户与 AI 的讨论结论。
-
----
-
-## 三、输出
+- `raw/**/*.md` 中的设计、需求、功能说明、测试方案、会议纪要、排障记录；
+- 用户粘贴的文本、代码逻辑、运行日志或讨论结论；
+- 已有 Wiki 页面和必要的代码核对结果。
 
 进入 `confirmed_write` 后，每次 ingest 最多允许创建或更新：
 
@@ -80,112 +75,7 @@ Workflow = 功能在代码中的实现路径怎么走
 - `wiki/log.md`
 - `wiki/outputs/<slug>.md`：仅当用户明确要求保存报告
 
----
-
-## 四、粒度规则
-
-默认一个功能主题最多对应：
-
-- 1 个 capability
-- 1 个 feature
-- 1 个 workflow
-
-不要因为出现多个 API、多个模块、多个分支就自动拆多个 workflow。只有满足以下条件之一，才允许在 proposal 中建议拆分：
-
-- 用户明确要求拆分；
-- 文档里包含多个明显独立功能；
-- 两条调用链属于不同运行时服务，且修改影响完全不同；
-- 单页会超过可维护长度，且拆分后的边界能用自然语言说清楚；
-- 原始资料包含多个互不依赖的功能目标，无法归为同一 feature。
-
-拆分前必须先对话确认。
-
----
-
-## 五、来源规则
-
-来源信息内联写入目标页面：
-
-```yaml
-sources:
-  - path: "raw/designs/example.md"
-    kind: design
-    hash: ""
-    title: ""
-    confidence: medium
-    notes: ""
-```
-
-要求：
-
-- 每个重要事实必须能回到 `raw/`、已有 Wiki 页面或已核对代码证据。
-- 用户粘贴内容使用 `path: "pasted context"`，并在 `notes` 中说明来源。
-- capability / feature 的 `sources` 不写代码文件路径、函数名、handler、调用链或 `kind: code`；代码证据统一写入 workflow 或 troubleshooting 的 `code_refs`。
-- `code_refs` 的文件级结构和 symbol 数量限制见 `references/evidence-grounding.md`。
-- 不确定内容不得写成确定事实。
-- 历史设计、会议纪要、排障记录要标明时间和适用版本。
-- 文档冲突必须进入 proposal，不能静默选择一个版本。
-- 如果设计稿与代码核对不一致，Feature 中写“设计意图/功能规则”，Workflow 中写“实现差异/代码证据”。
-
----
-
-## 六、页面模板
-
-### 6.1 Capability 模板
-
-```text
-references/capability_template.md
-```
-### 6.2 Feature 模板
-```text
-references/feature_template.md
-```
-### 6.3 Workflow 模板
-
-```text
-references/workflow_template.md
-```
-
-### 6.4 Troubleshooting 模板
-
-```markdown
----
-title: ""
-slug: ""
-status: active
-summary: ""
-features: []
-sources: []
-visibility: internal
-confidence: medium
-last_verified_at: YYYY-MM-DD
-search_terms: []
----
-
-# <故障名>
-
-## 现象
-
-## 诊断路径
-
-## 日志与错误关键字
-
-## 可能原因
-
-## 修复 / 恢复
-
-## 相关功能
-
-## 相关工程流程
-
-## 来源说明
-
-## 检索词
-```
-
----
-
-## 七、工作流程
+## 工作流程
 
 ### Phase 1：解析输入
 
@@ -195,8 +85,6 @@ search_terms: []
 4. 批量处理前，先抽样 3 到 5 份验证抽取质量、命名和页面粒度。
 
 不要直接从原始资料跳到最终 Wiki 页面。
-
----
 
 ### Phase 2：抽取知识信号
 
@@ -222,71 +110,51 @@ search_terms: []
 ### 需要用户确认的问题
 ```
 
-说明：
-
-- 知识信号不是最终 Wiki。
-- 不要求所有分类都存在。
-- 如果某类信号很弱，不要强行生成对应页面。
-- 如果某类信号很强，必须在 proposal 中说明建议写入哪里。
-
----
+知识信号不是最终 Wiki。如果某类信号很弱，不要强行生成对应页面；如果某类信号很强，必须在 proposal 中说明建议写入哪里。
 
 ### Phase 3：检查已有知识
 
 1. 先读取或搜索：
-    - `wiki/index.md`
-    - `wiki/glossary.md`
+   - `wiki/index.md`
+   - `wiki/glossary.md`
 2. 再搜索：
-    - `wiki/capabilities/`
-    - `wiki/features/`
-    - `wiki/workflows/`
-    - `wiki/troubleshooting/`
-3. 按 `references/zatools-qmd.md` 判断本地 Wiki 命中质量；低置信或噪声过大时再使用：
-
-```bash
-zatools qmd search "<关键词>"
-```
-
+   - `wiki/capabilities/`
+   - `wiki/features/`
+   - `wiki/workflows/`
+   - `wiki/troubleshooting/`
+3. 本地 Wiki 命中低置信、噪声过大或无法排序时，再读取 `references/zatools-qmd.md` 并按其中策略使用 `zatools qmd search`。
 4. 如果 `zatools qmd search` 报错、超时、collection 未注册或 cache 不可写，降级为本地 Wiki 搜索，并在 proposal 中说明本轮 qmd 不可用。
-5. 命中相似页面时，判断是：
-    - 更新已有页面；
-    - 新增页面；
-    - 标记冲突；
-    - 需要用户确认。
+5. 命中相似页面时，判断是更新已有页面、新增页面、标记冲突，还是需要用户确认。
 
 不要在未检查已有知识的情况下直接新建页面。
-
----
 
 ### Phase 4：分类和控粒度
 
 按以下原则决定是否生成页面：
 
 1. 一个功能主题默认最多对应：
-    - 1 个 Capability；
-    - 1 个 Feature；
-    - 1 个 Workflow。
+   - 1 个 Capability；
+   - 1 个 Feature；
+   - 1 个 Workflow。
 2. Troubleshooting 只在资料包含明确故障、日志、诊断或修复路径时生成。
 3. 不要因为出现多个接口、多个字段、多个分支就拆成多个页面。
 4. 只有在以下情况才建议拆分：
-    - 用户明确要求；
-    - 文档包含多个明显独立功能；
-    - 两条调用链属于不同运行时服务，且修改影响完全不同；
-    - 单页会过长，且拆分边界清晰；
-    - 资料中出现独立排障闭环。
+   - 用户明确要求；
+   - 文档包含多个明显独立功能；
+   - 两条调用链属于不同运行时服务，且修改影响完全不同；
+   - 单页会过长，且拆分边界清晰；
+   - 资料中出现独立排障闭环。
 
-拆分、重命名、合并、改主关系前必须先让用户确认。
+拆分、重命名、合并、改主关系前必须先让用户确认，并读取 `references/mutation-safety.md`。
 
----
-
-### Phase 5：读取模板并生成草稿
+### Phase 5：生成草稿
 
 根据目标页面类型读取对应模板：
 
-- Capability：读取 capability 模板；
-- Feature：读取 feature 模板；
-- Workflow：读取 workflow 模板；
-- Troubleshooting：使用内置模板。
+- Capability：读取 `references/capability_template.md`
+- Feature：读取 `references/feature_template.md`
+- Workflow：读取 `references/workflow_template.md`
+- Troubleshooting：使用本文件的简化模板；如后续拆出专用模板，再按专用模板读取
 
 生成草稿时：
 
@@ -295,8 +163,6 @@ zatools qmd search "<关键词>"
 3. 所有关键事实必须带来源；
 4. 不确定内容写入“来源说明”或 proposal 的待确认问题；
 5. 页面小节标题统一使用中文。
-
----
 
 ### Phase 6：输出 Ingest Proposal
 
@@ -346,8 +212,6 @@ zatools qmd search "<关键词>"
 - Workflow 是否需要拆分无法判断；
 - 原文包含大量规则表，不确定保留在 Feature 还是拆到 Workflow。
 
----
-
 ### Phase 7：确认后落盘
 
 只有在用户明确确认 Ingest Proposal 后，才进入 `confirmed_write` 并执行：
@@ -364,11 +228,69 @@ zatools qmd update
 zatools qmd status
 ```
 
+7. 如果本次修改了 `wiki/capabilities/`、`wiki/features/` 或 `wiki/workflows/`，必须执行：
+
+```bash
+zatools devwiki graph --check
+```
+
+如果 graph check 失败，不得宣称 ingest 完成；先修复错误，或把需要人工确认的关系问题带回 proposal。
+
+## 详细约束
+
+下面内容是写作和落盘前的校验规则。先按“快速执行规则”和“工作流程”推进；只有进入对应决策点时再回看本节或读取 reference。
+
+### 来源和证据
+
+- 每个重要事实必须能回到 `raw/`、已有 Wiki 页面或已核对代码证据。
+- 用户粘贴内容使用 `path: "pasted context"`，并在 `notes` 中说明来源。
+- Capability / Feature 的 `sources` 不写代码文件路径、函数名、handler、调用链或 `kind: code`。
+- 代码证据统一写入 Workflow 或 Troubleshooting 的 `code_refs`；写入前读取 `references/evidence-grounding.md`。
+- 不确定内容不得写成确定事实。
+- 历史设计、会议纪要、排障记录要标明时间和适用版本。
+- 文档冲突必须进入 proposal，不能静默选择一个版本。
+- 如果设计稿与代码核对不一致，Feature 中写“设计意图/功能规则”，Workflow 中写“实现差异/代码证据”。
+
+### Troubleshooting 简化模板
+
+仅当资料包含明确故障、日志、诊断或修复路径时生成。
+
+```markdown
+---
+title: ""
+slug: ""
+status: active
+summary: ""
+features: []
+sources: []
+visibility: internal
+confidence: medium
+last_verified_at: YYYY-MM-DD
+search_terms: []
 ---
 
-## 八、落盘前检查清单
+# <故障名>
 
-落盘前检查：
+## 现象
+
+## 诊断路径
+
+## 日志与错误关键字
+
+## 可能原因
+
+## 修复 / 恢复
+
+## 相关功能
+
+## 相关工程流程
+
+## 来源说明
+
+## 检索词
+```
+
+### 落盘前检查
 
 - 是否处于 `confirmed_write` 模式；
 - 是否有用户在 Ingest Proposal 后的明确确认；
@@ -385,11 +307,7 @@ zatools qmd status
 - 是否页面小节标题统一为中文；
 - 是否更新了 `index.md`、`glossary.md` 和 `log.md`。
 
----
-
-## 九、禁止事项
-
-### 9.1 通用禁止
+### 禁止事项
 
 - 不要把原始文档直接改写成 Wiki。
 - 不要只生成普通摘要。
@@ -399,41 +317,16 @@ zatools qmd status
 - 不要批量生成大量碎片页面。
 - 不要为了填模板强行生成无意义小节。
 - 不要混用中英文小节标题。
+- Capability 不写代码路径、函数名、handler、调用链，也不复制 Feature 的完整功能规则。
+- Feature 不写代码文件路径、函数名、handler、调用链，也不复制 Workflow 的实现路径。
+- Workflow 不复制 Capability 的能力价值说明，也不复制 Feature 的完整功能规则。
+- Troubleshooting 不写完整功能全貌，不写大量实现背景，不把未确认的现场经验写成通用结论。
 
-### 9.2 Capability 禁止
+### Glossary 写入限制
 
-- 不要写代码路径、函数名、handler、调用链。
-- 不要复制 Feature 的完整功能规则。
-- 不要写具体 Feature 的状态机、决策表和配置细节。
-- 不要把 Capability 写成 Feature 汇总长文。
+`wiki/glossary.md` 只保存**全局术语和稳定入口概念**，不要写入单个 Feature 的局部概念。
 
-### 9.3 Feature 禁止
-
-- 不要写代码文件路径、函数名、handler、调用链。
-- 不要写具体实现分支。
-- 不要把 Feature 写成详细设计原文的一比一复刻。
-- 不要把 Feature 简化成只有“功能摘要”的薄文档。
-- 不要遗漏会影响后续问答质量的关键功能规则。
-- 不要复制 Workflow 的实现路径。
-
-### 9.4 Workflow 禁止
-
-- 不要复制 Capability 的能力价值说明。
-- 不要复制 Feature 的完整功能规则。
-- 不要在没有代码证据时写确定代码路径。
-- 不要把 Workflow 写成业务说明文。
-- 不要遗漏修改影响和测试验证建议。
-
-### 9.5 Troubleshooting 禁止
-
-- 不要写完整功能全貌。
-- 不要写大量实现背景。
-- 不要把未确认的现场经验写成通用结论。
-- 不要和 Feature / Workflow 重复维护规则和实现路径。
-
-### 9.6 Glossary 写入限制
-
-`wiki/glossary.md` 只保存**全局术语**，不要写入单个 Feature 的局部概念。
+Glossary 应优先沉淀业务能力、系统能力、跨页面主题、稳定领域概念和常用别名。它是后续 query 的“概念入口”，不是从 raw 文档中摘出来的名词清单。
 
 #### 允许写入
 
@@ -445,10 +338,25 @@ zatools qmd status
 
 #### 不要写入
 
-- 配置项、字段、状态文件、代码常量；
+- 单个进程、文件名、脚本、状态文件、数据文件；
+- 配置项、字段、配置键、CSV 列、状态码、动作码、代码常量；
 - API、函数名、类名、handler；
 - 功能规则、决策规则、状态机条目；
+- 日志关键字、错误片段、排障命令；
 - 仅用于检索的关键词。
+
+不要把单个进程、文件名、字段名、配置键、CSV 列、动作码、函数名、日志关键字或检索词当作 glossary 术语。这些内容应该进入 Feature、Workflow、Troubleshooting 或页面 frontmatter 的 `search_terms`。
+
+#### 命名规则
+
+术语名称优先使用能力型或主题型表达，而不是原文中的实现名词。
+
+- 好例子：`告警采集与外发`
+- 坏例子：`告警节点进程`
+
+#### 说明写法
+
+一个术语说明要回答“这个能力/主题解决什么问题、覆盖哪些关键行为、和哪些场景相关”。不要只解释某个低层对象的字面含义。
 
 #### 分流规则
 
@@ -457,5 +365,5 @@ zatools qmd status
 - 代码符号 → Workflow
 - 检索词 → `search_terms`
 - 日志 / 错误码 → Troubleshooting
+
 单次 ingest 默认最多新增 **3 个** glossary 术语；超过 3 个必须在 proposal 中说明并等待确认。
----

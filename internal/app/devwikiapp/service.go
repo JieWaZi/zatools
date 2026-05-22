@@ -57,3 +57,8 @@ func (s *Service) Update(ctx context.Context) error {
 func (s *Service) Link(ctx context.Context, opts LinkOptions) error {
 	return s.linkCodeRepositories(ctx, opts)
 }
+
+// Graph validates, builds, and serves the DevWiki graph view.
+func (s *Service) Graph(ctx context.Context, opts GraphOptions) error {
+	return s.runGraph(ctx, opts)
+}
