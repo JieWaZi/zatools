@@ -35,8 +35,7 @@ func TestGenerateProjectCreatesExpectedFiles(t *testing.T) {
 		"config/search.yaml",
 		"raw/requirements/.gitkeep",
 		"raw/features/.gitkeep",
-		"wiki/capabilities/.gitkeep",
-		"wiki/features/.gitkeep",
+		"wiki/topics/.gitkeep",
 		"wiki/workflows/.gitkeep",
 		"wiki/troubleshooting/.gitkeep",
 		"wiki/outputs/.gitkeep",
@@ -58,6 +57,8 @@ func TestGenerateProjectCreatesExpectedFiles(t *testing.T) {
 		"wiki/graph",
 		"wiki/sources",
 		"wiki/modules",
+		"wiki/capabilities",
+		"wiki/features",
 		"wiki/relations.yml",
 		"wiki/open_questions.md",
 	} {
@@ -181,11 +182,12 @@ func TestGenerateProjectRendersReadmeAndRuntimeTemplates(t *testing.T) {
 	if !containsAll(readme,
 		"# DevWiki",
 		"结构化 Wiki 与代码检索工作流",
-		"为什么不是临时 RAG",
-		"capabilities、features、workflows 和 troubleshooting",
+		"topics` 合并能力边界与功能规则",
 		"zatools devwiki init",
 		"zatools devwiki graph",
-		"更新当前作用域下已变化的 DevWiki runtime skills，并顺带刷新 qmd 注册、索引和向量",
+		"zatools devwiki check document",
+		"zatools devwiki check graph",
+		"zatools devwiki read topic <slug> --view card",
 		"zatools qmd sync --root . --apply",
 		"zatools qmd update",
 		"zatools qmd status",
@@ -197,7 +199,6 @@ func TestGenerateProjectRendersReadmeAndRuntimeTemplates(t *testing.T) {
 		"devwiki-maintain",
 		"devwiki-query",
 		"devwiki-code-to-doc",
-		"devwiki-sample-project-wiki",
 		"/tmp/go-skills",
 		"./",
 		"├── AGENTS.md",
@@ -208,13 +209,10 @@ func TestGenerateProjectRendersReadmeAndRuntimeTemplates(t *testing.T) {
 		"raw/designs/",
 		"raw/features/",
 		"raw/tests/",
-		"wiki/capabilities/",
-		"wiki/features/",
+		"wiki/topics/",
 		"wiki/workflows/",
 		"wiki/troubleshooting/",
-		"wiki/log.md",
 		"wiki/glossary.md",
-		"当前目录还会持有项目级 DevWiki skills、`.cache/` 和 `.zatools-lock.json`",
 	) {
 		t.Fatalf("README.md content missing expected latest Go guidance:\n%s", readme)
 	}
@@ -275,8 +273,7 @@ func TestGenerateProjectRendersLatestRuntimeTemplates(t *testing.T) {
 				"devwiki-maintain",
 				"devwiki-query",
 				"devwiki-code-to-doc",
-				"wiki/capabilities/{slug}.md",
-				"wiki/features/{slug}.md",
+				"wiki/topics/{slug}.md",
 				"wiki/workflows/{slug}.md",
 				"wiki/troubleshooting/{slug}.md",
 				"wiki/log.md",
@@ -290,7 +287,7 @@ func TestGenerateProjectRendersLatestRuntimeTemplates(t *testing.T) {
 			) {
 				t.Fatalf("%s content missing expected latest runtime guidance:\n%s", tc.runtimeFile, content)
 			}
-			if containsAny(content, "{{", "}}", "setup.sh", "setup.ps1", "i18n/", "project.yaml.example", "claude-settings.local.json.example", "codex-config.example.yaml", "search/", "tools/", "wiki/documents/{doc-type}/{slug}.md", "wiki/changes/{slug}.md", "wiki/graph/", "wiki/sources/", "wiki/modules/", "wiki/relations.yml", "wiki/open_questions.md", "raw/api/", "raw/code-summaries/", "raw/postmortems/", "## 页面模板", "## Source 结构", "## Code Ref 结构") {
+			if containsAny(content, "{{", "}}", "setup.sh", "setup.ps1", "i18n/", "project.yaml.example", "claude-settings.local.json.example", "codex-config.example.yaml", "search/", "tools/", "wiki/documents/{doc-type}/{slug}.md", "wiki/changes/{slug}.md", "wiki/graph/", "wiki/sources/", "wiki/modules/", "wiki/capabilities/{slug}.md", "wiki/features/{slug}.md", "wiki/relations.yml", "wiki/open_questions.md", "raw/api/", "raw/code-summaries/", "raw/postmortems/", "## 页面模板", "## Source 结构", "## Code Ref 结构") {
 				t.Fatalf("%s still contains unresolved placeholders or outdated paths:\n%s", tc.runtimeFile, content)
 			}
 		})
@@ -463,7 +460,7 @@ func TestExtractBuiltinSkillsMaterializesSharedReferencesIntoEachSkill(t *testin
 		t.Fatalf("qmd-sync skill should rely on shared qmd guidance instead of duplicating the section:\n%s", content)
 	}
 
-	wantNames := []string{"code-to-doc", "ingest", "maintain", "project-router", "qmd-sync", "query"}
+	wantNames := []string{"code-to-doc", "ingest", "maintain", "project-router", "qmd-sync", "query", "topic", "workflow"}
 	if strings.Join(gotNames, ",") != strings.Join(wantNames, ",") {
 		t.Fatalf("builtin skill dirs = %#v, want %#v", gotNames, wantNames)
 	}
@@ -487,6 +484,8 @@ func TestExtractBuiltinSkillsIncludesProjectRouterNewWorkflow(t *testing.T) {
 		`name: "devwiki-project-router"`,
 		"判断：这是 [意图类型]，命中 [目标 Skill]，需要/不需要 qmd，需要/不需要代码搜索。",
 		"devwiki-ingest",
+		"devwiki-topic",
+		"devwiki-workflow",
 		"devwiki-maintain",
 		"devwiki-query",
 		"devwiki-code-to-doc",
@@ -514,7 +513,7 @@ func TestExtractBuiltinSkillsIncludesMaintainGuidance(t *testing.T) {
 	if !containsAll(content,
 		`name: "devwiki-maintain"`,
 		"证据一致性",
-		"知识健康维护",
+		"知识健康",
 		"Query 污染风险",
 		"差异报告误落盘",
 		"exclude_from_query: true",
@@ -522,7 +521,8 @@ func TestExtractBuiltinSkillsIncludesMaintainGuidance(t *testing.T) {
 		"这是维护过程报告，不是功能事实来源",
 		"glossary.md",
 		"zatools qmd update",
-		"zatools devwiki graph --check",
+		"zatools devwiki check document",
+		"zatools devwiki check graph",
 	) {
 		t.Fatalf("maintain/SKILL.md missing maintain guidance:\n%s", content)
 	}
@@ -547,19 +547,24 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 	content := string(data)
 	if !containsAll(content,
 		`name: "devwiki-ingest"`,
-		"Capability 是能力地图",
-		"Feature 是功能契约",
-		"Workflow 是实现路径",
+		"Topic 是主题页",
+		"Workflow 是工程实现页",
 		"默认只读本文件，不要在任务开始时一次性读取所有 references",
 		"只有触发条件满足时再读取对应 reference",
 		"写入、重命名、拆分、合并或改主关系前",
 		"本地 Wiki 命中低置信、噪声过大或需要 qmd 时",
-		"需要结合当前代码、核对实现或写入 `code_refs` 时",
-		"确认要生成 Capability / Feature / Workflow 页面草稿时",
+		"需要结合当前代码、核对实现或写入代码定位时",
+		"判断内容应该放入 card、core、explain 还是保留 raw 时",
+		"确认要生成 Topic 页面正文时",
+		"确认要生成 Workflow 页面正文时",
+		"Ingest 是编排器，只生成 TopicTask / WorkflowTask / TroubleshootingTask，不写完整 Topic 或 Workflow 正文",
+		"加载 `devwiki-topic`",
+		"加载 `devwiki-workflow`",
+		"wiki/topics/<slug>.md",
 		"wiki/workflows/<slug>.md",
 		"wiki/troubleshooting/<slug>.md",
 		"wiki/glossary.md",
-		"页面小节标题统一使用中文",
+		"`devwiki:section`",
 		"## 需要你确认的问题",
 		"落盘前检查",
 		"# Ingest Proposal",
@@ -571,11 +576,11 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 		"实际写入路径是否完全包含在 Ingest Proposal 的“拟写入文件”表内",
 		"Glossary 应优先沉淀业务能力、系统能力、跨页面主题、稳定领域概念和常用别名",
 		"不要把单个进程、文件名、字段名、配置键、CSV 列、动作码、函数名、日志关键字或检索词当作 glossary 术语",
-		"术语名称优先使用能力型或主题型表达",
 		"好例子：`告警采集与外发`",
 		"坏例子：`告警节点进程`",
 		"告警节点进程",
-		"zatools devwiki graph --check",
+		"zatools devwiki check document",
+		"zatools devwiki check graph",
 		"一个术语说明要回答“这个能力/主题解决什么问题、覆盖哪些关键行为、和哪些场景相关”",
 	) {
 		t.Fatalf("ingest/SKILL.md missing structured ingest guidance:\n%s", content)
@@ -583,6 +588,8 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 	if containsAny(content,
 		"wiki/relations.yml",
 		"relations.yml",
+		"wiki/capabilities/",
+		"wiki/features/",
 		"wiki/sources/<source-id>.md",
 		"wiki/modules/<slug>.md",
 		"wiki/open_questions.md",
@@ -604,12 +611,11 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 		t.Fatalf("ingest/SKILL.md still references removed wiki paths:\n%s", content)
 	}
 	for _, rel := range []string{
-		"ingest/references/capability_template.md",
-		"ingest/references/feature_template.md",
-		"ingest/references/workflow_template.md",
+		"topic/references/topic_template.md",
+		"workflow/references/workflow_template.md",
 	} {
 		if _, err := os.Stat(filepath.Join(root, rel)); err != nil {
-			t.Fatalf("missing ingest reference %s: %v", rel, err)
+			t.Fatalf("missing page writing reference %s: %v", rel, err)
 		}
 	}
 }
@@ -644,6 +650,101 @@ func TestExtractBuiltinSkillsIncludesHardMutationSafetyGate(t *testing.T) {
 	}
 }
 
+func TestExtractBuiltinSkillsIncludesPageWritingSkillsAndPlacementRules(t *testing.T) {
+	t.Parallel()
+
+	root, cleanup, err := ExtractBuiltinSkills("zh")
+	if err != nil {
+		t.Fatalf("ExtractBuiltinSkills error = %v", err)
+	}
+	defer cleanup()
+
+	checks := []struct {
+		relative string
+		wants    []string
+		rejects  []string
+	}{
+		{
+			relative: filepath.Join("topic", "SKILL.md"),
+			wants: []string{
+				`name: "devwiki-topic"`,
+				"`devwiki-topic` 只负责生成和维护 Topic",
+				"不写代码路径、函数名、handler、调用链",
+				"references/knowledge-placement.md",
+				"低频、低价值、高体积内容不进入 Wiki，保留 raw",
+				"按 `references/knowledge-placement.md` 分配 card/core/explain/raw",
+			},
+		},
+		{
+			relative: filepath.Join("workflow", "SKILL.md"),
+			wants: []string{
+				`name: "devwiki-workflow"`,
+				"`devwiki-workflow` 只负责生成和维护 Workflow",
+				"代码定位以文件 `path` 为粒度，一个文件一行",
+				"references/knowledge-placement.md",
+				"代码定位与关键逻辑统一写入 `core` section",
+				"只列关键文件、关键入口和关键逻辑点",
+				"按 `references/knowledge-placement.md` 分配 card/core/explain/raw",
+			},
+		},
+		{
+			relative: filepath.Join("topic", "references", "topic_template.md"),
+			wants: []string{
+				"# DevWiki Topic 编写模板",
+				"<!-- devwiki:section id=card -->",
+				"<!-- devwiki:section id=core -->",
+				"<!-- devwiki:section id=explain -->",
+				"高频高价值内容进入 card/core",
+			},
+			rejects: []string{"<!-- engwiki:section"},
+		},
+		{
+			relative: filepath.Join("workflow", "references", "workflow_template.md"),
+			wants: []string{
+				"# DevWiki Workflow 编写模板",
+				"<!-- devwiki:section id=card -->",
+				"<!-- devwiki:section id=core -->",
+				"<!-- devwiki:section id=explain -->",
+				"## 关键代码与逻辑",
+				"只列关键文件、关键入口和关键逻辑点",
+				"辅助函数、普通校验、局部工具函数和顺手读到的方法不要列入表格",
+			},
+			rejects: []string{"<!-- engwiki:section", "section id=code", "### 代码引用", "| 逻辑点 | 对应代码 | 说明 |"},
+		},
+		{
+			relative: filepath.Join("query", "references", "knowledge-placement.md"),
+			wants: []string{
+				"# 知识经济学放置规则",
+				"高频、高价值、低体积 -> card",
+				"高频、高价值、中体积 -> core",
+				"低频、高价值、高体积 -> explain",
+				"低频、低价值、高体积 -> 不进入 Wiki，保留 raw",
+				"读取频率、决策价值和体积",
+			},
+			rejects: []string{
+				"## Topic 内容放置",
+				"## Workflow 内容放置",
+				"关键文件、关键入口、关键 symbol、关键逻辑点",
+				"| 内容类型 | 位置 |",
+			},
+		},
+	}
+
+	for _, check := range checks {
+		data, err := os.ReadFile(filepath.Join(root, check.relative))
+		if err != nil {
+			t.Fatalf("ReadFile(%s) error = %v", check.relative, err)
+		}
+		content := string(data)
+		if !containsAll(content, check.wants...) {
+			t.Fatalf("%s missing page writing or knowledge placement guidance:\n%s", check.relative, content)
+		}
+		if containsAny(content, check.rejects...) {
+			t.Fatalf("%s still contains rejected page writing guidance:\n%s", check.relative, content)
+		}
+	}
+}
+
 func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
 	t.Parallel()
 
@@ -660,15 +761,15 @@ func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
 	content := string(data)
 	if !containsAll(content,
 		`name: "devwiki-query"`,
-		"explain_feature",
+		"explain_topic",
 		"locate_code",
 		"public_answer",
 		"wiki/glossary.md",
 		"代码定位线索",
 		"## 目录选择规则",
 		"## 去重与权威来源规则",
-		"能力问题：`capabilities → features`",
-		"实现问题：`workflows → features → rg`",
+		"能力/功能问题：`topics`",
+		"实现问题：`workflows → topics → rg`",
 		"如果文档已经足够回答，就不要为了“更稳”再默认展开代码阅读。",
 		"召回分档、低置信升档和 qmd fallback 统一遵守 `references/zatools-qmd.md`",
 		"本轮 qmd 不可用，已降级",
@@ -712,7 +813,7 @@ func TestExtractBuiltinSkillsIncludesLocalWikiFirstQmdFallbackGuidance(t *testin
 		"这里的“本地优先”首先指 `wiki/`，不是代码仓全局搜索",
 		"意图识别 → 本地 Wiki 搜索 → 命中质量判断 → qmd search → qmd query → raw/code 核对",
 		"`locate_exact`",
-		"`explain_feature`",
+		"`explain_topic`",
 		"`trace_implementation`",
 		"`troubleshoot`",
 		"`design_intent`",
@@ -752,40 +853,48 @@ func TestExtractBuiltinSkillsIncludesCodeRefsFileLevelGuidance(t *testing.T) {
 		{
 			relative: filepath.Join("query", "references", "evidence-grounding.md"),
 			wants: []string{
-				"`code_refs` 以代码文件 `path` 为唯一粒度",
-				"同一个 `path` 在同一页面中只能出现一条 `code_refs`",
-				"顶层 `note` 只写文件级职责",
-				"`symbols` 是关键入口索引，不是文件内方法清单",
-				"`symbols` 默认最多 4 个",
-				"`symbols` 使用 map：key 格式为 `<symbol>#<kind>`",
-				"value 是该关键入口的短说明",
+				"每个重要结论必须能回溯到真实来源",
+				"`qmd` 只是召回加速器，不是真相源",
+				"事实和推断必须拆开表达",
+				"如果 `wiki/` 与 `raw/` 冲突",
+				"低置信处理协议",
 			},
 			rejects: []string{
+				"## 页面层级边界",
+				"## 如何使用代码定位表",
+				"Topic = 系统能力边界",
+				"| 层级 | 权威内容 | 不应该写什么 |",
+				"| 路径 | 文件职责 | 关键入口 / Symbol |",
+				"代码定位表以代码文件 `path` 为唯一粒度",
 				"是整个文件相关，还是只有某个 symbol 相关",
 				"symbol_notes",
+				"code_refs:",
+				"UserService#updateProfile#method",
 			},
 		},
 		{
-			relative: filepath.Join("ingest", "references", "workflow_template.md"),
+			relative: filepath.Join("workflow", "references", "workflow_template.md"),
 			wants: []string{
-				"同一个 `path` 只能出现一条 `code_refs`",
-				"顶层 `note` 必须是文件级职责",
-				"`symbols` 最多 4 个，只列关键入口",
-				"不得为了完整性列出文件内所有方法",
-				"symbols:",
-				`"<关键类/函数/方法/常量>#<class/function/method/constant/handler/config/task>": "<关键入口短说明>"`,
+				"一个文件只写一行",
+				"关键入口最多列 8 个",
+				"不列全量方法",
+				"代码定位与关键逻辑统一写入 `core` section",
+				"只列关键文件、关键入口和关键逻辑点",
+				"Workflow frontmatter 不再放 `code_refs`、`symbols`、`api_entries`、`test_refs`",
 			},
 			rejects: []string{
 				`symbol: "<类/函数/方法/常量>"`,
 				"| 路径 | 符号 | 类型 | 说明 |",
+				"| 逻辑点 | 对应代码 | 说明 |",
+				"### 代码引用",
 				"symbol_notes",
 			},
 		},
 		{
 			relative: filepath.Join("code-to-doc", "SKILL.md"),
 			wants: []string{
-				"代码证据结构遵守 `references/evidence-grounding.md` 中的 `code_refs` 文件级规则",
-				"追踪深度和停止条件遵守 `references/code-tracing.md`",
+				"默认写入 `wiki/workflows/<slug>.md`",
+				"Topic 的 sources 不写代码文件路径或 `kind: code`",
 			},
 			rejects: []string{
 				"写入 `code_refs` 前必须先按 `path` 分组",
@@ -798,19 +907,22 @@ func TestExtractBuiltinSkillsIncludesCodeRefsFileLevelGuidance(t *testing.T) {
 			relative: filepath.Join("query", "references", "code-tracing.md"),
 			wants: []string{
 				"按代码文件归并",
-				"`code_refs` 以代码文件 `path` 为粒度",
-				"同一文件只能一条",
-				"最多 4 个关键入口 symbol",
+				"按 Workflow 模板的 `关键代码与逻辑` 规则归并",
 				"不要列出文件内所有方法",
+			},
+			rejects: []string{
+				"代码定位表以代码文件 `path` 为粒度",
+				"同一文件只能一行",
+				"最多 8 个关键入口 symbol",
 			},
 		},
 		{
 			relative: filepath.Join("query", "references", "evidence-grounding.md"),
 			wants: []string{
-				"symbols:",
-				"UserService#updateProfile#method",
+				"DevWiki 输出必须落到真实来源、已核对代码证据，或被明确标注为推断",
+				"不要虚构来源或代码证据",
 			},
-			rejects: []string{"symbol_notes"},
+			rejects: []string{"symbol_notes", "code_refs:", "`UserService#class`, `updateProfile#method`"},
 		},
 	}
 
@@ -821,10 +933,10 @@ func TestExtractBuiltinSkillsIncludesCodeRefsFileLevelGuidance(t *testing.T) {
 		}
 		content := string(data)
 		if !containsAll(content, check.wants...) {
-			t.Fatalf("%s missing file-level code_refs guidance:\n%s", check.relative, content)
+			t.Fatalf("%s missing file-level code location guidance:\n%s", check.relative, content)
 		}
 		if containsAny(content, check.rejects...) {
-			t.Fatalf("%s still contains old symbol-level code_refs guidance:\n%s", check.relative, content)
+			t.Fatalf("%s still contains old symbol-level code location guidance:\n%s", check.relative, content)
 		}
 	}
 }
@@ -921,10 +1033,20 @@ func TestExtractBuiltinSkillsIncludesCodeToDocGuidance(t *testing.T) {
 	content := string(data)
 	if !containsAll(content,
 		`name: "devwiki-code-to-doc"`,
+		"直接转交对应页面 Skill",
+		"加载 `devwiki-topic`",
+		"加载 `devwiki-workflow`",
+		"内容放置必须遵守 `references/knowledge-placement.md`",
 		"默认写入 `wiki/workflows/<slug>.md`",
+		"wiki/topics/",
 		"wiki/workflows/",
 		"wiki/troubleshooting/",
-		"Feature 的 sources 不写代码文件路径或 `kind: code`",
+		"Topic 的 sources 不写代码文件路径或 `kind: code`",
+		"代码、wiki、raw 冲突",
+		"zatools devwiki check document",
+		"zatools devwiki check graph",
+		"zatools qmd update",
+		"zatools qmd status",
 	) {
 		t.Fatalf("code-to-doc/SKILL.md missing code-to-doc guidance:\n%s", content)
 	}

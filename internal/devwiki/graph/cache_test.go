@@ -8,12 +8,12 @@ import (
 
 func TestBuildManifestChangesWhenInputChanges(t *testing.T) {
 	root := t.TempDir()
-	writeGraphFile(t, root, "wiki/features/a.md", "---\ntitle: A\nslug: a\nsummary: A\n---\n")
+	writeGraphFile(t, root, "wiki/topics/a.md", "---\ntitle: A\nslug: a\nsummary: A\n---\n")
 	first, err := BuildManifest(root)
 	if err != nil {
 		t.Fatalf("BuildManifest() error = %v", err)
 	}
-	writeGraphFile(t, root, "wiki/features/a.md", "---\ntitle: A\nslug: a\nsummary: changed\n---\n")
+	writeGraphFile(t, root, "wiki/topics/a.md", "---\ntitle: A\nslug: a\nsummary: changed\n---\n")
 	second, err := BuildManifest(root)
 	if err != nil {
 		t.Fatalf("BuildManifest() error = %v", err)
@@ -25,7 +25,7 @@ func TestBuildManifestChangesWhenInputChanges(t *testing.T) {
 
 func TestManifestFreshness(t *testing.T) {
 	root := t.TempDir()
-	writeGraphFile(t, root, "wiki/features/a.md", "---\ntitle: A\nslug: a\nsummary: A\n---\n")
+	writeGraphFile(t, root, "wiki/topics/a.md", "---\ntitle: A\nslug: a\nsummary: A\n---\n")
 	manifest, err := BuildManifest(root)
 	if err != nil {
 		t.Fatalf("BuildManifest() error = %v", err)

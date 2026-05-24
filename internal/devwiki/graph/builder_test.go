@@ -5,52 +5,46 @@ import "testing"
 func TestBuildGraphCreatesNormalizedEdges(t *testing.T) {
 	root := t.TempDir()
 	writeGraphFile(t, root, "config/project.yaml", "project_name: Sample\nproject_slug: sample\n")
-	writeGraphFile(t, root, "wiki/capabilities/ha.md", `---
-title: "HA"
-slug: "ha"
-status: active
-summary: "HA"
-features: ["vip"]
-related_capabilities: ["dns"]
----
-# HA
-`)
-	writeGraphFile(t, root, "wiki/capabilities/dns.md", `---
-title: "DNS"
-slug: "dns"
-status: active
-summary: "DNS"
-related_capabilities: ["ha"]
----
-# DNS
-`)
-	writeGraphFile(t, root, "wiki/features/vip.md", `---
+	writeGraphFile(t, root, "wiki/topics/vip.md", `---
 title: "VIP"
 slug: "vip"
+kind: topic
 status: active
 summary: "VIP"
-capabilities: ["ha"]
-workflow: "workflow-vip"
-related_features: ["brain-split"]
+workflows: ["workflow-vip"]
+related_topics: ["dns"]
 ---
 # VIP
 `)
-	writeGraphFile(t, root, "wiki/features/brain-split.md", `---
-title: "Brain Split"
-slug: "brain-split"
+	writeGraphFile(t, root, "wiki/topics/dns.md", `---
+title: "DNS"
+slug: "dns"
+kind: topic
 status: active
-summary: "Brain Split"
+summary: "DNS"
+related_topics: ["vip"]
 ---
-# Brain Split
+# DNS
 `)
 	writeGraphFile(t, root, "wiki/workflows/workflow-vip.md", `---
 title: "VIP Workflow"
 slug: "workflow-vip"
+kind: workflow
 status: active
 summary: "VIP Workflow"
-features: ["vip"]
+topics: ["vip"]
+related_workflows: ["workflow-ha"]
 ---
 # VIP Workflow
+`)
+	writeGraphFile(t, root, "wiki/workflows/workflow-ha.md", `---
+title: "HA Workflow"
+slug: "workflow-ha"
+kind: workflow
+status: active
+summary: "HA Workflow"
+---
+# HA Workflow
 `)
 
 	graph, issues, err := Build(root)
@@ -60,17 +54,16 @@ features: ["vip"]
 	if hasIssue(issues, IssueError, "") {
 		t.Fatalf("issues contain error: %#v", issues)
 	}
-	assertEdge(t, graph, "contains", "capability:ha", "feature:vip")
-	assertEdge(t, graph, "implemented_by", "feature:vip", "workflow:workflow-vip")
-	assertEdge(t, graph, "related", "capability:dns", "capability:ha")
-	assertEdge(t, graph, "related", "feature:brain-split", "feature:vip")
+	assertEdge(t, graph, "implemented_by", "topic:vip", "workflow:workflow-vip")
+	assertEdge(t, graph, "related", "topic:dns", "topic:vip")
+	assertEdge(t, graph, "related", "workflow:workflow-ha", "workflow:workflow-vip")
 }
 
 func TestBuildReportsDuplicateSlugAsError(t *testing.T) {
 	root := t.TempDir()
 	writeGraphFile(t, root, "config/project.yaml", "project_name: Sample\nproject_slug: sample\n")
-	writeGraphFile(t, root, "wiki/features/a.md", "---\ntitle: A\nslug: same\nsummary: A\n---\n")
-	writeGraphFile(t, root, "wiki/features/b.md", "---\ntitle: B\nslug: same\nsummary: B\n---\n")
+	writeGraphFile(t, root, "wiki/topics/a.md", "---\ntitle: A\nslug: same\nsummary: A\n---\n")
+	writeGraphFile(t, root, "wiki/topics/b.md", "---\ntitle: B\nslug: same\nsummary: B\n---\n")
 
 	_, issues, err := Build(root)
 	if err == nil {
@@ -84,7 +77,7 @@ func TestBuildReportsDuplicateSlugAsError(t *testing.T) {
 func TestBuildReportsMissingMainRelationAsError(t *testing.T) {
 	root := t.TempDir()
 	writeGraphFile(t, root, "config/project.yaml", "project_name: Sample\nproject_slug: sample\n")
-	writeGraphFile(t, root, "wiki/features/vip.md", "---\ntitle: VIP\nslug: vip\nsummary: VIP\nworkflow: missing\n---\n")
+	writeGraphFile(t, root, "wiki/topics/vip.md", "---\ntitle: VIP\nslug: vip\nsummary: VIP\nworkflows: [missing]\n---\n")
 
 	_, issues, err := Build(root)
 	if err == nil {
@@ -98,8 +91,8 @@ func TestBuildReportsMissingMainRelationAsError(t *testing.T) {
 func TestBuildWarnsForMissingReverseRelation(t *testing.T) {
 	root := t.TempDir()
 	writeGraphFile(t, root, "config/project.yaml", "project_name: Sample\nproject_slug: sample\n")
-	writeGraphFile(t, root, "wiki/capabilities/ha.md", "---\ntitle: HA\nslug: ha\nsummary: HA\nfeatures: [vip]\n---\n")
-	writeGraphFile(t, root, "wiki/features/vip.md", "---\ntitle: VIP\nslug: vip\nsummary: VIP\n---\n")
+	writeGraphFile(t, root, "wiki/topics/vip.md", "---\ntitle: VIP\nslug: vip\nsummary: VIP\nworkflows: [workflow-vip]\n---\n")
+	writeGraphFile(t, root, "wiki/workflows/workflow-vip.md", "---\ntitle: VIP Workflow\nslug: workflow-vip\nsummary: VIP Workflow\n---\n")
 
 	_, issues, err := Build(root)
 	if err != nil {

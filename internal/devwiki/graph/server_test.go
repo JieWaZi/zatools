@@ -12,7 +12,7 @@ import (
 func TestGraphHandlerServesGeneratedGraphAndRootMarkdown(t *testing.T) {
 	root := t.TempDir()
 	outDir := filepath.Join(root, ".devwiki", "graph")
-	writeGraphFile(t, root, "wiki/features/vip.md", "# VIP\n\n真实 Markdown 内容\n")
+	writeGraphFile(t, root, "wiki/topics/vip.md", "# VIP\n\n真实 Markdown 内容\n")
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
@@ -22,7 +22,7 @@ func TestGraphHandlerServesGeneratedGraphAndRootMarkdown(t *testing.T) {
 
 	handler := graphHandler(ServerOptions{Dir: outDir, Root: root})
 	assertGraphHandlerBody(t, handler, "/graph.json", `{"nodes":[]}`)
-	assertGraphHandlerBody(t, handler, "/wiki/features/vip.md", "真实 Markdown 内容")
+	assertGraphHandlerBody(t, handler, "/wiki/topics/vip.md", "真实 Markdown 内容")
 }
 
 func assertGraphHandlerBody(t *testing.T, handler http.Handler, path string, want string) {

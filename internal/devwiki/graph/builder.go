@@ -23,14 +23,13 @@ func Build(root string) (Graph, []Issue, error) {
 		return Graph{}, issues, err
 	}
 	if len(pages) == 0 {
-		issues = append(issues, Issue{Level: IssueError, Message: "no capability, feature, or workflow pages found"})
+		issues = append(issues, Issue{Level: IssueError, Message: "no topic or workflow pages found"})
 		return Graph{}, issues, errors.New("no graph input pages found")
 	}
 
 	index := map[PageType]map[string]Page{
-		PageTypeCapability: {},
-		PageTypeFeature:    {},
-		PageTypeWorkflow:   {},
+		PageTypeTopic:    {},
+		PageTypeWorkflow: {},
 	}
 	for _, page := range pages {
 		if _, exists := index[page.Type][page.Slug]; exists {
@@ -73,10 +72,8 @@ func Build(root string) (Graph, []Issue, error) {
 	edgeMap := map[string]*Edge{}
 	for _, page := range pages {
 		switch page.Type {
-		case PageTypeCapability:
-			issues = append(issues, buildCapabilityEdges(edgeMap, index, page)...)
-		case PageTypeFeature:
-			issues = append(issues, buildFeatureEdges(edgeMap, index, page)...)
+		case PageTypeTopic:
+			issues = append(issues, buildTopicEdges(edgeMap, index, page)...)
 		case PageTypeWorkflow:
 			issues = append(issues, buildWorkflowEdges(edgeMap, index, page)...)
 		}
@@ -94,74 +91,40 @@ func Build(root string) (Graph, []Issue, error) {
 	return graph, issues, nil
 }
 
-func buildCapabilityEdges(edgeMap map[string]*Edge, index map[PageType]map[string]Page, page Page) []Issue {
+func buildTopicEdges(edgeMap map[string]*Edge, index map[PageType]map[string]Page, page Page) []Issue {
 	var issues []Issue
-	for _, feature := range page.Features {
-		target, ok := index[PageTypeFeature][feature]
-		if !ok {
-			issues = append(issues, Issue{Level: IssueError, Path: page.Path, Message: fmt.Sprintf("missing feature %q", feature)})
-			continue
-		}
-		addEdge(edgeMap, "contains", nodeID(PageTypeCapability, page.Slug), nodeID(PageTypeFeature, feature), "包含功能", page.Path)
-		if !contains(target.Capabilities, page.Slug) {
-			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("reverse relation missing: feature %q does not list capability %q", feature, page.Slug)})
-		}
-	}
-	for _, related := range page.RelatedCapabilities {
-		if _, ok := index[PageTypeCapability][related]; !ok {
-			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("related capability %q does not exist", related)})
-			continue
-		}
-		addUndirectedEdge(edgeMap, "related", nodeID(PageTypeCapability, page.Slug), nodeID(PageTypeCapability, related), "相关能力", page.Path)
-	}
-	return issues
-}
-
-func buildFeatureEdges(edgeMap map[string]*Edge, index map[PageType]map[string]Page, page Page) []Issue {
-	var issues []Issue
-	for _, capability := range page.Capabilities {
-		target, ok := index[PageTypeCapability][capability]
-		if !ok {
-			issues = append(issues, Issue{Level: IssueError, Path: page.Path, Message: fmt.Sprintf("missing capability %q", capability)})
-			continue
-		}
-		addEdge(edgeMap, "contains", nodeID(PageTypeCapability, capability), nodeID(PageTypeFeature, page.Slug), "包含功能", page.Path)
-		if !contains(target.Features, page.Slug) {
-			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("reverse relation missing: capability %q does not list feature %q", capability, page.Slug)})
-		}
-	}
 	for _, workflow := range page.Workflows {
 		target, ok := index[PageTypeWorkflow][workflow]
 		if !ok {
 			issues = append(issues, Issue{Level: IssueError, Path: page.Path, Message: fmt.Sprintf("missing workflow %q", workflow)})
 			continue
 		}
-		addEdge(edgeMap, "implemented_by", nodeID(PageTypeFeature, page.Slug), nodeID(PageTypeWorkflow, workflow), "实现流程", page.Path)
-		if !contains(target.Features, page.Slug) {
-			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("reverse relation missing: workflow %q does not list feature %q", workflow, page.Slug)})
+		addEdge(edgeMap, "implemented_by", nodeID(PageTypeTopic, page.Slug), nodeID(PageTypeWorkflow, workflow), "实现流程", page.Path)
+		if !contains(target.Topics, page.Slug) {
+			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("reverse relation missing: workflow %q does not list topic %q", workflow, page.Slug)})
 		}
 	}
-	for _, related := range page.RelatedFeatures {
-		if _, ok := index[PageTypeFeature][related]; !ok {
-			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("related feature %q does not exist", related)})
+	for _, related := range page.RelatedTopics {
+		if _, ok := index[PageTypeTopic][related]; !ok {
+			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("related topic %q does not exist", related)})
 			continue
 		}
-		addUndirectedEdge(edgeMap, "related", nodeID(PageTypeFeature, page.Slug), nodeID(PageTypeFeature, related), "相关功能", page.Path)
+		addUndirectedEdge(edgeMap, "related", nodeID(PageTypeTopic, page.Slug), nodeID(PageTypeTopic, related), "相关主题", page.Path)
 	}
 	return issues
 }
 
 func buildWorkflowEdges(edgeMap map[string]*Edge, index map[PageType]map[string]Page, page Page) []Issue {
 	var issues []Issue
-	for _, feature := range page.Features {
-		target, ok := index[PageTypeFeature][feature]
+	for _, topic := range page.Topics {
+		target, ok := index[PageTypeTopic][topic]
 		if !ok {
-			issues = append(issues, Issue{Level: IssueError, Path: page.Path, Message: fmt.Sprintf("missing feature %q", feature)})
+			issues = append(issues, Issue{Level: IssueError, Path: page.Path, Message: fmt.Sprintf("missing topic %q", topic)})
 			continue
 		}
-		addEdge(edgeMap, "implemented_by", nodeID(PageTypeFeature, feature), nodeID(PageTypeWorkflow, page.Slug), "实现流程", page.Path)
+		addEdge(edgeMap, "implemented_by", nodeID(PageTypeTopic, topic), nodeID(PageTypeWorkflow, page.Slug), "实现流程", page.Path)
 		if !contains(target.Workflows, page.Slug) {
-			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("reverse relation missing: feature %q does not list workflow %q", feature, page.Slug)})
+			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("reverse relation missing: topic %q does not list workflow %q", topic, page.Slug)})
 		}
 	}
 	for _, related := range page.RelatedWorkflows {

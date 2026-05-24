@@ -6,47 +6,44 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"zatools/internal/devwiki/page"
 )
 
 func TestLoadPagesParsesCurrentTemplateFields(t *testing.T) {
 	root := t.TempDir()
-	writeGraphFile(t, root, "wiki/capabilities/ha.md", `---
-title: "高可用能力"
-slug: "ha"
-status: active
-summary: "HA capability"
-features:
-  - "[[vip-failover]]"
-related_capabilities:
-  - "dns-availability"
-confidence: high
-search_terms:
-  - "HA"
----
-# 高可用能力
-`)
-	writeGraphFile(t, root, "wiki/features/vip-failover.md", `---
+	writeGraphFile(t, root, "wiki/topics/vip-failover.md", `---
 title: "VIP 接管"
 slug: "vip-failover"
+kind: topic
 status: active
-summary: "VIP failover"
-capabilities:
-  - "wiki/capabilities/ha.md"
-workflow: "workflow-vip-failover"
-related_features:
-  - "[[brain-split]]"
+summary: "VIP topic"
+workflows:
+  - "workflow-vip-failover"
+related_topics:
+  - "[[ha-state]]"
 confidence: medium
 search_terms:
   - "vip"
 ---
 # VIP 接管
 `)
+	writeGraphFile(t, root, "wiki/topics/ha-state.md", `---
+title: "高可用状态"
+slug: "ha-state"
+kind: topic
+status: active
+summary: "HA state"
+---
+# 高可用状态
+`)
 	writeGraphFile(t, root, "wiki/workflows/workflow-vip-failover.md", `---
 title: "VIP 接管实现"
 slug: "workflow-vip-failover"
+kind: workflow
 status: active
 summary: "VIP workflow"
-features:
+topics:
   - "vip-failover"
 related_workflows:
   - "workflow-ha-state"
@@ -68,21 +65,25 @@ search_terms:
 		t.Fatalf("len(pages) = %d, want 3", len(pages))
 	}
 
-	feature := findPage(t, pages, PageTypeFeature, "vip-failover")
-	if feature.Title != "VIP 接管" || feature.Summary != "VIP failover" {
-		t.Fatalf("feature title/summary = %q/%q", feature.Title, feature.Summary)
+	topic := findPage(t, pages, PageTypeTopic, "vip-failover")
+	if topic.Title != "VIP 接管" || topic.Summary != "VIP topic" {
+		t.Fatalf("topic title/summary = %q/%q", topic.Title, topic.Summary)
 	}
-	if !reflect.DeepEqual(feature.Capabilities, []string{"ha"}) {
-		t.Fatalf("feature capabilities = %#v, want ha", feature.Capabilities)
+	if !reflect.DeepEqual(topic.RelatedTopics, []string{"ha-state"}) {
+		t.Fatalf("topic related_topics = %#v, want ha-state", topic.RelatedTopics)
 	}
-	if !reflect.DeepEqual(feature.Workflows, []string{"workflow-vip-failover"}) {
-		t.Fatalf("feature workflows = %#v", feature.Workflows)
+	if !reflect.DeepEqual(topic.Workflows, []string{"workflow-vip-failover"}) {
+		t.Fatalf("topic workflows = %#v", topic.Workflows)
+	}
+	workflow := findPage(t, pages, PageTypeWorkflow, "workflow-vip-failover")
+	if !reflect.DeepEqual(workflow.Topics, []string{"vip-failover"}) {
+		t.Fatalf("workflow topics = %#v", workflow.Topics)
 	}
 }
 
 func TestLoadPagesFallsBackToFilenameSlugAndWarns(t *testing.T) {
 	root := t.TempDir()
-	writeGraphFile(t, root, "wiki/features/no-slug.md", `---
+	writeGraphFile(t, root, "wiki/topics/no-slug.md", `---
 title: "No Slug"
 summary: "missing slug"
 ---
@@ -93,7 +94,7 @@ summary: "missing slug"
 	if err != nil {
 		t.Fatalf("LoadPages() error = %v", err)
 	}
-	page := findPage(t, pages, PageTypeFeature, "no-slug")
+	page := findPage(t, pages, PageTypeTopic, "no-slug")
 	if page.Slug != "no-slug" {
 		t.Fatalf("Slug = %q, want no-slug", page.Slug)
 	}
@@ -104,7 +105,7 @@ summary: "missing slug"
 
 func TestLoadPagesRejectsInvalidYAML(t *testing.T) {
 	root := t.TempDir()
-	writeGraphFile(t, root, "wiki/features/broken.md", "---\ntitle: [broken\n---\n# Broken\n")
+	writeGraphFile(t, root, "wiki/topics/broken.md", "---\ntitle: [broken\n---\n# Broken\n")
 
 	_, _, err := LoadPages(root)
 	if err == nil {
@@ -114,14 +115,14 @@ func TestLoadPagesRejectsInvalidYAML(t *testing.T) {
 
 func TestNormalizeReference(t *testing.T) {
 	tests := map[string]string{
-		"vip-failover":                  "vip-failover",
-		"[[vip-failover]]":              "vip-failover",
-		"wiki/features/vip-failover.md": "vip-failover",
-		" feature-vip ":                 "feature-vip",
+		"vip-failover":                "vip-failover",
+		"[[vip-failover]]":            "vip-failover",
+		"wiki/topics/vip-failover.md": "vip-failover",
+		" topic-vip ":                 "topic-vip",
 	}
 	for input, want := range tests {
-		if got := normalizeReference(input); got != want {
-			t.Fatalf("normalizeReference(%q) = %q, want %q", input, got, want)
+		if got := page.NormalizeReference(input); got != want {
+			t.Fatalf("NormalizeReference(%q) = %q, want %q", input, got, want)
 		}
 	}
 }

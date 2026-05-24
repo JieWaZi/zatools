@@ -62,3 +62,13 @@ func (s *Service) Link(ctx context.Context, opts LinkOptions) error {
 func (s *Service) Graph(ctx context.Context, opts GraphOptions) error {
 	return s.runGraph(ctx, opts)
 }
+
+// Check validates DevWiki documents, graph relations, or both.
+func (s *Service) Check(ctx context.Context, opts CheckOptions) error {
+	return s.runCheck(ctx, opts)
+}
+
+// Read prints one DevWiki page view.
+func (s *Service) Read(ctx context.Context, opts ReadOptions) error {
+	return s.runRead(ctx, opts)
+}

@@ -2,7 +2,7 @@
 
 ## 背景
 
-DevWiki 当前以 Markdown 页面作为知识事实源，核心页面分层为 capability、feature、workflow 和 troubleshooting。图谱能力的目标不是恢复已经移除的 `relations.yml`，也不是引入第二套关系事实源，而是从现有页面 frontmatter 派生出一个可视化导航索引。
+DevWiki 当前以 Markdown 页面作为知识事实源，核心页面分层为 topic、workflow 和 troubleshooting。图谱能力的目标不是恢复已经移除的 `relations.yml`，也不是引入第二套关系事实源，而是从现有页面 frontmatter 派生出一个可视化导航索引。
 
 第一版只实现一个入口：
 
@@ -14,9 +14,9 @@ zatools devwiki graph
 
 ## 目标
 
-- 从 `wiki/capabilities/*.md`、`wiki/features/*.md`、`wiki/workflows/*.md` 生成 graph 数据。
-- 页面左侧展示 capability / feature / workflow 的关系图。
-- 页面右侧按 capability / feature / workflow 展示选中节点涉及的文档。
+- 从 `wiki/topics/*.md`、`wiki/workflows/*.md` 生成 graph 数据。
+- 页面左侧展示 topic / workflow 的关系图。
+- 页面右侧按 topic / workflow 展示选中节点涉及的文档。
 - 支持按维度切换、搜索、节点邻居高亮和 warning 展示。
 - Wiki 输入内容未变化时复用上次构建产物，不重复构建。
 - 提供 `zatools devwiki graph --check`，供 Agent 在写入页面后校验关系结构。
@@ -43,7 +43,7 @@ zatools devwiki graph
 默认行为：
 
 1. 识别 DevWiki 根目录，或使用 `--root <dir>` 指定。
-2. 扫描 `wiki/capabilities/*.md`、`wiki/features/*.md`、`wiki/workflows/*.md`。
+2. 扫描 `wiki/topics/*.md`、`wiki/workflows/*.md`。
 3. 计算输入内容哈希并读取 `.devwiki/graph/manifest.json`。
 4. 如果 schema version、builder version 和 input hash 均未变化，复用上次构建产物。
 5. 如果输入变化或用户指定 `--force`，重新生成 graph 数据和静态页面。
@@ -93,7 +93,7 @@ zatools devwiki graph --check
   "built_at": "2026-05-22T12:00:00+08:00",
   "files": [
     {
-      "path": "wiki/features/vip-failover.md",
+      "path": "wiki/topics/vip-failover.md",
       "size": 1234,
       "sha256": "..."
     }
@@ -129,34 +129,34 @@ zatools devwiki graph --check
   "built_at": "2026-05-22T12:00:00+08:00",
   "nodes": [
     {
-      "id": "feature:vip-failover",
-      "type": "feature",
+      "id": "topic:vip-failover",
+      "type": "topic",
       "slug": "vip-failover",
       "title": "VIP 接管",
       "summary": "说明该功能解决的问题",
       "status": "active",
       "confidence": "medium",
-      "path": "wiki/features/vip-failover.md",
+      "path": "wiki/topics/vip-failover.md",
       "search_terms": ["vip", "接管", "failover"]
     }
   ],
   "edges": [
     {
-      "id": "capability:ha->feature:vip-failover",
+      "id": "topic:ha->topic:vip-failover",
       "type": "contains",
-      "source": "capability:ha",
-      "target": "feature:vip-failover",
+      "source": "topic:ha",
+      "target": "topic:vip-failover",
       "label": "包含功能",
       "sources": [
-        "wiki/capabilities/ha.md",
-        "wiki/features/vip-failover.md"
+        "wiki/topics/ha.md",
+        "wiki/topics/vip-failover.md"
       ]
     }
   ],
   "documents": {
-    "feature:vip-failover": {
-      "type": "feature",
-      "path": "wiki/features/vip-failover.md",
+    "topic:vip-failover": {
+      "type": "topic",
+      "path": "wiki/topics/vip-failover.md",
       "title": "VIP 接管",
       "summary": "说明该功能解决的问题"
     }
@@ -168,8 +168,8 @@ zatools devwiki graph --check
 节点 ID 规则：
 
 ```text
-capability:<slug>
-feature:<slug>
+topic:<slug>
+topic:<slug>
 workflow:<slug>
 ```
 
@@ -179,25 +179,25 @@ workflow:<slug>
 
 第一版只支持当前 skill 模板已经定义的字段，不新增 graph 专用格式。
 
-Capability 模板字段：
+Topic 模板字段：
 
 ```yaml
-features: []
-related_capabilities: []
+topics: []
+related_topics: []
 ```
 
-Feature 模板字段：
+Topic 模板字段：
 
 ```yaml
-capabilities: []
+topics: []
 workflow: ""
-related_features: []
+related_topics: []
 ```
 
 Workflow 模板字段：
 
 ```yaml
-features: []
+topics: []
 related_workflows: []
 ```
 
@@ -205,20 +205,16 @@ related_workflows: []
 
 | 边类型 | 方向 | 含义 |
 |---|---|---|
-| `contains` | capability -> feature | 能力覆盖哪些功能 |
-| `implemented_by` | feature -> workflow | 功能由哪个 workflow 解释实现路径 |
+| `implemented_by` | topic -> workflow | topic 由哪个 workflow 解释实现路径 |
 | `related` | 同层为主 | 需要互相参照的相关页面 |
 
 来源字段映射：
 
 | 来源 | 输出 |
 |---|---|
-| capability `features` | `contains` |
-| feature `capabilities` | `contains` |
-| feature `workflow` | `implemented_by` |
-| workflow `features` | `implemented_by` |
-| `related_capabilities` | `related` |
-| `related_features` | `related` |
+| topic `workflows` | `implemented_by` |
+| workflow `topics` | `implemented_by` |
+| `related_topics` | `related` |
 | `related_workflows` | `related` |
 
 关系归一化规则：
@@ -232,10 +228,10 @@ related_workflows: []
 引用格式必须兼容当前 skill 生成习惯：
 
 ```yaml
-features:
+topics:
   - "vip-failover"
   - "[[vip-failover]]"
-  - "wiki/features/vip-failover.md"
+  - "wiki/topics/vip-failover.md"
 ```
 
 `workflow` 支持字符串或列表；字符串按单个 workflow 处理。
@@ -249,11 +245,10 @@ Error，必须返回非零退出码：
 | 类型 | 示例 |
 |---|---|
 | YAML frontmatter 解析失败 | `---` 未闭合或 YAML 格式错误 |
-| 同类型重复 slug | 两个 feature 都是 `slug: vip-failover` |
-| 关系字段类型错误 | `features: abc` 而不是数组 |
-| `workflow` 指向不存在 workflow | feature 写了不存在的 workflow |
-| `features` 指向不存在 feature | capability 或 workflow 指向不存在 feature |
-| `capabilities` 指向不存在 capability | feature 指向不存在 capability |
+| 同类型重复 slug | 两个 topic 都是 `slug: vip-failover` |
+| 关系字段类型错误 | `topics: abc` 而不是数组 |
+| `workflows` 指向不存在 workflow | topic 写了不存在的 workflow |
+| `topics` 指向不存在 topic | topic 或 workflow 指向不存在 topic |
 
 Warning，不阻断：
 
@@ -277,15 +272,14 @@ Warning，不阻断：
 ```text
 DevWiki graph check failed
 
-ERROR wiki/features/vip-failover.md
+ERROR wiki/topics/vip-failover.md
   workflow points to missing workflow: workflow-vip-failover
 
-WARNING wiki/capabilities/ha.md
-  feature relation is not declared back from wiki/features/vip-failover.md
+WARNING wiki/topics/ha.md
+  topic relation is not declared back from wiki/topics/vip-failover.md
 
 Summary:
-  capabilities: 3
-  features: 12
+  topics: 3
   workflows: 8
   errors: 1
   warnings: 1
@@ -309,11 +303,11 @@ http://127.0.0.1:<port>/
 
 第一版交互：
 
-- 默认展示 capability、feature、workflow 三层节点。
+- 默认展示 topic、workflow 三层节点。
 - 支持维度切换：
   - 全部
-  - Capability
-  - Feature
+  - Topic
+  - Topic
   - Workflow
 - 搜索框按 `title`、`slug`、`summary`、`search_terms` 过滤。
 - 点击节点后：
@@ -325,15 +319,15 @@ http://127.0.0.1:<port>/
   - 直接关系
   - 二跳关系
 - 布局：
-  - 分层布局：Capability 在左或上，Feature 在中间，Workflow 在右或下；
+  - 分层布局：Topic 在左或上，Topic 在中间，Workflow 在右或下；
   - 力导向布局：用于查看复杂关系。
 
 视觉编码：
 
 | 类型 | 样式 |
 |---|---|
-| Capability | 蓝色系节点 |
-| Feature | 绿色系节点 |
+| Topic | 蓝色系节点 |
+| Topic | 绿色系节点 |
 | Workflow | 橙色系节点 |
 | `contains` | 实线 |
 | `implemented_by` | 实线箭头 |
@@ -342,9 +336,9 @@ http://127.0.0.1:<port>/
 右侧文档面板：
 
 - 未选节点时展示项目总览：节点数量、边数量、构建时间、warning 数量。
-- 选中 Capability 时展示覆盖 Feature、相关 Capability、通过 Feature 间接关联的 Workflow。
-- 选中 Feature 时展示所属 Capability、实现 Workflow、相关 Feature。
-- 选中 Workflow 时展示支撑 Feature、上层 Capability、相关 Workflow。
+- 选中 Topic 时展示覆盖 Topic、相关 Topic、通过 Topic 间接关联的 Workflow。
+- 选中 Topic 时展示所属 Topic、实现 Workflow、相关 Topic。
+- 选中 Workflow 时展示支撑 Topic、上层 Topic、相关 Workflow。
 - 只展示标题、摘要、状态、置信度、路径和关系说明。
 - 不渲染 Markdown 全文。
 - 第一版不要求点击路径打开编辑器；路径展示和复制即可。
@@ -392,7 +386,7 @@ internal/cli/devwiki/command.go
 Ingest 规则：
 
 - Proposal 阶段说明新增或更新页面会产生哪些 graph 关系。
-- 落盘后，如果修改了 capability、feature 或 workflow 页面，必须执行：
+- 落盘后，如果修改了 topic 或 workflow 页面，必须执行：
 
 ```bash
 zatools devwiki graph --check
@@ -419,8 +413,8 @@ Query 规则：
 
 Go 单元测试：
 
-- 使用当前 capability / feature / workflow 模板字段构建 graph 成功。
-- `slug`、`[[slug]]`、`wiki/features/slug.md` 三种引用格式都能解析。
+- 使用当前 topic / topic / workflow 模板字段构建 graph 成功。
+- `slug`、`[[slug]]`、`wiki/topics/slug.md` 三种引用格式都能解析。
 - `workflow` 字符串和列表都能解析。
 - 双向声明同一关系时只生成一条边，并记录多个 source。
 - 重复 slug 返回 error。
@@ -442,14 +436,14 @@ CLI / app 测试：
 
 - `graph.json` 加载失败时页面提示重新执行 `zatools devwiki graph --force`。
 - 空搜索结果不破坏原始 graph 数据。
-- 点击 capability / feature / workflow 时右侧分组符合设计。
+- 点击 topic / topic / workflow 时右侧分组符合设计。
 - warning 数量可见，并可展开查看。
 
 ## 验收标准
 
 - 在一个 DevWiki fixture 中执行 `zatools devwiki graph`，能打开本地页面并看到三层图谱。
 - 第二次执行且输入未变化时复用缓存，不重新构建。
-- 修改一个 feature 页面后再次执行会重新构建。
+- 修改一个 topic 页面后再次执行会重新构建。
 - `zatools devwiki graph --check` 能发现断链、重复 slug 和 YAML 错误。
 - Agent 按现有 ingest 模板生成的页面能被 graph builder 正确识别。
 - 所有新增用户可见文案集中在 `internal/ui/i18n.go`。

@@ -30,6 +30,8 @@ func NewCommand() *cobra.Command {
 	devwikiCmd.AddCommand(newInitCmd(service))
 	devwikiCmd.AddCommand(newLinkCmd(service))
 	devwikiCmd.AddCommand(newUpdateCmd(service))
+	devwikiCmd.AddCommand(newReadCmd(service))
+	devwikiCmd.AddCommand(newCheckCmd(service))
 	devwikiCmd.AddCommand(newGraphCmd(service))
 	devwikiCmd.AddCommand(newToolCmd())
 	return devwikiCmd
@@ -85,6 +87,51 @@ func newUpdateCmd(service *devwikiapp.Service) *cobra.Command {
 			return service.Update(cmd.Context())
 		},
 	}
+}
+
+func newReadCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	var opts devwikiapp.ReadOptions
+
+	cmd := &cobra.Command{
+		Use:   "read <topic|workflow> <slug>",
+		Short: copy.DevwikiReadShort,
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.Kind = args[0]
+			opts.Slug = args[1]
+			opts.Stdout = cmd.OutOrStdout()
+			return service.Read(cmd.Context(), opts)
+		},
+	}
+	cmd.Flags().StringVar(&opts.Root, "root", ".", copy.FlagDevwikiRoot)
+	cmd.Flags().StringVar(&opts.View, "view", "card", copy.FlagDevwikiReadView)
+	cmd.Flags().StringVar(&opts.Format, "format", "text", copy.FlagDevwikiReadFormat)
+	return cmd
+}
+
+func newCheckCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	var opts devwikiapp.CheckOptions
+	cmd := &cobra.Command{
+		Use:   "check [document|graph] [path...]",
+		Short: copy.DevwikiCheckShort,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 && (args[0] == "document" || args[0] == "graph") {
+				opts.Types = []string{args[0]}
+				opts.Paths = args[1:]
+			} else {
+				opts.Paths = args
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.Stdout = cmd.OutOrStdout()
+			return service.Check(cmd.Context(), opts)
+		},
+	}
+	cmd.Flags().StringVar(&opts.Root, "root", ".", ui.Messages().FlagDevwikiRoot)
+	return cmd
 }
 
 func newGraphCmd(service *devwikiapp.Service) *cobra.Command {

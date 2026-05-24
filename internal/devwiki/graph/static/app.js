@@ -13,8 +13,7 @@ const els = {
   warningCountCard: document.getElementById('warningCountCard'),
   projectName: document.getElementById('projectName'),
   projectSlug: document.getElementById('projectSlug'),
-  capCount: document.getElementById('capCount'),
-  featureCount: document.getElementById('featureCount'),
+  topicCount: document.getElementById('topicCount'),
   workflowCount: document.getElementById('workflowCount'),
   edgeCount: document.getElementById('edgeCount'),
   builtAt: document.getElementById('builtAt'),
@@ -43,10 +42,9 @@ const markdownSamples = {
   default: '# 文档预览\n\n无法直接读取当前 Markdown 文件。\n\n请确认 `zatools devwiki graph` 正在 DevWiki 根目录下运行，并且节点 path 指向 `wiki/` 下的 Markdown 文件。\n\n```text\nzatools devwiki graph --force\n```'
 };
 
-const typeName = { capability: 'Capability', feature: 'Feature', workflow: 'Workflow' };
+const typeName = { topic: 'Topic', workflow: 'Workflow' };
 const typeStyle = {
-  capability: { color: '#1769de', bg: '#eaf3ff', iconBg: 'linear-gradient(145deg, #2f7df6, #0e63e8)', dot: 'cap', icon: '□' },
-  feature: { color: '#0c9d58', bg: '#e9faf1', iconBg: 'linear-gradient(145deg, #35d486, #0da763)', dot: 'feat', icon: '◎' },
+  topic: { color: '#1769de', bg: '#eaf3ff', iconBg: 'linear-gradient(145deg, #2f7df6, #0e63e8)', dot: 'cap', icon: '□' },
   workflow: { color: '#d76f00', bg: '#fff3e3', iconBg: 'linear-gradient(145deg, #ff9d28, #f07b00)', dot: 'flow', icon: '⌁' }
 };
 
@@ -104,13 +102,13 @@ function toCytoscapeElements(data) {
 }
 
 function computeLayeredPositions(nodes, edges) {
-  const byType = { capability: [], feature: [], workflow: [] };
+  const byType = { topic: [], workflow: [] };
   nodes.forEach((node) => {
     if (!byType[node.type]) byType[node.type] = [];
     byType[node.type].push(node);
   });
   Object.keys(byType).forEach((type) => byType[type].sort((a, b) => a.slug.localeCompare(b.slug)));
-  const columns = { capability: 140, feature: 430, workflow: 735 };
+  const columns = { topic: 220, workflow: 620 };
   const positions = {};
   Object.entries(byType).forEach(([type, list]) => {
     const step = Math.max(92, Math.min(150, 520 / Math.max(1, list.length)));
@@ -148,8 +146,8 @@ function initCytoscape(elements) {
   });
   cy.ready(() => {
     runPresetLayout();
-    const firstFeature = cy.nodes('[type = "feature"]')[0];
-    const firstNode = firstFeature || cy.nodes()[0];
+    const firstTopic = cy.nodes('[type = "topic"]')[0];
+    const firstNode = firstTopic || cy.nodes()[0];
     if (firstNode) selectNode(firstNode);
   });
 }
@@ -157,11 +155,9 @@ function initCytoscape(elements) {
 function graphStyle() {
   return [
     { selector: 'node', style: { 'width': 126, 'height': 62, 'shape': 'round-rectangle', 'background-color': '#ffffff', 'background-fill': 'linear-gradient', 'background-gradient-direction': 'to-bottom-right', 'background-gradient-stop-colors': '#ffffff #eaf3ff', 'background-gradient-stop-positions': '0% 100%', 'border-width': 1.8, 'border-color': '#7db6ff', 'label': 'data(nodeLabel)', 'font-family': 'Inter, PingFang SC, Microsoft YaHei, sans-serif', 'font-size': 11.5, 'font-weight': 760, 'line-height': 1.25, 'color': '#1f2937', 'text-valign': 'center', 'text-halign': 'center', 'text-wrap': 'wrap', 'text-max-width': 112, 'text-outline-width': 0, 'shadow-blur': 20, 'shadow-opacity': 0.18, 'shadow-color': '#7db6ff', 'shadow-offset-x': 0, 'shadow-offset-y': 8, 'overlay-opacity': 0, 'transition-property': 'opacity, border-width, border-color, background-color, width, height, shadow-opacity', 'transition-duration': 180 } },
-    { selector: 'node[type = "capability"]', style: { 'background-gradient-stop-colors': '#ffffff #eaf3ff', 'border-color': '#60a5fa', 'color': '#1d4ed8', 'shadow-color': '#60a5fa' } },
-    { selector: 'node[type = "feature"]', style: { 'background-gradient-stop-colors': '#ffffff #e8fff2', 'border-color': '#34d399', 'color': '#087a48', 'shadow-color': '#34d399' } },
+    { selector: 'node[type = "topic"]', style: { 'background-gradient-stop-colors': '#ffffff #eaf3ff', 'border-color': '#60a5fa', 'color': '#1d4ed8', 'shadow-color': '#60a5fa' } },
     { selector: 'node[type = "workflow"]', style: { 'background-gradient-stop-colors': '#ffffff #fff0d9', 'border-color': '#fb923c', 'color': '#b95b00', 'shadow-color': '#fb923c' } },
     { selector: 'edge', style: { 'width': 1.6, 'curve-style': 'bezier', 'line-color': '#9aa7b8', 'target-arrow-color': '#9aa7b8', 'target-arrow-shape': 'triangle', 'arrow-scale': 0.9, 'opacity': 0.78, 'overlay-opacity': 0, 'transition-property': 'opacity, width, line-color, target-arrow-color', 'transition-duration': 180 } },
-    { selector: 'edge[relation = "contains"]', style: { 'line-color': '#6aa7f9', 'target-arrow-color': '#6aa7f9', 'target-arrow-shape': 'none', 'width': 1.8 } },
     { selector: 'edge[relation = "implemented_by"]', style: { 'line-color': '#49c98b', 'target-arrow-color': '#49c98b', 'width': 1.8 } },
     { selector: 'edge[relation = "related"]', style: { 'line-style': 'dashed', 'line-dash-pattern': [6, 6], 'line-color': '#a4afbf', 'target-arrow-shape': 'none', 'opacity': 0.62 } },
     { selector: '.selected', style: { 'width': 150, 'height': 74, 'border-width': 3.4, 'border-color': '#16b86f', 'background-gradient-stop-colors': '#ffffff #dcfce7', 'shadow-blur': 30, 'shadow-opacity': 0.34, 'shadow-color': '#16b86f', 'z-index': 10 } },
@@ -173,12 +169,11 @@ function graphStyle() {
 }
 
 function updateSummary(data) {
-  const counts = { capability: 0, feature: 0, workflow: 0 };
+  const counts = { topic: 0, workflow: 0 };
   data.nodes.forEach((node) => counts[node.type]++);
   els.projectName.textContent = data.project && data.project.name ? data.project.name : '项目总览';
   els.projectSlug.textContent = data.project && data.project.slug ? data.project.slug : 'DevWiki Graph';
-  els.capCount.textContent = counts.capability;
-  els.featureCount.textContent = counts.feature;
+  els.topicCount.textContent = counts.topic;
   els.workflowCount.textContent = counts.workflow;
   els.edgeCount.textContent = data.edges.length;
   els.warningCount.textContent = (data.warnings || []).length;
@@ -211,7 +206,7 @@ function renderRelationList(el, items) {
   }
   el.innerHTML = items.map((item) => {
     const data = item.data();
-    const style = typeStyle[data.type] || typeStyle.feature;
+    const style = typeStyle[data.type] || typeStyle.topic;
     return '<div class="related-item related-row"><button class="related-main related-button" type="button" data-node-id="' + escapeHTML(data.id) + '"><span class="related-dot ' + style.dot + '"></span><span class="related-title">' + escapeHTML(data.title) + '</span><span class="related-slug">' + escapeHTML(data.slug) + '</span></button><button class="preview-link related-preview" type="button" data-path="' + escapeHTML(data.path || '') + '" data-title="' + escapeHTML(data.title || data.slug) + '">预览</button></div>';
   }).join('');
   el.querySelectorAll('[data-node-id]').forEach((button) => {
@@ -224,7 +219,7 @@ function renderRelationList(el, items) {
 
 function updateDetail(node) {
   const data = node.data();
-  const style = typeStyle[data.type] || typeStyle.feature;
+  const style = typeStyle[data.type] || typeStyle.topic;
   selectedNodeID = data.id;
   currentPath = data.path || '';
   currentTitle = data.title || data.slug || '文档预览';
@@ -242,36 +237,24 @@ function updateDetail(node) {
   els.hintTitle.textContent = '已选中节点';
   els.hintText.textContent = '当前选中“' + data.title + '”，' + (currentDepth === 1 ? '一跳' : '二跳') + '关系已高亮，非相关节点已淡化。';
 
-  if (data.type === 'capability') {
-    const features = relatedItems(node, 'feature');
-    const caps = relatedItems(node, 'capability');
-    const workflows = collectTwoHop(node, 'workflow');
-    els.relationTitle1.textContent = '覆盖 Feature (' + features.length + ')';
-    els.relationTitle2.textContent = '相关 Capability (' + caps.length + ')';
-    els.relationTitle3.textContent = '相关 Workflow (' + workflows.length + ')';
-    renderRelationList(els.relationList1, features);
-    renderRelationList(els.relationList2, caps);
-    renderRelationList(els.relationList3, workflows);
-  } else if (data.type === 'feature') {
-    const caps = relatedItems(node, 'capability');
+  if (data.type === 'topic') {
     const workflows = relatedItems(node, 'workflow');
-    const features = relatedItems(node, 'feature');
-    els.relationTitle1.textContent = '所属 Capability (' + caps.length + ')';
-    els.relationTitle2.textContent = '实现 Workflow (' + workflows.length + ')';
-    els.relationTitle3.textContent = '相关 Feature (' + features.length + ')';
-    renderRelationList(els.relationList1, caps);
-    renderRelationList(els.relationList2, workflows);
-    renderRelationList(els.relationList3, features);
+    const topics = relatedItems(node, 'topic');
+    els.relationTitle1.textContent = '实现 Workflow (' + workflows.length + ')';
+    els.relationTitle2.textContent = '相关 Topic (' + topics.length + ')';
+    els.relationTitle3.textContent = '相关 Workflow (' + workflows.length + ')';
+    renderRelationList(els.relationList1, workflows);
+    renderRelationList(els.relationList2, topics);
+    renderRelationList(els.relationList3, workflows);
   } else {
-    const features = relatedItems(node, 'feature');
+    const topics = relatedItems(node, 'topic');
     const workflows = relatedItems(node, 'workflow');
-    const caps = collectTwoHop(node, 'capability');
-    els.relationTitle1.textContent = '支撑 Feature (' + features.length + ')';
-    els.relationTitle2.textContent = '上层 Capability (' + caps.length + ')';
-    els.relationTitle3.textContent = '相关 Workflow (' + workflows.length + ')';
-    renderRelationList(els.relationList1, features);
-    renderRelationList(els.relationList2, caps);
-    renderRelationList(els.relationList3, workflows);
+    els.relationTitle1.textContent = '支撑 Topic (' + topics.length + ')';
+    els.relationTitle2.textContent = '相关 Workflow (' + workflows.length + ')';
+    els.relationTitle3.textContent = '上层 Topic (' + topics.length + ')';
+    renderRelationList(els.relationList1, topics);
+    renderRelationList(els.relationList2, workflows);
+    renderRelationList(els.relationList3, topics);
   }
 }
 
@@ -295,7 +278,7 @@ function clearSelection() {
     cy.elements().removeClass('selected faded neighbor second-hop hidden-by-search hidden-by-type');
     applyFilterAndSearch();
   }
-  const counts = { capability: 0, feature: 0, workflow: 0 };
+  const counts = { topic: 0, workflow: 0 };
   rawGraph.nodes.forEach((node) => counts[node.type]++);
   els.detailEyebrow.textContent = '项目总览';
   els.detailTitle.textContent = rawGraph.project.name || '项目总览';
@@ -310,11 +293,11 @@ function clearSelection() {
   els.detailType.style.background = '#eeeaff';
   els.hintTitle.textContent = '未选中节点';
   els.hintText.textContent = '在图中选择一个节点，查看详细信息和相关文档。';
-  els.relationTitle1.textContent = 'Capability 数量';
-  els.relationTitle2.textContent = 'Feature 数量';
+  els.relationTitle1.textContent = 'Topic 数量';
+  els.relationTitle2.textContent = 'Workflow 数量';
   els.relationTitle3.textContent = 'Workflow 数量';
-  els.relationList1.innerHTML = '<div class="related-item"><span class="related-dot cap"></span>' + counts.capability + '<span class="related-slug">Capability</span></div>';
-  els.relationList2.innerHTML = '<div class="related-item"><span class="related-dot feat"></span>' + counts.feature + '<span class="related-slug">Feature</span></div>';
+  els.relationList1.innerHTML = '<div class="related-item"><span class="related-dot cap"></span>' + counts.topic + '<span class="related-slug">Topic</span></div>';
+  els.relationList2.innerHTML = '<div class="related-item"><span class="related-dot flow"></span>' + counts.workflow + '<span class="related-slug">Workflow</span></div>';
   els.relationList3.innerHTML = '<div class="related-item"><span class="related-dot flow"></span>' + counts.workflow + '<span class="related-slug">Workflow</span></div>';
 }
 

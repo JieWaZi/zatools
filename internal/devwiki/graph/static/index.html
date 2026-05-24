@@ -47,9 +47,8 @@
             </div>
           </div>
           <div class="left-metrics">
-            <div class="left-metric blue"><strong id="capCount">0</strong><span>Capability</span></div>
-            <div class="left-metric green"><strong id="featureCount">0</strong><span>Feature</span></div>
-            <div class="left-metric orange"><strong id="workflowCount">0</strong><span>Workflow</span></div>
+            <div class="left-metric blue"><strong id="topicCount">0</strong><span>Topic</span></div>
+            <div class="left-metric green"><strong id="workflowCount">0</strong><span>Workflow</span></div>
             <div class="left-metric"><strong id="edgeCount">0</strong><span>边数量</span></div>
           </div>
           <div class="left-build-card">
@@ -67,8 +66,7 @@
               <span>维度</span>
               <select id="typeSelect">
                 <option value="all">全部</option>
-                <option value="capability">Capability</option>
-                <option value="feature">Feature</option>
+                <option value="topic">Topic</option>
                 <option value="workflow">Workflow</option>
               </select>
             </label>
@@ -99,14 +97,12 @@
           <div class="graph-bottom-legend">
             <div class="legend-inline-group">
               <span class="legend-inline-title">节点类型</span>
-              <span class="legend-inline-item"><i class="legend-dot cap"></i>能力</span>
-              <span class="legend-inline-item"><i class="legend-dot feat"></i>功能</span>
+              <span class="legend-inline-item"><i class="legend-dot cap"></i>主题</span>
               <span class="legend-inline-item"><i class="legend-dot flow"></i>流程</span>
             </div>
             <div class="legend-inline-divider"></div>
             <div class="legend-inline-group">
               <span class="legend-inline-title">关系类型</span>
-              <span class="legend-inline-item"><i class="line-symbol"></i>包含</span>
               <span class="legend-inline-item"><i class="line-symbol arrow"></i>实现</span>
               <span class="legend-inline-item"><i class="line-symbol dashed"></i>相关</span>
             </div>
@@ -133,11 +129,11 @@
           <div class="kv"><div class="k">状态</div><div class="v"><span class="ok-state"><span class="dot"></span><span id="detailStatus">已加载</span></span></div></div>
           <div class="kv"><div class="k">置信度</div><div class="v" id="detailConfidence">-</div></div>
           <section class="detail-section">
-            <h3 id="relationTitle1">Capability 数量</h3>
+            <h3 id="relationTitle1">Topic 数量</h3>
             <div class="related-list" id="relationList1"></div>
           </section>
           <section class="detail-section">
-            <h3 id="relationTitle2">Feature 数量</h3>
+            <h3 id="relationTitle2">Workflow 数量</h3>
             <div class="related-list" id="relationList2"></div>
           </section>
           <section class="detail-section">

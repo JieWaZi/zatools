@@ -114,7 +114,7 @@ func WriteOutputs(outDir string, graph Graph, manifest Manifest) error {
 
 func inputFiles(root string) ([]string, error) {
 	var files []string
-	for _, dir := range []string{"wiki/capabilities", "wiki/features", "wiki/workflows"} {
+	for _, dir := range []string{"wiki/topics", "wiki/workflows"} {
 		entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(dir)))
 		if os.IsNotExist(err) {
 			continue

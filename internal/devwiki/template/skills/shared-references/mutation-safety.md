@@ -40,22 +40,23 @@
 
 ### 中风险
 
-- 把 feature 挂到已有 capability
-- 追加辅助性 workflow `code_refs`
-- 补充次级接口入口或测试入口
-- 在不改范围的前提下收紧过时 feature 总结
-- 更新 workflow 的调用链摘要
+- 为已有 Topic 增加 `related_topics`
+- 为已有 Workflow 追加辅助代码定位
+- 为已有 Workflow 补充次级入口或测试验证
+- 在不改变主题边界的前提下收紧过时 Topic 摘要
+- 更新 Workflow 的调用链摘要
 
 中风险 proposal 必须列出证据、影响范围、待确认问题和不会修改的内容。
 
 ### 高风险
 
-- 新建 capability
-- 合并或拆分 capability
-- 新建 feature
-- 把 feature 改挂到另一个 capability
-- 拆分或合并 workflow
-- 替换主 `code_refs`
+- 新建 Topic
+- 新建 Workflow
+- 新建 Troubleshooting
+- 合并或拆分 Topic
+- 合并或拆分 Workflow
+- 改变 Topic 与 Workflow 的主关联关系
+- 替换 Workflow 的主代码定位
 - 删除、重命名、降级或改变主入口页面
 
 高风险 proposal 必须列出候选方案、推荐方案、风险、回退方式和需要用户拍板的问题。
@@ -75,7 +76,7 @@
 - 哪些内容暂不写入
 - 如果用户确认，会发生什么
 
-如果多个 capability、feature 或 workflow 仍然都像候选，就不要自己拍板，应向用户提问。
+如果多个 topic 或 workflow 仍然都像候选，就不要自己拍板，应向用户提问。
 
 ## 落盘前检查
 
@@ -92,7 +93,7 @@
 
 - 不要为了省事把高风险动作降级成低风险。
 - 不要把结构重写藏进一个小文案修改里。
-- 不要静默覆盖 capability 或 feature 的归属。
+- 不要静默改变 Topic 边界、Workflow 归属或 Topic-Workflow 主关系。
 - 不要把用户沉默当确认。
 - 不要把用户最初的“生成 / 导入 / 整理”请求当成落盘确认。
-- 不要把 capability 边界、feature 归属或 workflow 拆分藏在自动修复里。
+- 不要把 Topic 边界、Workflow 归属或 Workflow 拆分藏在自动修复里。

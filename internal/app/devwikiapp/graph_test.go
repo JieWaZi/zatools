@@ -15,7 +15,7 @@ import (
 func TestGraphCheckDoesNotWriteOutputs(t *testing.T) {
 	root := t.TempDir()
 	mustWriteFileDevwikiApp(t, filepath.Join(root, "config", "project.yaml"), "project_name: Sample\nproject_slug: sample\n")
-	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "features", "vip.md"), "---\ntitle: VIP\nslug: vip\nsummary: VIP\n---\n")
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "topics", "vip.md"), "---\ntitle: VIP\nslug: vip\nsummary: VIP\n---\n")
 	service := NewServiceWithRuntime(common.Runtime{Workspace: skills.NewWorkspace(root)})
 	var out bytes.Buffer
 	err := service.Graph(context.Background(), GraphOptions{Root: root, Check: true, Stdout: &out})
@@ -33,7 +33,7 @@ func TestGraphCheckDoesNotWriteOutputs(t *testing.T) {
 func TestGraphBuildWritesOutputsWithoutServingWhenNoServe(t *testing.T) {
 	root := t.TempDir()
 	mustWriteFileDevwikiApp(t, filepath.Join(root, "config", "project.yaml"), "project_name: Sample\nproject_slug: sample\n")
-	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "features", "vip.md"), "---\ntitle: VIP\nslug: vip\nsummary: VIP\n---\n")
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "topics", "vip.md"), "---\ntitle: VIP\nslug: vip\nsummary: VIP\n---\n")
 	service := NewServiceWithRuntime(common.Runtime{Workspace: skills.NewWorkspace(root)})
 	var out bytes.Buffer
 	err := service.Graph(context.Background(), GraphOptions{Root: root, NoServe: true, NoOpen: true, Stdout: &out})

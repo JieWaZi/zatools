@@ -500,14 +500,12 @@ func TestUpdateRefreshesDevwikiSourcesAndLeavesOtherSkillsUntouched(t *testing.T
 	if updatedDevEntry.Hash == "stale-devwiki" {
 		t.Fatal("expected devwiki hash to refresh")
 	}
-	for _, rel := range []string{
-		".agents/skills/devwiki-ingest/references/capability_template.md",
-		".agents/skills/devwiki-ingest/references/feature_template.md",
-		".agents/skills/devwiki-ingest/references/workflow_template.md",
-	} {
-		if _, err := os.Stat(filepath.Join(root, rel)); err != nil {
-			t.Fatalf("updated devwiki ingest missing reference %s: %v", rel, err)
-		}
+	ingestData, err := os.ReadFile(filepath.Join(root, ".agents", "skills", "devwiki-ingest", "SKILL.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(updated ingest) error = %v", err)
+	}
+	if !strings.Contains(string(ingestData), "加载 `devwiki-topic`") || !strings.Contains(string(ingestData), "加载 `devwiki-workflow`") {
+		t.Fatalf("updated devwiki-ingest missing page-writing skill dispatch guidance:\n%s", string(ingestData))
 	}
 	if updatedLock.Entries(skills.SkillAsset)["custom"].Hash != "stale-custom" {
 		t.Fatal("expected non-devwiki skill to remain untouched by devwiki update")
@@ -567,8 +565,9 @@ func TestUpdateInstallsMissingBuiltinSkillsInDevwikiRoot(t *testing.T) {
 		t.Fatal("test setup should not have devwiki-maintain installed")
 	}
 
+	ctx := qmd.WithCommandRunner(context.Background(), devwikiQMDHelperRunner(t, ""))
 	if err := captureDevwikiStdout(t, func() error {
-		return service.Update(context.Background())
+		return service.Update(ctx)
 	}); err != nil {
 		t.Fatalf("Service.Update error = %v", err)
 	}

@@ -1,7 +1,7 @@
 ---
 name: "devwiki-maintain"
-description: "对 DevWiki 进行证据一致性与知识健康维护。用于发现并修正 Wiki 与 raw/source/code 之间的冲突、遗漏、过期、过度摘要、引用缺失、历史机制不再适用、query 命中过期内容等问题。"
-argument-hint: "<待维护范围，例如 wiki 全量、某个 capability/feature/workflow、某个 raw 文件、某次 query 失败案例>"
+description: "当需要维护 DevWiki 的证据一致性、知识健康、过期内容、引用缺失、冲突遗漏或 query 命中质量时使用。"
+argument-hint: "<待维护范围，例如 wiki 全量、某个 topic/workflow、某个 raw 文件、某次 query 失败案例>"
 ---
 
 # /devwiki-maintain
@@ -55,7 +55,7 @@ Maintain 可以生成差异审计，但不得把差异审计长期写成 active 
 
 ```text
 wiki/sources/*implementation-errata*.md
-wiki/features/*errata*.md
+wiki/topics/*errata*.md
 wiki/workflows/*errata*.md
 wiki/*设计稿与实现差异*.md
 ```
@@ -80,7 +80,7 @@ visibility: internal
 
 ```markdown
 > 这是维护过程报告，不是功能事实来源。
-> 当前功能规则以对应 Feature 为准。
+> 当前功能规则以对应 Topic 为准。
 > 当前实现路径以对应 Workflow 为准。
 ```
 
@@ -88,8 +88,8 @@ visibility: internal
 
 | 差异类型 | 正确归位 |
 |---|---|
-| 能力边界差异 | Capability |
-| 功能行为、规则、配置、边界差异 | Feature |
+| 能力边界差异 | Topic |
+| 功能行为、规则、配置、边界差异 | Topic |
 | 代码入口、调用链、实现差异 | Workflow |
 | 故障现象、日志、修复路径差异 | Troubleshooting |
 | 维护过程对照表、审计表 | outputs/report，不进入 active query |
@@ -109,7 +109,7 @@ Maintain 必须按以下类型归类问题。
 | 无来源结论 | Wiki 写了结论，但找不到 raw/source/code 支持 | 标记待确认，不能编造 source |
 | 证据冲突 | 多个 source 或 Wiki 之间描述不一致 | 输出冲突表，需确认后改 |
 | 历史失效 | Wiki 内容曾经适用，但当前版本/实现不再适用 | 标记历史范围，更新当前结论 |
-| 实现偏差 | 设计文档与代码实现不一致 | Feature 写功能结论，Workflow 写实现差异 |
+| 实现偏差 | 设计文档与代码实现不一致 | Topic 写功能结论，Workflow 写实现差异 |
 | 差异报告误落盘 | maintain 把 errata/report 写成 active Wiki | 移到 outputs/report 或删除，结论合并回权威页 |
 | 入口错误 | index/glossary 或页面链接指向错误或缺失 | 修正入口和页面链接 |
 | 查询污染 | 旧页面或报告页被 query 命中并误导回答 | 降级、排除、改入口、更新索引 |
@@ -140,11 +140,11 @@ Maintain 必须按以下类型归类问题。
 
 以下情况必须先输出 proposal：
 
-- raw 中有关键规则遗漏，需要补充 Feature；
+- raw 中有关键规则遗漏，需要补充 Topic；
 - Wiki 内容过度摘要，需要重写大段内容；
 - 旧机制需要标记为历史；
 - 多个页面之间结论冲突；
-- Feature / Workflow 归属需要调整；
+- Topic / Workflow 归属需要调整；
 - 页面需要合并、拆分、重命名；
 - active errata 页面需要拆解并合并回权威页面；
 - 需要改 query 入口，避免继续命中过期内容。
@@ -168,7 +168,7 @@ Maintain 必须按以下类型归类问题。
 
 ### Phase 1：确定维护范围
 
-先明确维护范围：全量 Wiki、某个 Capability / Feature / Workflow / Troubleshooting、某份 raw/source、某次 query 错误回答、最近变更页面，或被错误创建的 errata/report 页面。
+先明确维护范围：全量 Wiki、某个 Topic / Workflow / Troubleshooting、某份 raw/source、某次 query 错误回答、最近变更页面，或被错误创建的 errata/report 页面。
 
 如果用户没有指定范围，默认优先检查：
 
@@ -180,7 +180,7 @@ Maintain 必须按以下类型归类问题。
 
 ### Phase 2：读取上下文
 
-不得只读一个页面就修改。至少读取：目标 Wiki 页面、frontmatter sources、对应 raw/source、相关 Capability / Feature / Workflow / Troubleshooting、`index.md`、`glossary.md`。涉及实现差异时核对代码；涉及 errata/report 时读取其引用的 raw/code，并判断结论应归位到哪里。
+不得只读一个页面就修改。至少读取：目标 Wiki 页面、frontmatter sources、对应 raw/source、相关 Topic / Workflow / Troubleshooting、`index.md`、`glossary.md`。涉及实现差异时核对代码；涉及 errata/report 时读取其引用的 raw/code，并判断结论应归位到哪里。
 
 ### Phase 3：证据审计
 
@@ -200,8 +200,8 @@ Maintain 必须按以下类型归类问题。
 
 | 页面类型 | 重点检查 |
 |---|---|
-| Capability | 能力目标、能力边界、覆盖 Feature、能力关系、能力级约束 |
-| Feature | 功能目标、核心行为、关键规则、关键概念、重要配置、边界异常、验收关注点 |
+| Topic | 能力目标、能力边界、覆盖 Topic、能力关系、能力级约束 |
+| Topic | 功能目标、核心行为、关键规则、关键概念、重要配置、边界异常、验收关注点 |
 | Workflow | 代码入口、调用链、关键逻辑、状态读写、配置处理、实现差异、测试引用、修改影响 |
 | Troubleshooting | 现象、日志、诊断路径、可能原因、修复/恢复、相关功能 |
 
@@ -214,10 +214,10 @@ Maintain 必须按以下类型归类问题。
 
 | 差异项 | 当前所在页面 | 正确归位 | 是否已合并 | 后续动作 |
 |---|---|---|---|---|
-|  | errata/report | Feature / Workflow / Capability / Troubleshooting / outputs | 是 / 否 |  |
+|  | errata/report | Topic / Workflow / Topic / Troubleshooting / outputs | 是 / 否 |  |
 ```
 
-处理规则：差异项不能长期只存在 errata/report；功能级差异合并到 Feature；实现级差异合并到 Workflow；排障级差异合并到 Troubleshooting；能力边界差异合并到 Capability；合并后 errata/report 必须移入 outputs 或删除，并排除 query。
+处理规则：差异项不能长期只存在 errata/report；功能级差异合并到 Topic；实现级差异合并到 Workflow；排障级差异合并到 Troubleshooting；能力边界差异合并到 Topic；合并后 errata/report 必须移入 outputs 或删除，并排除 query。
 
 ### Phase 6：冲突与历史失效审计
 
@@ -229,7 +229,7 @@ Maintain 必须按以下类型归类问题。
 | 新旧证据不确定谁有效 | 标记冲突，等待确认 |
 | 旧机制仍有版本价值 | 保留但标明适用版本/时间/条件 |
 | 旧机制已完全不适用 | proposal 中建议 deprecated 或移入历史页 |
-| 代码实现与设计不同 | Feature 写功能结论，Workflow 写当前实现差异 |
+| 代码实现与设计不同 | Topic 写功能结论，Workflow 写当前实现差异 |
 | errata/report 命中 query | 移入 outputs，设置 `exclude_from_query: true`，合并结论回权威页 |
 
 ### Phase 7：查询污染检查
@@ -273,10 +273,11 @@ zatools qmd update
 zatools qmd status
 ```
 
-如果维护动作涉及 capability / feature / workflow 的关系、重命名、拆分、合并、断链或入口修复，confirmed_write 后必须执行：
+如果维护动作涉及 topic / workflow 的关系、重命名、拆分、合并、断链或入口修复，confirmed_write 后必须执行：
 
 ```bash
-zatools devwiki graph --check
+zatools devwiki check document
+zatools devwiki check graph
 ```
 
 校验失败时，不得把维护任务标记为完成。错误必须修复；warning 可作为维护建议，但自动补齐关系仍必须遵守 proposal / confirmed_write 规则。
@@ -308,10 +309,10 @@ zatools devwiki graph --check
 - 不要把设计稿与实现差异长期写成 active Wiki 页面。
 - 不要把 errata/report 放到 `wiki/sources/` 作为事实来源。
 - 不要让 errata/report 成为 query 主入口。
-- 不要在 Feature/Workflow 的 sources 中引用 maintain report 来支撑事实。
+- 不要在 Topic/Workflow 的 sources 中引用 maintain report 来支撑事实。
 - 不要只写差异报告而不合并回权威页面。
 - 不要在 index/glossary 或页面入口链接中指向 errata/report 作为当前结论。
-- 不要用“以本页 + 代码为准”描述 report；当前结论应以 Feature/Workflow 为准。
+- 不要用“以本页 + 代码为准”描述 report；当前结论应以 Topic/Workflow 为准。
 
 ### 10.3 证据禁止
 

@@ -180,7 +180,7 @@ func ensureRepoLayout(root string) error {
 		}
 	}
 
-	for _, name := range []string{"capabilities", "features", "workflows", "troubleshooting", "outputs"} {
+	for _, name := range []string{"topics", "workflows", "troubleshooting", "outputs"} {
 		dir := filepath.Join(root, "wiki", name)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err

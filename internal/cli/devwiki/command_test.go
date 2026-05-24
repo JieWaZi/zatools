@@ -19,8 +19,14 @@ func TestNewCommandIncludesInitAndToolSubcommands(t *testing.T) {
 	if sub, _, err := cmd.Find([]string{"update"}); err != nil || sub == nil {
 		t.Fatalf("missing subcommand %q: %v", "update", err)
 	}
+	if sub, _, err := cmd.Find([]string{"read"}); err != nil || sub == nil {
+		t.Fatalf("missing subcommand %q: %v", "read", err)
+	}
 	if sub, _, err := cmd.Find([]string{"graph"}); err != nil || sub == nil {
 		t.Fatalf("missing subcommand %q: %v", "graph", err)
+	}
+	if sub, _, err := cmd.Find([]string{"check"}); err != nil || sub == nil {
+		t.Fatalf("missing subcommand %q: %v", "check", err)
 	}
 }
 
@@ -110,6 +116,40 @@ func TestDevwikiGraphCommandFlags(t *testing.T) {
 	for _, flag := range []string{"root", "host", "port", "no-open", "force", "check"} {
 		if graphCmd.Flags().Lookup(flag) == nil {
 			t.Fatalf("graph command missing flag %q", flag)
+		}
+	}
+}
+
+func TestDevwikiCheckCommandFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	checkCmd, _, err := cmd.Find([]string{"check"})
+	if err != nil {
+		t.Fatalf("Find(check) error = %v", err)
+	}
+	if checkCmd == nil {
+		t.Fatal("check command is nil")
+	}
+	if checkCmd.Flags().Lookup("root") == nil {
+		t.Fatal("check command missing flag root")
+	}
+}
+
+func TestDevwikiReadCommandFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	readCmd, _, err := cmd.Find([]string{"read"})
+	if err != nil {
+		t.Fatalf("Find(read) error = %v", err)
+	}
+	if readCmd == nil {
+		t.Fatal("read command is nil")
+	}
+	for _, flag := range []string{"root", "view", "format"} {
+		if readCmd.Flags().Lookup(flag) == nil {
+			t.Fatalf("read command missing flag %q", flag)
 		}
 	}
 }

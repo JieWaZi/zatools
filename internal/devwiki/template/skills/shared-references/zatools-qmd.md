@@ -25,7 +25,7 @@ DevWiki 技能做召回时，默认先用本地命令检索 DevWiki 文档层；
 | 意图类型 | 典型问题 | 默认策略 |
 |---|---|---|
 | `locate_exact` | 文件在哪里、哪个函数定义、哪个接口注册、错误码在哪里 | 本地 Wiki / 必要时本地代码精确定位 |
-| `explain_feature` | 某功能是什么、怎么工作、有哪些边界 | 本地 Wiki 搜索；低置信或噪声大时升到 `qmd search` |
+| `explain_topic` | 某功能是什么、怎么工作、有哪些边界 | 本地 Wiki 搜索；低置信或噪声大时升到 `qmd search` |
 | `trace_implementation` | 怎么实现、调用链怎么走、状态写到哪里 | 先找 Wiki/workflow 候选，再做代码核对 |
 | `troubleshoot` | 报错原因、不生效怎么查、日志从哪里来 | 先找 troubleshooting/workflow 候选，再按需核对 raw/code |
 | `design_intent` | 为什么这么设计、整体架构是什么、概念关系是什么 | 本地 Wiki 搜索；不足时 `qmd search`，再不足才 `qmd query` |
@@ -41,13 +41,12 @@ DevWiki 技能做召回时，默认先用本地命令检索 DevWiki 文档层；
 ```text
 wiki/index.md
 wiki/glossary.md
-wiki/capabilities/
-wiki/features/
+wiki/topics/
 wiki/workflows/
 wiki/troubleshooting/
 ```
 
-必要时再扩展到 `raw/`。只有当问题明确要求实现现实、代码入口、调用链、日志出处、配置读取点、测试入口，或需要写入/修正 `code_refs` 时，才进入代码搜索。
+必要时再扩展到 `raw/`。只有当问题明确要求实现现实、代码入口、调用链、日志出处、配置读取点、测试入口，或需要写入/修正 代码定位 时，才进入代码搜索。
 
 本地 Wiki 搜索置信判断：
 

@@ -13,9 +13,8 @@ const (
 type PageType string
 
 const (
-	PageTypeCapability PageType = "capability"
-	PageTypeFeature    PageType = "feature"
-	PageTypeWorkflow   PageType = "workflow"
+	PageTypeTopic    PageType = "topic"
+	PageTypeWorkflow PageType = "workflow"
 )
 
 // IssueLevel describes whether a graph issue blocks the build.
@@ -35,20 +34,18 @@ type Issue struct {
 
 // Page is the normalized frontmatter extracted from one DevWiki Markdown page.
 type Page struct {
-	Type                PageType
-	Path                string
-	Slug                string
-	Title               string
-	Summary             string
-	Status              string
-	Confidence          string
-	SearchTerms         []string
-	Features            []string
-	Capabilities        []string
-	Workflows           []string
-	RelatedCapabilities []string
-	RelatedFeatures     []string
-	RelatedWorkflows    []string
+	Type             PageType
+	Path             string
+	Slug             string
+	Title            string
+	Summary          string
+	Status           string
+	Confidence       string
+	SearchTerms      []string
+	Workflows        []string
+	Topics           []string
+	RelatedTopics    []string
+	RelatedWorkflows []string
 }
 
 // Project describes the DevWiki project represented by the graph.

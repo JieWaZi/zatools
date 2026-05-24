@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,24 +8,25 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"zatools/internal/devwiki/page"
 )
 
 type frontmatter struct {
-	Title               string   `yaml:"title"`
-	Slug                string   `yaml:"slug"`
-	Status              string   `yaml:"status"`
-	Summary             string   `yaml:"summary"`
-	Features            []string `yaml:"features"`
-	Capabilities        []string `yaml:"capabilities"`
-	Workflow            any      `yaml:"workflow"`
-	RelatedCapabilities []string `yaml:"related_capabilities"`
-	RelatedFeatures     []string `yaml:"related_features"`
-	RelatedWorkflows    []string `yaml:"related_workflows"`
-	Confidence          string   `yaml:"confidence"`
-	SearchTerms         []string `yaml:"search_terms"`
+	Title            string   `yaml:"title"`
+	Slug             string   `yaml:"slug"`
+	Kind             string   `yaml:"kind"`
+	Status           string   `yaml:"status"`
+	Summary          string   `yaml:"summary"`
+	Workflows        []string `yaml:"workflows"`
+	Topics           []string `yaml:"topics"`
+	RelatedTopics    []string `yaml:"related_topics"`
+	RelatedWorkflows []string `yaml:"related_workflows"`
+	Confidence       string   `yaml:"confidence"`
+	SearchTerms      []string `yaml:"search_terms"`
 }
 
-// LoadPages parses all capability, feature, and workflow pages from a DevWiki root.
+// LoadPages parses all topic and workflow pages from a DevWiki root.
 func LoadPages(root string) ([]Page, []Issue, error) {
 	var pages []Page
 	var issues []Issue
@@ -34,8 +34,7 @@ func LoadPages(root string) ([]Page, []Issue, error) {
 		dir string
 		typ PageType
 	}{
-		{"wiki/capabilities", PageTypeCapability},
-		{"wiki/features", PageTypeFeature},
+		{"wiki/topics", PageTypeTopic},
 		{"wiki/workflows", PageTypeWorkflow},
 	} {
 		loaded, pageIssues, err := loadPagesInDir(root, spec.dir, spec.typ)
@@ -94,7 +93,7 @@ func parsePage(root string, rel string, typ PageType) (Page, []Issue, error) {
 		return Page{}, nil, fmt.Errorf("%s: parse frontmatter: %w", rel, err)
 	}
 	issues := make([]Issue, 0, 3)
-	slug := normalizeReference(fm.Slug)
+	slug := page.NormalizeReference(fm.Slug)
 	if slug == "" {
 		slug = strings.TrimSuffix(filepath.Base(rel), filepath.Ext(rel))
 		issues = append(issues, Issue{Level: IssueWarning, Path: rel, Message: "missing slug; inferred from filename"})
@@ -107,101 +106,28 @@ func parsePage(root string, rel string, typ PageType) (Page, []Issue, error) {
 	if strings.TrimSpace(fm.Summary) == "" {
 		issues = append(issues, Issue{Level: IssueWarning, Path: rel, Message: "missing summary"})
 	}
-	workflows, err := normalizeWorkflowField(fm.Workflow)
-	if err != nil {
-		return Page{}, nil, fmt.Errorf("%s: %w", rel, err)
+	if strings.TrimSpace(fm.Kind) != "" && PageType(strings.TrimSpace(fm.Kind)) != typ {
+		issues = append(issues, Issue{Level: IssueWarning, Path: rel, Message: fmt.Sprintf("kind %q does not match directory type %q", fm.Kind, typ)})
 	}
 	return Page{
-		Type:                typ,
-		Path:                rel,
-		Slug:                slug,
-		Title:               title,
-		Summary:             strings.TrimSpace(fm.Summary),
-		Status:              strings.TrimSpace(fm.Status),
-		Confidence:          strings.TrimSpace(fm.Confidence),
-		SearchTerms:         trimStrings(fm.SearchTerms),
-		Features:            normalizeReferences(fm.Features),
-		Capabilities:        normalizeReferences(fm.Capabilities),
-		Workflows:           workflows,
-		RelatedCapabilities: normalizeReferences(fm.RelatedCapabilities),
-		RelatedFeatures:     normalizeReferences(fm.RelatedFeatures),
-		RelatedWorkflows:    normalizeReferences(fm.RelatedWorkflows),
+		Type:             typ,
+		Path:             rel,
+		Slug:             slug,
+		Title:            title,
+		Summary:          strings.TrimSpace(fm.Summary),
+		Status:           strings.TrimSpace(fm.Status),
+		Confidence:       strings.TrimSpace(fm.Confidence),
+		SearchTerms:      trimStrings(fm.SearchTerms),
+		Workflows:        page.NormalizeReferences(fm.Workflows),
+		Topics:           page.NormalizeReferences(fm.Topics),
+		RelatedTopics:    page.NormalizeReferences(fm.RelatedTopics),
+		RelatedWorkflows: page.NormalizeReferences(fm.RelatedWorkflows),
 	}, issues, nil
 }
 
 func extractFrontmatter(data []byte) ([]byte, bool) {
-	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
-	if !bytes.HasPrefix(data, []byte("---\n")) {
-		return nil, false
-	}
-	rest := data[len("---\n"):]
-	end := bytes.Index(rest, []byte("\n---"))
-	if end < 0 {
-		return nil, false
-	}
-	return rest[:end], true
-}
-
-func normalizeWorkflowField(value any) ([]string, error) {
-	switch v := value.(type) {
-	case nil:
-		return nil, nil
-	case string:
-		ref := normalizeReference(v)
-		if ref == "" {
-			return nil, nil
-		}
-		return []string{ref}, nil
-	case []any:
-		values := make([]string, 0, len(v))
-		for _, item := range v {
-			s, ok := item.(string)
-			if !ok {
-				return nil, fmt.Errorf("workflow entries must be strings")
-			}
-			if ref := normalizeReference(s); ref != "" {
-				values = append(values, ref)
-			}
-		}
-		return values, nil
-	default:
-		return nil, fmt.Errorf("workflow must be a string or list")
-	}
-}
-
-func normalizeReferences(values []string) []string {
-	out := make([]string, 0, len(values))
-	seen := map[string]struct{}{}
-	for _, value := range values {
-		ref := normalizeReference(value)
-		if ref == "" {
-			continue
-		}
-		if _, ok := seen[ref]; ok {
-			continue
-		}
-		seen[ref] = struct{}{}
-		out = append(out, ref)
-	}
-	return out
-}
-
-func normalizeReference(value string) string {
-	value = strings.TrimSpace(value)
-	value = strings.TrimPrefix(value, "[[")
-	value = strings.TrimSuffix(value, "]]")
-	value = strings.TrimSpace(value)
-	value = strings.TrimSuffix(value, ".md")
-	value = filepath.ToSlash(value)
-	if strings.Contains(value, "/") {
-		value = pathBase(value)
-	}
-	return strings.TrimSpace(value)
-}
-
-func pathBase(value string) string {
-	parts := strings.Split(value, "/")
-	return parts[len(parts)-1]
+	raw, _, ok := page.ExtractFrontmatter(data)
+	return raw, ok
 }
 
 func trimStrings(values []string) []string {

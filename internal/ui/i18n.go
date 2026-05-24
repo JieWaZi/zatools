@@ -26,6 +26,8 @@ type Catalog struct {
 	DevwikiInitShort              string
 	DevwikiLinkShort              string
 	DevwikiGraphShort             string
+	DevwikiCheckShort             string
+	DevwikiReadShort              string
 	RemoveShort                   string
 	CheckShort                    string
 	UpdateShort                   string
@@ -68,6 +70,8 @@ type Catalog struct {
 	FlagDevwikiGraphNoOpen        string
 	FlagDevwikiGraphForce         string
 	FlagDevwikiGraphCheck         string
+	FlagDevwikiReadView           string
+	FlagDevwikiReadFormat         string
 	StepParsingSource             string
 	StepValidateLocalPath         string
 	StepCloneRepository           string
@@ -199,6 +203,8 @@ var catalogs = map[string]Catalog{
 		DevwikiInitShort:              "生成 DevWiki 项目并安装所选 runtime skills",
 		DevwikiLinkShort:              "将 DevWiki 文档库关联到代码库",
 		DevwikiGraphShort:             "生成并打开 DevWiki 图谱",
+		DevwikiCheckShort:             "校验 DevWiki 文档格式和图谱关系",
+		DevwikiReadShort:              "按 view 读取 DevWiki 页面",
 		RemoveShort:                   "删除已安装技能",
 		CheckShort:                    "检查技能是否有可用更新",
 		UpdateShort:                   "更新已安装技能",
@@ -241,6 +247,8 @@ var catalogs = map[string]Catalog{
 		FlagDevwikiGraphNoOpen:        "不自动打开浏览器",
 		FlagDevwikiGraphForce:         "忽略缓存并强制重建图谱",
 		FlagDevwikiGraphCheck:         "只校验图谱关系，不生成页面或启动服务",
+		FlagDevwikiReadView:           "读取 view（card、core、explain）",
+		FlagDevwikiReadFormat:         "输出格式，v1 仅支持 text",
 		StepParsingSource:             "解析来源...",
 		StepValidateLocalPath:         "校验本地路径...",
 		StepCloneRepository:           "克隆仓库...",
@@ -370,6 +378,8 @@ var catalogs = map[string]Catalog{
 		DevwikiInitShort:              "Generate a DevWiki project and install selected runtime skills",
 		DevwikiLinkShort:              "Link a DevWiki document root to code repositories",
 		DevwikiGraphShort:             "Build and open the DevWiki graph",
+		DevwikiCheckShort:             "Validate DevWiki document format and graph relations",
+		DevwikiReadShort:              "Read a DevWiki page view",
 		RemoveShort:                   "Remove installed skills",
 		CheckShort:                    "Check for available skill updates",
 		UpdateShort:                   "Update installed skills",
@@ -412,6 +422,8 @@ var catalogs = map[string]Catalog{
 		FlagDevwikiGraphNoOpen:        "Do not open the browser automatically",
 		FlagDevwikiGraphForce:         "Ignore cache and rebuild the graph",
 		FlagDevwikiGraphCheck:         "Only validate graph relations without generating or serving",
+		FlagDevwikiReadView:           "View to read (card, core, explain)",
+		FlagDevwikiReadFormat:         "Output format, v1 supports text only",
 		StepParsingSource:             "Parsing source...",
 		StepValidateLocalPath:         "Validating local path...",
 		StepCloneRepository:           "Cloning repository...",

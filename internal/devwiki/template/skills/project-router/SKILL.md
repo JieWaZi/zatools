@@ -1,6 +1,6 @@
 ---
 name: "devwiki-project-router"
-description: "当用户提出项目功能、设计文档、代码定位、故障排查、Wiki 构建、Wiki 查询、Wiki 健康维护、代码反向成文或 qmd 检索层维护相关请求时使用。该 Skill 先判断意图、证据需求和检索边界，再路由到 DevWiki 的具体技能。"
+description: "当用户提出项目功能、设计文档、代码定位、故障排查、Wiki 构建、Wiki 查询、Wiki 健康维护、代码反向成文或 qmd 检索层维护相关请求时使用。"
 argument-hint: "<问题、任务或文档范围>"
 ---
 
@@ -35,7 +35,9 @@ argument-hint: "<问题、任务或文档范围>"
 
 | 意图类型 | 目标 Skill | 职责 |
 |---|---|---|
-| ingest | `devwiki-ingest` | 从原始资料建立或更新 DevWiki，生成 capability、feature、workflow、troubleshooting、术语和入口导航 |
+| ingest | `devwiki-ingest` | 从原始资料建立或更新 DevWiki，生成 TopicTask / WorkflowTask / TroubleshootingTask、术语和入口导航 |
+| topic_write | `devwiki-topic` | 创建或维护 `wiki/topics/`，只写主题边界、功能规则、关键状态和关联 Workflow |
+| workflow_write | `devwiki-workflow` | 创建或维护 `wiki/workflows/`，只写工程入口、代码定位、调用链、修改影响和验证方式 |
 | maintain | `devwiki-maintain` | 对已有 Wiki 做证据一致性、过期内容、引用缺失、入口错误和 query 污染维护 |
 | query | `devwiki-query` | 查询已有 Wiki、raw 和必要的代码线索，回答能力、功能、工程定位和排障问题 |
 | code_to_doc | `devwiki-code-to-doc` | 从代码、接口、配置项、日志或路由反向生成或更新 DevWiki 页面 |
@@ -59,6 +61,7 @@ devwiki-ingest
 ```
 
 默认需要 qmd 或本地文档搜索来匹配已有页面；涉及写入时必须先形成提案，按风险确认后再落盘。
+确认落盘后，`devwiki-ingest` 只负责任务编排；Topic 正文交给 `devwiki-topic`，Workflow 正文交给 `devwiki-workflow`。
 
 ### 2. Wiki 健康维护类
 
@@ -66,7 +69,7 @@ devwiki-ingest
 
 - 用户说「维护 Wiki」「检查 Wiki 健康」「maintain」「体检一下」
 - 用户指出 query 回答用了旧规则、旧机制或过期页面
-- 用户要求检查 raw/wiki/code 是否一致，或检查 feature 是否遗漏关键设计
+- 用户要求检查 raw/wiki/code 是否一致，或检查 topic 是否遗漏关键设计
 - 用户要求修正冲突、过期、断链、孤立页、引用缺失、index/glossary 或页面入口错误
 - 用户要求把旧内容标记为历史、降低旧页面检索命中，或避免 query 继续命中过期结论
 
@@ -105,7 +108,7 @@ devwiki-query
 
 - 用户要求「从代码生成文档」「从接口反推功能说明」「代码梳理成 Wiki」
 - 用户给出 API URL、关键文件、关键函数、路由、配置项或日志关键字，要求沉淀为文档
-- 文档缺失或过期，需要以当前实现为准整理 workflow，或必要时补 feature / troubleshooting
+- 文档缺失或过期，需要以当前实现为准整理 workflow，或必要时补 topic / troubleshooting
 
 路由到：
 
@@ -191,7 +194,7 @@ internal_non_developer
 
 - 查询功能说明、设计文档、工程定位、业务流程
 - 查询排障经验、历史会议或已有 Wiki 页面
-- 判断是否已有类似页面或类似 feature
+- 判断是否已有类似页面或类似 topic
 - 准备把文档或代码证据写入 Wiki
 - 判断请求应属于 ingest、maintain、query、code-to-doc 还是 qmd-sync
 
@@ -211,14 +214,14 @@ internal_non_developer
 
 - 用户明确问文件、函数、接口、调用链、实现现实、运行时行为
 - `wiki/` / `raw/` 证据不足，且必须用代码才能回答
-- 目标 Skill 要写入或修正 `code_refs`、`api_entries`、`test_refs`
+- 目标 Skill 要写入或修正 代码定位表
 - 查询或讨论结果会影响开发实现，需要确认现有入口和边界
 
 代码搜索顺序：
 
-1. 先读取相关 workflow 页的 `code_refs`、`api_entries`、`test_refs`
+1. 先读取相关 workflow 页的 代码定位表
 2. 如果已有明确代码锚点，直接定向读取或 `rg` 搜该锚点
-3. 如果没有明确锚点，先按检索规则召回相关 feature / raw / code 候选
+3. 如果没有明确锚点，先按检索规则召回相关 topic / raw / code 候选
 4. 只读取 top-K 候选文件中的关键入口、关键函数或关键边界
 5. 代码与文档冲突时，分别标明「代码现状」和「文档描述」，不要混成一个结论
 

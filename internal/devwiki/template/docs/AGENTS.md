@@ -3,8 +3,6 @@
 > 面向研发场景的 DevWiki，由 Claude Code 与 Codex 共同驱动。
 > 本文件是 wiki 的运行时入口，只定义项目级目录、链接规范、检索顺序与 workflow 约束。
 
----
-
 ## 目录结构
 
 ```text
@@ -23,8 +21,7 @@
     ├── index.md                 ← Wiki 总目录与导航入口
     ├── glossary.md              ← 术语表
     ├── log.md                   ← 追加式操作日志
-    ├── capabilities/            ← 系统能力
-    ├── features/                ← 具体功能设计
+    ├── topics/                  ← 主题边界、功能规则与实现入口
     ├── workflows/               ← 工程定位、调用链与代码线索
     ├── troubleshooting/         ← 排障知识
     └── outputs/                 ← ingest / maintain / query / code-to-doc / qmd-sync 报告
@@ -34,16 +31,13 @@
 
 `raw/` 是事实来源层，`wiki/` 是结构化知识层。`config/search.yaml` 只保存检索配置，不替代事实内容。
 
----
-
 ## Wiki 目录
 
 DevWiki 的人工维护知识页按目录组织。具体页面模板、字段结构、页面边界和证据写入规则由对应 DevWiki skill 和 `references/` 维护。
 
 | 目录 | 文件名 |
 |------|--------|
-| `wiki/capabilities/` | `{slug}.md` |
-| `wiki/features/` | `{slug}.md` |
+| `wiki/topics/` | `{slug}.md` |
 | `wiki/workflows/` | `{slug}.md` |
 | `wiki/troubleshooting/` | `{slug}.md` |
 
@@ -51,28 +45,18 @@ DevWiki 的人工维护知识页按目录组织。具体页面模板、字段结
 
 - `wiki/outputs/`
 
-本文不重复定义各类页面边界、页面模板、frontmatter 字段、`sources` 与 `code_refs` 结构，避免和 skill 内的模板规则冲突。
-
 关键显式路径：
 
-- `wiki/capabilities/{slug}.md`
-- `wiki/features/{slug}.md`
+- `wiki/topics/{slug}.md`
 - `wiki/workflows/{slug}.md`
 - `wiki/troubleshooting/{slug}.md`
 - `wiki/index.md`
 - `wiki/glossary.md`
 - `wiki/log.md`
-- `wiki/capabilities/`
-- `wiki/features/`
-- `wiki/workflows/`
-- `wiki/troubleshooting/`
-- `wiki/outputs/`
 - `raw/requirements/`
 - `raw/designs/`
 - `raw/features/`
 - `raw/tests/`
-
----
 
 ## 链接语法
 
@@ -81,20 +65,9 @@ DevWiki 的人工维护知识页按目录组织。具体页面模板、字段结
 ```markdown
 [[slug]]
 [[user-management]]
-[[permission-assignment]]
-[[user-group-management]]
 ```
 
-命名规范：
-
-- 全小写
-- 使用连字符分隔
-- 不带空格
-- slug 一旦发布应尽量保持稳定
-
-外部 raw 文件、代码文件、接口入口和测试入口不是 Wiki 页面，不使用 wikilink。它们的证据记录方式以对应 skill 的写入规则为准。
-
----
+slug 使用小写连字符，发布后应尽量保持稳定。外部 raw 文件、代码文件、接口入口和测试入口不是 Wiki 页面，不使用 wikilink。
 
 ## Cross Reference 规则
 
@@ -102,11 +75,11 @@ DevWiki 的人工维护知识页按目录组织。具体页面模板、字段结
 
 | 正向操作 | 必须同步的反向操作 |
 |----------|-------------------|
-| capability/A 写入 `features: [[feature-F]]` | feature/F 的 `capabilities` 追加 A |
-| capability/A 写入 `related_capabilities: [[capability-B]]` | capability/B 的 `related_capabilities` 追加 A |
-| feature/F 写入 `workflow: [[workflow-W]]` | workflow/W 的 `features` 追加 F |
-| feature/F 写入 `related_features: [[feature-G]]` | feature/G 的 `related_features` 追加 F |
-| troubleshooting/T 写入 `features: [[feature-F]]` | feature/F 的排障入口摘要追加 T |
+| topic/T 写入 `workflows: [[workflow-W]]` | workflow/W 的 `topics` 追加 T |
+| topic/T 写入 `related_topics: [[topic-R]]` | topic/R 的 `related_topics` 追加 T |
+| workflow/W 写入 `topics: [[topic-T]]` | topic/T 的 `workflows` 追加 W |
+| workflow/W 写入 `related_workflows: [[workflow-R]]` | workflow/R 的 `related_workflows` 追加 W |
+| troubleshooting/T 写入 `topics: [[topic-A]]` | topic/A 的排障入口摘要追加 T |
 
 以下外部对象没有反向页面要求：
 
@@ -115,47 +88,49 @@ DevWiki 的人工维护知识页按目录组织。具体页面模板、字段结
 - 接口入口
 - 测试入口
 
----
+## View 读取协议
+
+Topic 和 Workflow 页面必须使用 `devwiki:section` 标记：
+
+```markdown
+<!-- devwiki:section id=card -->
+## 导航卡
+<!-- /devwiki:section -->
+```
+
+支持的 view：
+
+- Topic：`card`、`core`、`explain`
+- Workflow：`card`、`core`、`explain`
+
+读取命令：
+
+```bash
+zatools devwiki read topic <slug> --view card
+zatools devwiki read topic <slug> --view core
+zatools devwiki read workflow <slug> --view core
+```
 
 ## 检索顺序
 
 按用户意图选择起点：
 
-- 能力问题：`capabilities → features`
-- 功能问题：`features → capabilities`
-- 代码问题：`workflows → features → rg`
-- 排障问题：`troubleshooting → workflows → features`
+- 主题、能力、功能、规则问题：`topics`
+- 代码问题：`workflows → topics → rg`
+- 排障问题：`troubleshooting → workflows → topics`
 
-检索通道按「成本 / 速度由低到高」阶梯升档，详见 skill 内的 `references/zatools-qmd.md`：
-
-1. 本地 `grep` / 文件搜索
-2. `zatools qmd search`
-3. `zatools qmd query`
-
-任一档命中 top-K 且置信足够即停；只有当问题落到实现现实、代码归属，或文档证据仍不足时，才对 top-K 代码候选做一次定向本地排查。
-
----
+检索通道按成本升档：本地搜索、`zatools qmd search`、`zatools qmd query`。`qmd` 只是召回工具，不是真相源。
 
 ## Workflow 约束
-
-### 事实约束
 
 - `raw/` 是只读原始资料
 - facts 与 inference 必须分开表达
 - 仅凭检索输出或其他派生内容，不能单独作为证据
+- Topic 只写主题边界、功能行为、关键规则和实现入口，不写代码路径、函数名、handler、调用链
+- Workflow 只写工程实现知识，代码路径、函数、类、配置文件必须有证据
 - 页面写入和证据字段更新必须遵守对应 DevWiki skill 的模板和引用规则
-
-### 路由约束
-
-- 项目知识任务先由 `devwiki-project-router` 判断意图、身份、证据需求和检索边界，再路由到 `devwiki-ingest`、`devwiki-maintain`、`devwiki-query`、`devwiki-code-to-doc` 或 `devwiki-qmd-sync`
-
-### 确认策略
-
-- 待确认问题优先通过对话和用户对齐
+- 项目知识任务先由 `devwiki-project-router` 判断意图、身份、证据需求和检索边界，再路由到 `devwiki-ingest`、`devwiki-topic`、`devwiki-workflow`、`devwiki-maintain`、`devwiki-query`、`devwiki-code-to-doc` 或 `devwiki-qmd-sync`
 - 中高风险写入必须先给 proposal，再落盘
-- 多个候选归属、拆分边界不清、页面合并/重命名、代码证据不足时必须先问用户
-
----
 
 ## 操作说明
 
@@ -164,7 +139,7 @@ DevWiki 的人工维护知识页按目录组织。具体页面模板、字段结
 - 如需下载 qmd models，初始化完成后可在 DevWiki 工作区内手动执行 `zatools qmd download --root .`
 - 对已有工作区补做或修复 qmd collection 注册、索引刷新与状态检查时，使用 `devwiki-qmd-sync`
 - 使用 `devwiki-project-router` 作为项目知识任务的默认总入口
-- 使用 `devwiki-ingest` 吸收 raw 文档并生成或更新 Wiki 页面、术语和关系
+- 使用 `devwiki-ingest` 吸收 raw 文档并生成 TopicTask / WorkflowTask；Topic 正文交给 `devwiki-topic`，Workflow 正文交给 `devwiki-workflow`
 - 使用 `devwiki-maintain` 维护已有 Wiki 的证据一致性、过期内容、引用缺失、关系错误和 query 污染
 - 使用 `devwiki-query` 查询 Wiki、raw、代码线索、设计意图和排障知识
 - 使用 `devwiki-code-to-doc` 从代码、接口、配置项、日志或路由反向生成或更新 workflow 页面
