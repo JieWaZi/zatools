@@ -1,9 +1,11 @@
 package graph
 
 import (
-	_ "embed"
+	"embed"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 //go:embed static/index.html
@@ -20,6 +22,9 @@ var cytoscapeJS string
 
 //go:embed static/cytoscape-LICENSE.txt
 var cytoscapeLicense string
+
+//go:embed static/vendor/vditor
+var vendorFS embed.FS
 
 // WriteAssets writes the static graph browser into an output directory.
 func WriteAssets(outDir string) error {
@@ -39,5 +44,29 @@ func WriteAssets(outDir string) error {
 			return err
 		}
 	}
+	if err := writeEmbeddedDir(outDir, vendorFS, "static/vendor"); err != nil {
+		return err
+	}
 	return nil
+}
+
+func writeEmbeddedDir(outDir string, fsys embed.FS, root string) error {
+	return fs.WalkDir(fsys, root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		rel := strings.TrimPrefix(path, root+"/")
+		target := filepath.Join(outDir, "assets", "vendor", filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		data, err := fsys.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, 0o644)
+	})
 }

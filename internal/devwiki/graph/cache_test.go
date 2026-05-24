@@ -48,7 +48,21 @@ func TestWriteOutputsCreatesGraphFiles(t *testing.T) {
 	if err := WriteOutputs(outDir, graph, manifest); err != nil {
 		t.Fatalf("WriteOutputs() error = %v", err)
 	}
-	for _, rel := range []string{"graph.json", "manifest.json", "index.html", "assets/app.js", "assets/style.css", "assets/cytoscape.min.js", "assets/cytoscape-LICENSE.txt"} {
+	for _, rel := range []string{
+		"graph.json",
+		"manifest.json",
+		"index.html",
+		"assets/app.js",
+		"assets/style.css",
+		"assets/cytoscape.min.js",
+		"assets/cytoscape-LICENSE.txt",
+		"assets/vendor/vditor/dist/index.css",
+		"assets/vendor/vditor/dist/index.min.js",
+		"assets/vendor/vditor/dist/js/lute/lute.min.js",
+		"assets/vendor/vditor/dist/js/mermaid/mermaid.min.js",
+		"assets/vendor/vditor/dist/js/highlight.js/highlight.min.js",
+		"assets/vendor/vditor/LICENSE",
+	} {
 		if _, err := os.Stat(filepath.Join(outDir, filepath.FromSlash(rel))); err != nil {
 			t.Fatalf("missing output %s: %v", rel, err)
 		}

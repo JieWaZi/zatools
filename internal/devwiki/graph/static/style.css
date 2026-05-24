@@ -106,7 +106,6 @@ body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSyst
 .related-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .related-button { border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; }
 .related-button:hover { color: #1677ff; }
-.related-slug { color: #5f6b7e; margin-left: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 128px; }
 .muted { color: #9ca3af; }
 .preview-link {
   flex: 0 0 auto;
@@ -146,8 +145,9 @@ body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSyst
   inset: 0;
   z-index: 80;
   display: none;
-  align-items: stretch;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
 }
 .markdown-modal.show { display: flex; }
 .markdown-backdrop {
@@ -159,13 +159,13 @@ body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSyst
 .markdown-dialog {
   position: relative;
   z-index: 1;
-  width: min(760px, 58vw);
-  height: calc(100vh - 28px);
-  margin: 14px 14px 14px 0;
+  width: min(90vw, calc(100vw - 48px));
+  height: min(90vh, calc(100vh - 48px));
+  margin: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(219,226,238,.92);
-  border-radius: 20px;
+  border-radius: 14px;
   background: #fff;
   box-shadow: 0 30px 80px rgba(15,23,42,.24);
   overflow: hidden;
@@ -216,42 +216,29 @@ body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSyst
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 26px 34px 44px;
+  padding: clamp(24px, 4vw, 48px);
   color: #1f2937;
   line-height: 1.75;
   font-size: 15px;
+  background: #fff;
 }
-.markdown-content h1,
-.markdown-content h2,
-.markdown-content h3 {
-  color: #111827;
-  letter-spacing: 0;
-  line-height: 1.25;
+.markdown-preview-inner {
+  width: min(100%, 1080px);
+  max-width: 1080px;
+  min-height: 100%;
+  margin: 0 auto;
 }
-.markdown-content h1 { font-size: 28px; margin: 0 0 18px; }
-.markdown-content h2 { font-size: 22px; margin: 28px 0 12px; }
-.markdown-content h3 { font-size: 17px; margin: 22px 0 10px; }
-.markdown-content p { margin: 10px 0; }
-.markdown-content ul { padding-left: 22px; }
-.markdown-content code {
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: #f1f5f9;
-  color: #0f172a;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
-}
-.markdown-content pre {
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: #0f172a;
-  overflow: auto;
-}
-.markdown-content pre code {
+.markdown-preview-inner.vditor-reset,
+.markdown-preview-inner .vditor-reset {
   padding: 0;
-  background: transparent;
-  color: #e5e7eb;
 }
+.markdown-content .vditor-reset h1,
+.markdown-content .vditor-reset h2,
+.markdown-content .vditor-reset h3 { letter-spacing: 0; }
+.markdown-content .language-mermaid,
+.markdown-content .language-mindmap,
+.markdown-content .language-echarts,
+.markdown-content .language-flowchart { overflow-x: auto; }
 .markdown-loading {
   height: 180px;
   display: grid;
