@@ -61,6 +61,24 @@ func TestCheckDocumentAcceptsSpecificFile(t *testing.T) {
 	}
 }
 
+func TestCheckDocumentIgnoresSupportFilesWithoutSections(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "index.md"), "# Wiki Index\n")
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "glossary.md"), "# Glossary\n")
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "log.md"), "# Wiki Log\n\n- entry\n")
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "topics", "ok.md"), validTopicDocument("ok"))
+
+	service := NewServiceWithRuntime(common.Runtime{Workspace: skills.NewWorkspace(root)})
+	var out bytes.Buffer
+	err := service.Check(context.Background(), CheckOptions{Root: root, Types: []string{"document"}, Stdout: &out})
+	if err != nil {
+		t.Fatalf("Check(document) error = %v, output=%q", err, out.String())
+	}
+	if strings.Contains(out.String(), "index.md") || strings.Contains(out.String(), "glossary.md") || strings.Contains(out.String(), "log.md") {
+		t.Fatalf("support files should not be checked, output=%q", out.String())
+	}
+}
+
 func TestCheckGraphDoesNotWriteOutputs(t *testing.T) {
 	root := t.TempDir()
 	mustWriteFileDevwikiApp(t, filepath.Join(root, "config", "project.yaml"), "project_name: Sample\nproject_slug: sample\n")

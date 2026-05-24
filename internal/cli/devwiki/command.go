@@ -12,6 +12,9 @@ import (
 	"zatools/internal/ui"
 )
 
+// SuppressLogoAnnotation marks commands that should not emit the CLI logo before running.
+const SuppressLogoAnnotation = "zatools.io/suppress-logo"
+
 // NewCommand 构建 `devwiki` 子命令及其初始化入口。
 func NewCommand() *cobra.Command {
 	copy := ui.Messages()
@@ -94,9 +97,10 @@ func newReadCmd(service *devwikiapp.Service) *cobra.Command {
 	var opts devwikiapp.ReadOptions
 
 	cmd := &cobra.Command{
-		Use:   "read <topic|workflow> <slug>",
-		Short: copy.DevwikiReadShort,
-		Args:  cobra.ExactArgs(2),
+		Use:         "read <topic|workflow> <slug>",
+		Short:       copy.DevwikiReadShort,
+		Args:        cobra.ExactArgs(2),
+		Annotations: map[string]string{SuppressLogoAnnotation: "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.Kind = args[0]
 			opts.Slug = args[1]

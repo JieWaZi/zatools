@@ -129,7 +129,10 @@ func collectDocumentCheckFiles(root string, paths []string) ([]string, error) {
 				if err != nil {
 					return nil, err
 				}
-				files = append(files, filepath.ToSlash(rel))
+				rel = filepath.ToSlash(rel)
+				if isSectionedWikiDocument(rel) {
+					files = append(files, rel)
+				}
 			}
 			continue
 		}
@@ -147,7 +150,10 @@ func collectDocumentCheckFiles(root string, paths []string) ([]string, error) {
 			if err != nil {
 				return err
 			}
-			files = append(files, filepath.ToSlash(rel))
+			rel = filepath.ToSlash(rel)
+			if isSectionedWikiDocument(rel) {
+				files = append(files, rel)
+			}
 			return nil
 		})
 		if err != nil {
@@ -155,6 +161,11 @@ func collectDocumentCheckFiles(root string, paths []string) ([]string, error) {
 		}
 	}
 	return files, nil
+}
+
+func isSectionedWikiDocument(rel string) bool {
+	rel = filepath.ToSlash(filepath.Clean(rel))
+	return strings.HasPrefix(rel, "wiki/topics/") || strings.HasPrefix(rel, "wiki/workflows/")
 }
 
 func runGraphCheck(stdout io.Writer, root string) error {

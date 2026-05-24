@@ -436,7 +436,7 @@ func TestExtractBuiltinSkillsMaterializesSharedReferencesIntoEachSkill(t *testin
 			t.Fatal("extracted builtin skills should not include shared-references as an installable directory")
 		}
 		gotNames = append(gotNames, entry.Name())
-		for _, shared := range []string{"code-tracing.md", "zatools-qmd.md"} {
+		for _, shared := range []string{"code-tracing.md", "common-file-format.md", "zatools-qmd.md"} {
 			target := filepath.Join(root, entry.Name(), "references", shared)
 			if _, err := os.Stat(target); err != nil {
 				t.Fatalf("missing shared reference %s for %s: %v", shared, entry.Name(), err)
@@ -520,6 +520,7 @@ func TestExtractBuiltinSkillsIncludesMaintainGuidance(t *testing.T) {
 		"# Maintain Proposal",
 		"这是维护过程报告，不是功能事实来源",
 		"glossary.md",
+		"references/common-file-format.md",
 		"zatools qmd update",
 		"zatools devwiki check document",
 		"zatools devwiki check graph",
@@ -528,6 +529,14 @@ func TestExtractBuiltinSkillsIncludesMaintainGuidance(t *testing.T) {
 	}
 	if containsAny(content, "relations.yml", "relations/index/glossary", "index/relations/glossary") {
 		t.Fatalf("maintain/SKILL.md still references relations.yml:\n%s", content)
+	}
+	if containsAny(content,
+		"不使用 `devwiki:section`",
+		"不要给 `wiki/index.md`",
+		"全局术语和稳定入口概念",
+		"业务能力、系统能力、跨页面主题",
+	) {
+		t.Fatalf("maintain/SKILL.md should delegate support file format rules to common-file-format:\n%s", content)
 	}
 }
 
@@ -557,6 +566,8 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 		"判断内容应该放入 card、core、explain 还是保留 raw 时",
 		"确认要生成 Topic 页面正文时",
 		"确认要生成 Workflow 页面正文时",
+		"更新 `wiki/index.md`、`wiki/glossary.md` 或 `wiki/log.md` 时",
+		"`references/common-file-format.md`",
 		"Ingest 是编排器，只生成 TopicTask / WorkflowTask / TroubleshootingTask，不写完整 Topic 或 Workflow 正文",
 		"加载 `devwiki-topic`",
 		"加载 `devwiki-workflow`",
@@ -564,7 +575,6 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 		"wiki/workflows/<slug>.md",
 		"wiki/troubleshooting/<slug>.md",
 		"wiki/glossary.md",
-		"`devwiki:section`",
 		"## 需要你确认的问题",
 		"落盘前检查",
 		"# Ingest Proposal",
@@ -574,14 +584,8 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 		"按 proposal 写入",
 		"用户要求“生成 Wiki / 导入资料 / 构建知识库”只表示启动 ingest 分析流程，不等于允许落盘",
 		"实际写入路径是否完全包含在 Ingest Proposal 的“拟写入文件”表内",
-		"Glossary 应优先沉淀业务能力、系统能力、跨页面主题、稳定领域概念和常用别名",
-		"不要把单个进程、文件名、字段名、配置键、CSV 列、动作码、函数名、日志关键字或检索词当作 glossary 术语",
-		"好例子：`告警采集与外发`",
-		"坏例子：`告警节点进程`",
-		"告警节点进程",
 		"zatools devwiki check document",
 		"zatools devwiki check graph",
-		"一个术语说明要回答“这个能力/主题解决什么问题、覆盖哪些关键行为、和哪些场景相关”",
 	) {
 		t.Fatalf("ingest/SKILL.md missing structured ingest guidance:\n%s", content)
 	}
@@ -610,6 +614,16 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 	) {
 		t.Fatalf("ingest/SKILL.md still references removed wiki paths:\n%s", content)
 	}
+	if containsAny(content,
+		"不使用 `devwiki:section`",
+		"全局术语和稳定入口概念",
+		"业务能力、系统能力、跨页面主题",
+		"单个进程、文件名、字段名",
+		"好例子：`告警采集与外发`",
+		"坏例子：`告警节点进程`",
+	) {
+		t.Fatalf("ingest/SKILL.md should delegate support file format rules to common-file-format:\n%s", content)
+	}
 	for _, rel := range []string{
 		"topic/references/topic_template.md",
 		"workflow/references/workflow_template.md",
@@ -617,6 +631,39 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(root, rel)); err != nil {
 			t.Fatalf("missing page writing reference %s: %v", rel, err)
 		}
+	}
+}
+
+func TestExtractBuiltinSkillsIncludesCommonFileFormatGuidance(t *testing.T) {
+	t.Parallel()
+
+	root, cleanup, err := ExtractBuiltinSkills("zh")
+	if err != nil {
+		t.Fatalf("ExtractBuiltinSkills error = %v", err)
+	}
+	defer cleanup()
+
+	data, err := os.ReadFile(filepath.Join(root, "ingest", "references", "common-file-format.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(common-file-format.md) error = %v", err)
+	}
+	content := string(data)
+	if !containsAll(content,
+		"# DevWiki 通用文件格式",
+		"`wiki/index.md`",
+		"`wiki/glossary.md`",
+		"`wiki/log.md`",
+		"不使用 YAML frontmatter",
+		"不使用 `devwiki:section`",
+		"# Wiki Index",
+		"# Glossary",
+		"# Wiki Log",
+		"Append-only chronological log",
+		"业务能力、系统能力、跨页面主题、稳定领域概念和常用别名",
+		"不要把单个进程、文件名、字段名、配置键、CSV 列、动作码、函数名、日志关键字或检索词当作 glossary 术语",
+		"一个术语说明要回答“这个能力/主题解决什么问题、覆盖哪些关键行为、和哪些场景相关”",
+	) {
+		t.Fatalf("common-file-format.md missing support file format guidance:\n%s", content)
 	}
 }
 
@@ -1041,6 +1088,7 @@ func TestExtractBuiltinSkillsIncludesCodeToDocGuidance(t *testing.T) {
 		"wiki/topics/",
 		"wiki/workflows/",
 		"wiki/troubleshooting/",
+		"涉及 `wiki/index.md`、`wiki/glossary.md` 或 `wiki/log.md` 更新时，再读 `references/common-file-format.md`",
 		"Topic 的 sources 不写代码文件路径或 `kind: code`",
 		"代码、wiki、raw 冲突",
 		"zatools devwiki check document",
@@ -1052,6 +1100,14 @@ func TestExtractBuiltinSkillsIncludesCodeToDocGuidance(t *testing.T) {
 	}
 	if containsAny(content, "wiki/relations.yml", "relations.yml", "wiki/modules/", "Source Card") {
 		t.Fatalf("code-to-doc/SKILL.md still references removed module/source behavior:\n%s", content)
+	}
+	if containsAny(content,
+		"不使用 `devwiki:section`",
+		"不要给 `wiki/index.md`",
+		"全局术语和稳定入口概念",
+		"业务能力、系统能力、跨页面主题",
+	) {
+		t.Fatalf("code-to-doc/SKILL.md should delegate support file format rules to common-file-format:\n%s", content)
 	}
 }
 

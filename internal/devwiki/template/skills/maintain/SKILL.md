@@ -25,6 +25,7 @@ index/glossary   = query 入口控制层
 - `references/zatools-qmd.md`
 - 涉及写入、重分类或破坏性操作时，再读 `references/mutation-safety.md`
 - 涉及代码核对时，再读 `references/code-tracing.md`
+- 涉及 `wiki/index.md`、`wiki/glossary.md` 或 `wiki/log.md` 更新时，再读 `references/common-file-format.md`
 
 ---
 

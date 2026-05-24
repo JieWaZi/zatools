@@ -152,4 +152,10 @@ func TestDevwikiReadCommandFlags(t *testing.T) {
 			t.Fatalf("read command missing flag %q", flag)
 		}
 	}
+	if readCmd.Annotations[SuppressLogoAnnotation] != "true" {
+		t.Fatalf("read command should suppress logo annotation")
+	}
+	if initCmd, _, err := cmd.Find([]string{"init"}); err != nil || initCmd.Annotations[SuppressLogoAnnotation] == "true" {
+		t.Fatalf("init command should not suppress logo: cmd=%v err=%v", initCmd, err)
+	}
 }

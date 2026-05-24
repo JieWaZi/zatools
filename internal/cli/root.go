@@ -26,6 +26,9 @@ func NewRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			if cmd.Annotations[devwikicmd.SuppressLogoAnnotation] == "true" {
+				return
+			}
 			showLogoOnce.Do(ui.ShowLogo)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
