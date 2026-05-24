@@ -1,7 +1,6 @@
 let rawGraph;
 let cy;
-let currentFilter = 'all';
-let currentDepth = 2;
+let currentFilter = 'capability';
 let selectedNodeID = '';
 let currentPath = '';
 let currentTitle = '项目总览';
@@ -12,7 +11,6 @@ const els = {
   warningCount: document.getElementById('warningCount'),
   warningCountCard: document.getElementById('warningCountCard'),
   projectName: document.getElementById('projectName'),
-  projectSlug: document.getElementById('projectSlug'),
   capCount: document.getElementById('capCount'),
   featureCount: document.getElementById('featureCount'),
   workflowCount: document.getElementById('workflowCount'),
@@ -23,7 +21,6 @@ const els = {
   detailEyebrow: document.getElementById('detailEyebrow'),
   detailTitle: document.getElementById('detailTitle'),
   detailType: document.getElementById('detailType'),
-  detailSlug: document.getElementById('detailSlug'),
   detailSummary: document.getElementById('detailSummary'),
   detailStatus: document.getElementById('detailStatus'),
   detailConfidence: document.getElementById('detailConfidence'),
@@ -37,10 +34,6 @@ const els = {
   warningList: document.getElementById('warningList'),
   fallback: document.getElementById('cyFallback'),
   fallbackText: document.getElementById('fallbackText')
-};
-
-const markdownSamples = {
-  default: '# 文档预览\n\n无法直接读取当前 Markdown 文件。\n\n请确认 `zatools devwiki graph` 正在 DevWiki 根目录下运行，并且节点 path 指向 `wiki/` 下的 Markdown 文件。\n\n```text\nzatools devwiki graph --force\n```'
 };
 
 const typeName = { capability: 'Capability', feature: 'Feature', workflow: 'Workflow' };
@@ -85,7 +78,7 @@ function toCytoscapeElements(data) {
       confidence: node.confidence || '-',
       status: node.status || '-',
       search_terms: node.search_terms || [],
-      nodeLabel: (node.title || node.slug) + '\n' + node.slug,
+      nodeLabel: node.title || node.slug,
       icon: typeStyle[node.type] ? typeStyle[node.type].icon : '⌬'
     },
     position: positions[node.id]
@@ -139,7 +132,7 @@ function initCytoscape(elements) {
     maxZoom: 2.2,
     wheelSensitivity: 0.18,
     boxSelectionEnabled: false,
-    layout: { name: 'preset', fit: true, padding: 64 },
+    layout: forceLayoutOptions(false),
     style: graphStyle()
   });
   cy.on('tap', 'node', (event) => selectNode(event.target));
@@ -147,9 +140,8 @@ function initCytoscape(elements) {
     if (event.target === cy) clearSelection();
   });
   cy.ready(() => {
-    runPresetLayout();
-    const firstFeature = cy.nodes('[type = "feature"]')[0];
-    const firstNode = firstFeature || cy.nodes()[0];
+    applyFilterAndSearch();
+    const firstNode = cy.nodes('[type = "capability"]')[0] || cy.nodes()[0];
     if (firstNode) selectNode(firstNode);
   });
 }
@@ -167,6 +159,9 @@ function graphStyle() {
     { selector: '.selected', style: { 'width': 150, 'height': 74, 'border-width': 3.4, 'border-color': '#16b86f', 'background-gradient-stop-colors': '#ffffff #dcfce7', 'shadow-blur': 30, 'shadow-opacity': 0.34, 'shadow-color': '#16b86f', 'z-index': 10 } },
     { selector: '.neighbor', style: { 'border-width': 3, 'opacity': 1, 'z-index': 8 } },
     { selector: '.second-hop', style: { 'opacity': 0.82, 'border-style': 'dashed' } },
+    { selector: '.search-match', style: { 'border-width': 3.2, 'border-color': '#7c3aed', 'shadow-blur': 26, 'shadow-opacity': 0.30, 'shadow-color': '#7c3aed', 'z-index': 9 } },
+    { selector: '.search-related', style: { 'border-width': 2.4, 'border-color': '#94a3b8', 'border-style': 'dashed', 'opacity': 0.92, 'z-index': 7 } },
+    { selector: '.search-edge', style: { 'width': 2.2, 'opacity': 0.86 } },
     { selector: '.faded', style: { 'opacity': 0.18 } },
     { selector: '.hidden-by-type, .hidden-by-search', style: { 'display': 'none' } }
   ];
@@ -176,7 +171,6 @@ function updateSummary(data) {
   const counts = { capability: 0, feature: 0, workflow: 0 };
   data.nodes.forEach((node) => counts[node.type]++);
   els.projectName.textContent = data.project && data.project.name ? data.project.name : '项目总览';
-  els.projectSlug.textContent = data.project && data.project.slug ? data.project.slug : 'DevWiki Graph';
   els.capCount.textContent = counts.capability;
   els.featureCount.textContent = counts.feature;
   els.workflowCount.textContent = counts.workflow;
@@ -192,7 +186,7 @@ function renderWarnings(warnings) {
     els.warningList.innerHTML = '<div class="related-item muted">暂无 warning</div>';
     return;
   }
-  els.warningList.innerHTML = warnings.map((warning, index) => '<div class="related-item"><span class="related-dot flow"></span>' + escapeHTML(warning.message) + '<span class="related-slug">' + escapeHTML(warning.path || 'warning.' + (index + 1)) + '</span></div>').join('');
+  els.warningList.innerHTML = warnings.map((warning, index) => '<div class="related-item"><span class="related-dot flow"></span><span class="related-title">' + escapeHTML(warning.message || ('warning.' + (index + 1))) + '</span></div>').join('');
 }
 
 function relatedItems(node, type) {
@@ -212,7 +206,7 @@ function renderRelationList(el, items) {
   el.innerHTML = items.map((item) => {
     const data = item.data();
     const style = typeStyle[data.type] || typeStyle.feature;
-    return '<div class="related-item related-row"><button class="related-main related-button" type="button" data-node-id="' + escapeHTML(data.id) + '"><span class="related-dot ' + style.dot + '"></span><span class="related-title">' + escapeHTML(data.title) + '</span><span class="related-slug">' + escapeHTML(data.slug) + '</span></button><button class="preview-link related-preview" type="button" data-path="' + escapeHTML(data.path || '') + '" data-title="' + escapeHTML(data.title || data.slug) + '">预览</button></div>';
+    return '<div class="related-item related-row"><button class="related-main related-button" type="button" data-node-id="' + escapeHTML(data.id) + '"><span class="related-dot ' + style.dot + '"></span><span class="related-title">' + escapeHTML(data.title || data.slug) + '</span></button><button class="preview-link related-preview" type="button" data-path="' + escapeHTML(data.path || '') + '" data-title="' + escapeHTML(data.title || data.slug) + '">预览</button></div>';
   }).join('');
   el.querySelectorAll('[data-node-id]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -231,7 +225,6 @@ function updateDetail(node) {
   els.detailEyebrow.textContent = '当前选中';
   els.detailTitle.textContent = data.title;
   els.detailType.textContent = typeName[data.type] || data.type;
-  els.detailSlug.textContent = data.slug;
   els.detailSummary.textContent = data.summary || '无摘要';
   els.detailStatus.textContent = data.status || '-';
   els.detailConfidence.textContent = data.confidence || '-';
@@ -240,7 +233,7 @@ function updateDetail(node) {
   els.detailType.style.color = style.color;
   els.detailType.style.background = style.bg;
   els.hintTitle.textContent = '已选中节点';
-  els.hintText.textContent = '当前选中“' + data.title + '”，' + (currentDepth === 1 ? '一跳' : '二跳') + '关系已高亮，非相关节点已淡化。';
+  els.hintText.textContent = '当前选中“' + data.title + '”，相关关系已高亮，非相关节点已淡化。';
 
   if (data.type === 'capability') {
     const features = relatedItems(node, 'feature');
@@ -300,7 +293,6 @@ function clearSelection() {
   els.detailEyebrow.textContent = '项目总览';
   els.detailTitle.textContent = rawGraph.project.name || '项目总览';
   els.detailType.textContent = 'Overview';
-  els.detailSlug.textContent = rawGraph.project.slug || '-';
   els.detailSummary.textContent = '未选中节点时，右侧展示项目总览、构建时间、warning 数量和图谱基础统计。';
   els.detailStatus.textContent = '已加载';
   els.detailConfidence.textContent = '-';
@@ -313,9 +305,9 @@ function clearSelection() {
   els.relationTitle1.textContent = 'Capability 数量';
   els.relationTitle2.textContent = 'Feature 数量';
   els.relationTitle3.textContent = 'Workflow 数量';
-  els.relationList1.innerHTML = '<div class="related-item"><span class="related-dot cap"></span>' + counts.capability + '<span class="related-slug">Capability</span></div>';
-  els.relationList2.innerHTML = '<div class="related-item"><span class="related-dot feat"></span>' + counts.feature + '<span class="related-slug">Feature</span></div>';
-  els.relationList3.innerHTML = '<div class="related-item"><span class="related-dot flow"></span>' + counts.workflow + '<span class="related-slug">Workflow</span></div>';
+  els.relationList1.innerHTML = '<div class="related-item"><span class="related-dot cap"></span><span class="related-title">Capability ' + counts.capability + '</span></div>';
+  els.relationList2.innerHTML = '<div class="related-item"><span class="related-dot feat"></span><span class="related-title">Feature ' + counts.feature + '</span></div>';
+  els.relationList3.innerHTML = '<div class="related-item"><span class="related-dot flow"></span><span class="related-title">Workflow ' + counts.workflow + '</span></div>';
 }
 
 function selectNode(node) {
@@ -323,42 +315,85 @@ function selectNode(node) {
   node.addClass('selected');
   const oneHop = node.closedNeighborhood();
   const twoHop = oneHop.closedNeighborhood();
-  const active = currentDepth === 1 ? oneHop : twoHop;
-  cy.elements().difference(active).addClass('faded');
+  cy.elements().difference(twoHop).addClass('faded');
   oneHop.nodes().difference(node).addClass('neighbor');
-  if (currentDepth === 2) {
-    twoHop.nodes().difference(oneHop.nodes()).addClass('second-hop');
-  }
+  twoHop.nodes().difference(oneHop.nodes()).addClass('second-hop');
   updateDetail(node);
 }
 
 function applyFilterAndSearch() {
   if (!cy) return;
   const kw = document.getElementById('searchInput').value.trim().toLowerCase();
-  cy.elements().removeClass('hidden-by-search hidden-by-type');
+  const searchState = collectSearchVisibleNodeIDs(kw);
+  cy.elements().removeClass('hidden-by-search hidden-by-type search-match search-related search-edge');
   cy.nodes().forEach((node) => {
     const data = node.data();
-    const terms = Array.isArray(data.search_terms) ? data.search_terms.join(' ') : '';
-    const typeHidden = currentFilter !== 'all' && data.type !== currentFilter;
-    const text = (data.title + ' ' + data.slug + ' ' + data.summary + ' ' + terms).toLowerCase();
-    const searchHidden = kw && !text.includes(kw);
-    if (typeHidden) node.addClass('hidden-by-type');
-    if (searchHidden) node.addClass('hidden-by-search');
+    const typeHidden = data.type !== currentFilter;
+    if (!kw && typeHidden) {
+      node.addClass('hidden-by-type');
+      return;
+    }
+    if (kw && !searchState.visible.has(node.id())) {
+      node.addClass('hidden-by-search');
+      return;
+    }
+    if (kw && searchState.matches.has(node.id())) {
+      node.addClass('search-match');
+      return;
+    }
+    if (kw && searchState.related.has(node.id())) {
+      node.addClass('search-related');
+    }
   });
   cy.edges().forEach((edge) => {
     const sourceHidden = edge.source().hasClass('hidden-by-type') || edge.source().hasClass('hidden-by-search');
     const targetHidden = edge.target().hasClass('hidden-by-type') || edge.target().hasClass('hidden-by-search');
     if (sourceHidden || targetHidden) edge.addClass('hidden-by-type');
+    if (kw && !sourceHidden && !targetHidden) edge.addClass('search-edge');
   });
+  updateSearchStateText(kw, searchState);
 }
 
-function runPresetLayout() {
-  if (cy) cy.layout({ name: 'preset', fit: true, padding: 64, animate: true, animationDuration: 420 }).run();
+function collectSearchVisibleNodeIDs(kw) {
+  const matches = new Set();
+  const related = new Set();
+  const visible = new Set();
+  if (!kw) return { matches, related, visible };
+  cy.nodes().forEach((node) => {
+    const data = node.data();
+    if (data.type === currentFilter && nodeMatchesSearch(node, kw)) {
+      matches.add(node.id());
+      visible.add(node.id());
+    }
+  });
+  matches.forEach((id) => {
+    const node = cy.getElementById(id);
+    node.connectedEdges().forEach((edge) => {
+      const other = edge.source().id() === id ? edge.target() : edge.source();
+      visible.add(other.id());
+      if (!matches.has(other.id())) related.add(other.id());
+    });
+  });
+  return { matches, related, visible };
 }
 
-function runForceLayout() {
-  if (!cy) return;
-  cy.layout({ name: 'cose', animate: true, animationDuration: 700, nodeRepulsion: 9000, idealEdgeLength: 120, edgeElasticity: 110, gravity: 0.25, fit: true, padding: 64 }).run();
+function nodeMatchesSearch(node, kw) {
+  const data = node.data();
+  const terms = Array.isArray(data.search_terms) ? data.search_terms.join(' ') : '';
+  const text = (data.title + ' ' + data.slug + ' ' + data.summary + ' ' + terms).toLowerCase();
+  return text.includes(kw);
+}
+
+function updateSearchStateText(kw, searchState) {
+  if (!kw) {
+    els.leftState.textContent = '已加载';
+    return;
+  }
+  els.leftState.textContent = '命中 ' + searchState.matches.size + ' / 关联 ' + searchState.related.size;
+}
+
+function forceLayoutOptions(animate) {
+  return { name: 'cose', animate: Boolean(animate), animationDuration: 700, nodeRepulsion: 9000, idealEdgeLength: 120, edgeElasticity: 110, gravity: 0.25, fit: true, padding: 64 };
 }
 
 function showFallback(message) {
@@ -388,30 +423,6 @@ function escapeHTML(value) {
   return String(value || '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
 
-function escapeHtml(value) {
-  return escapeHTML(value);
-}
-
-function fallbackRenderMarkdown(markdown) {
-  const escaped = escapeHtml(markdown || '');
-  return escaped
-    .replace(/^```([^\n]*)\n([\s\S]*?)```$/gm, '<pre><code>$2</code></pre>')
-    .replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
-    .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
-    .replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>')
-    .replace(/\n/g, '<br>');
-}
-
-function renderMarkdown(markdown) {
-  const source = typeof markdown === 'string' ? markdown : '';
-  if (window.marked && window.DOMPurify) {
-    return DOMPurify.sanitize(marked.parse(source));
-  }
-  return fallbackRenderMarkdown(source);
-}
-
 async function loadMarkdownFromLocal(path) {
   const candidates = [path, path ? './' + path : ''].filter(Boolean);
   let lastError = null;
@@ -425,11 +436,39 @@ async function loadMarkdownFromLocal(path) {
     }
   }
   return {
-    text: markdownSamples[path] || markdownSamples.default,
+    text: '# 文档预览\n\n无法直接读取当前 Markdown 文件。\n\n请确认 `zatools devwiki graph` 正在 DevWiki 根目录下运行，并且节点 path 指向 `wiki/` 下的 Markdown 文件。\n\n```text\nzatools devwiki graph --force\n```',
     source: 'fallback',
     url: path || '',
     error: lastError
   };
+}
+
+function renderMarkdownPreview(contentEl, markdown, afterRender) {
+  contentEl.innerHTML = '';
+  const previewEl = document.createElement('div');
+  previewEl.className = 'markdown-preview-inner';
+  contentEl.appendChild(previewEl);
+  if (!window.Vditor || typeof Vditor.preview !== 'function') {
+    previewEl.innerHTML = '<div class="markdown-loading">Vditor 未加载成功，请确认 vendor/vditor 静态资源存在。</div>';
+    if (afterRender) afterRender();
+    return;
+  }
+  Vditor.preview(previewEl, markdown || '', {
+    mode: 'light',
+    cdn: '/assets/vendor/vditor',
+    markdown: {
+      toc: true,
+      mark: true,
+      footnotes: true,
+      autoSpace: true
+    },
+    hljs: {
+      style: 'github'
+    },
+    after() {
+      if (afterRender) afterRender();
+    }
+  });
 }
 
 async function openMarkdownPreview(path, title) {
@@ -443,8 +482,9 @@ async function openMarkdownPreview(path, title) {
   modal.setAttribute('aria-hidden', 'false');
   const result = await loadMarkdownFromLocal(path);
   document.getElementById('markdownMeta').textContent = result.source === 'local' ? '本地 Markdown' : 'fallback Markdown 预览';
-  contentEl.innerHTML = renderMarkdown(result.text);
-  showToast(result.source === 'local' ? '已读取本地 Markdown' : '已显示 fallback Markdown 预览');
+  renderMarkdownPreview(contentEl, result.text, () => {
+    showToast(result.source === 'local' ? '已读取本地 Markdown' : '已显示 fallback Markdown 预览');
+  });
 }
 
 function closeMarkdownPreview() {
@@ -454,17 +494,9 @@ function closeMarkdownPreview() {
   modal.setAttribute('aria-hidden', 'true');
 }
 
-function runMarkdownPreviewSelfTests() {
-  console.assert(renderMarkdown('# 标题').includes('<h1'), 'Markdown h1 should render');
-  console.assert(renderMarkdown('a\nb').includes('<br>') || renderMarkdown('a\nb').includes('<p>'), 'Newlines should render');
-  console.assert(escapeHtml('<script>').includes('&lt;script&gt;'), 'escapeHtml should escape tags');
-  console.assert(fallbackRenderMarkdown('`code`').includes('<code>code</code>'), 'inline code should render');
-}
-
 function renderLoadError(err) {
   els.detailTitle.textContent = '加载失败';
   els.detailType.textContent = 'Error';
-  els.detailSlug.textContent = '-';
   els.detailSummary.textContent = err.message;
   els.detailStatus.textContent = '失败';
   els.relationList1.innerHTML = '<div class="related-item muted">请重新执行 zatools devwiki graph --force</div>';
@@ -476,19 +508,9 @@ document.getElementById('clearBtn').addEventListener('click', clearSelection);
 document.getElementById('typeSelect').addEventListener('change', (event) => {
   currentFilter = event.target.value;
   applyFilterAndSearch();
-  showToast(currentFilter === 'all' ? '已显示全部维度' : '已切换到 ' + typeName[currentFilter]);
+  showToast('已切换到 ' + typeName[currentFilter]);
 });
 document.getElementById('searchInput').addEventListener('input', applyFilterAndSearch);
-document.getElementById('depthSelect').addEventListener('change', (event) => {
-  currentDepth = Number(event.target.value);
-  const selected = selectedNodeID ? cy.getElementById(selectedNodeID) : null;
-  if (selected && selected.length) selectNode(selected);
-  showToast(currentDepth === 1 ? '已切换为直接关系' : '已切换为二跳关系');
-});
-document.getElementById('layoutSelect').addEventListener('change', (event) => {
-  event.target.value === 'preset' ? runPresetLayout() : runForceLayout();
-  showToast(event.target.value === 'preset' ? '已切换为分层布局' : '已切换为力导向布局');
-});
 document.getElementById('fitBtnTop').addEventListener('click', () => cy && cy.fit(undefined, 64));
 document.getElementById('zoomInBtn').addEventListener('click', () => cy && cy.zoom({ level: cy.zoom() + 0.15, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } }));
 document.getElementById('zoomOutBtnTop').addEventListener('click', () => cy && cy.zoom({ level: cy.zoom() - 0.15, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } }));
@@ -523,5 +545,4 @@ window.addEventListener('keydown', (event) => {
   }
 });
 
-runMarkdownPreviewSelfTests();
 loadGraph();
