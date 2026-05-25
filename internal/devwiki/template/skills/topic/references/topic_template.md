@@ -33,6 +33,7 @@ Topic 不回答：
 title: "<主题名>"
 slug: "<topic-slug>"
 kind: topic
+module: "<module-slug>"
 status: draft
 summary: "<一句话说明该主题解决的问题>"
 aliases: []
@@ -190,3 +191,4 @@ last_verified_at: YYYY-MM-DD
 - explain 只作为 core 的低频补充。
 - 不复制 raw 原文。
 - 关系字段使用字符串数组。
+- `module` 是该 Topic 所属的稳定模块 slug，用于 graph 聚合展示；不要创建独立模块页面。

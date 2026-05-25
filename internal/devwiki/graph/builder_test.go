@@ -18,6 +18,7 @@ status: active
 summary: "VIP"
 workflows: ["workflow-vip"]
 related_topics: ["dns"]
+module: "traffic-management"
 ---
 # VIP
 `)
@@ -28,6 +29,7 @@ kind: topic
 status: active
 summary: "DNS"
 related_topics: ["vip"]
+module: "traffic-management"
 ---
 # DNS
 `)
@@ -62,6 +64,34 @@ summary: "HA Workflow"
 	assertEdge(t, graph, "implemented_by", "topic:vip", "workflow:workflow-vip")
 	assertEdge(t, graph, "related", "topic:dns", "topic:vip")
 	assertEdge(t, graph, "related", "workflow:workflow-ha", "workflow:workflow-vip")
+	assertNode(t, graph, "module:traffic-management", NodeTypeModule)
+	assertEdge(t, graph, "contains", "module:traffic-management", "topic:vip")
+	assertEdge(t, graph, "contains", "module:traffic-management", "topic:dns")
+}
+
+func TestBuildGraphKeepsTopicsWithoutModuleCompatible(t *testing.T) {
+	root := t.TempDir()
+	writeGraphFile(t, root, "config/project.yaml", "project_name: Sample\nproject_slug: sample\n")
+	writeGraphFile(t, root, "wiki/topics/vip.md", `---
+title: "VIP"
+slug: "vip"
+kind: topic
+status: active
+summary: "VIP"
+---
+# VIP
+`)
+
+	graph, issues, err := Build(root)
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	if hasIssue(issues, IssueError, "") {
+		t.Fatalf("issues contain error: %#v", issues)
+	}
+	if hasNode(graph, "module:") {
+		t.Fatalf("graph unexpectedly contains module node: %#v", graph.Nodes)
+	}
 }
 
 func TestBuildReportsDuplicateSlugAsError(t *testing.T) {
@@ -147,4 +177,23 @@ func assertEdge(t *testing.T, graph Graph, typ string, source string, target str
 		}
 	}
 	t.Fatalf("missing edge %s %s -> %s in %#v", typ, source, target, graph.Edges)
+}
+
+func assertNode(t *testing.T, graph Graph, id string, typ NodeType) {
+	t.Helper()
+	for _, node := range graph.Nodes {
+		if node.ID == id && node.Type == typ {
+			return
+		}
+	}
+	t.Fatalf("missing node %s/%s in %#v", id, typ, graph.Nodes)
+}
+
+func hasNode(graph Graph, prefix string) bool {
+	for _, node := range graph.Nodes {
+		if strings.HasPrefix(node.ID, prefix) {
+			return true
+		}
+	}
+	return false
 }

@@ -17,6 +17,15 @@ const (
 	PageTypeWorkflow PageType = "workflow"
 )
 
+// NodeType identifies a rendered graph node layer.
+type NodeType string
+
+const (
+	NodeTypeModule   NodeType = "module"
+	NodeTypeTopic    NodeType = NodeType(PageTypeTopic)
+	NodeTypeWorkflow NodeType = NodeType(PageTypeWorkflow)
+)
+
 // IssueLevel describes whether a graph issue blocks the build.
 type IssueLevel string
 
@@ -41,6 +50,7 @@ type Page struct {
 	Summary          string
 	Status           string
 	Confidence       string
+	Module           string
 	Workflows        []string
 	Topics           []string
 	RelatedTopics    []string
@@ -57,7 +67,7 @@ type Project struct {
 // Node is a rendered graph node.
 type Node struct {
 	ID         string   `json:"id"`
-	Type       PageType `json:"type"`
+	Type       NodeType `json:"type"`
 	Slug       string   `json:"slug"`
 	Title      string   `json:"title"`
 	Summary    string   `json:"summary"`
@@ -78,7 +88,7 @@ type Edge struct {
 
 // Document is the right-panel document summary for one graph node.
 type Document struct {
-	Type    PageType `json:"type"`
+	Type    NodeType `json:"type"`
 	Path    string   `json:"path"`
 	Title   string   `json:"title"`
 	Summary string   `json:"summary"`

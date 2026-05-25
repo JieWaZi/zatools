@@ -22,6 +22,7 @@ workflows:
   - "workflow-vip-failover"
 related_topics:
   - "[[ha-state]]"
+module: "traffic-management"
 confidence: medium
 ---
 # VIP 接管
@@ -70,6 +71,9 @@ confidence: medium
 	}
 	if !reflect.DeepEqual(topic.Workflows, []string{"workflow-vip-failover"}) {
 		t.Fatalf("topic workflows = %#v", topic.Workflows)
+	}
+	if topic.Module != "traffic-management" {
+		t.Fatalf("topic module = %q, want traffic-management", topic.Module)
 	}
 	workflow := findPage(t, pages, PageTypeWorkflow, "workflow-vip-failover")
 	if !reflect.DeepEqual(workflow.Topics, []string{"vip-failover"}) {

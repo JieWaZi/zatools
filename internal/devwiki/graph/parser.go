@@ -18,6 +18,7 @@ type frontmatter struct {
 	Kind             string   `yaml:"kind"`
 	Status           string   `yaml:"status"`
 	Summary          string   `yaml:"summary"`
+	Module           string   `yaml:"module"`
 	Workflows        []string `yaml:"workflows"`
 	Topics           []string `yaml:"topics"`
 	RelatedTopics    []string `yaml:"related_topics"`
@@ -116,6 +117,7 @@ func parsePage(root string, rel string, typ PageType) (Page, []Issue, error) {
 		Summary:          strings.TrimSpace(fm.Summary),
 		Status:           strings.TrimSpace(fm.Status),
 		Confidence:       strings.TrimSpace(fm.Confidence),
+		Module:           page.NormalizeReference(fm.Module),
 		Workflows:        page.NormalizeReferences(fm.Workflows),
 		Topics:           page.NormalizeReferences(fm.Topics),
 		RelatedTopics:    page.NormalizeReferences(fm.RelatedTopics),

@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"zatools/internal/devwiki/page"
+
+	"gopkg.in/yaml.v3"
 )
 
 // ReadOptions describes `zatools devwiki read` execution options.
@@ -72,13 +74,17 @@ func (s *Service) runRead(ctx context.Context, opts ReadOptions) error {
 		return fmt.Errorf("%s: missing section %q", rel, view)
 	}
 	if view == "card" {
+		meta, err := marshalCardMeta(doc.Meta)
+		if err != nil {
+			return err
+		}
 		if _, err := fmt.Fprintln(stdout, "---"); err != nil {
 			return err
 		}
-		if _, err := stdout.Write(doc.RawMeta); err != nil {
+		if _, err := stdout.Write(meta); err != nil {
 			return err
 		}
-		if len(doc.RawMeta) == 0 || doc.RawMeta[len(doc.RawMeta)-1] != '\n' {
+		if len(meta) == 0 || meta[len(meta)-1] != '\n' {
 			if _, err := fmt.Fprintln(stdout); err != nil {
 				return err
 			}
@@ -92,4 +98,20 @@ func (s *Service) runRead(ctx context.Context, opts ReadOptions) error {
 	}
 	_, err = fmt.Fprintln(stdout, section.Content)
 	return err
+}
+
+type cardMeta struct {
+	Title      string `yaml:"title"`
+	Status     string `yaml:"status"`
+	Summary    string `yaml:"summary"`
+	Confidence string `yaml:"confidence"`
+}
+
+func marshalCardMeta(meta page.Meta) ([]byte, error) {
+	return yaml.Marshal(cardMeta{
+		Title:      meta.Title,
+		Status:     meta.Status,
+		Summary:    meta.Summary,
+		Confidence: meta.Confidence,
+	})
 }

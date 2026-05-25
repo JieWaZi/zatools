@@ -47,6 +47,7 @@ body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSyst
 .left-metric.blue strong { color: var(--blue); }
 .left-metric.green strong { color: var(--green); }
 .left-metric.orange strong { color: #f17a00; }
+.left-metric.purple strong { color: #7c3aed; }
 .left-build-card { display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: rgba(248,250,252,.75); margin-top: auto; }
 .build-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
 .build-row span { color: #64748b; font-weight: 650; }
@@ -76,10 +77,13 @@ body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSyst
 .legend-dot, .related-dot { width: 13px; height: 13px; border-radius: 99px; box-shadow: 0 4px 12px rgba(0,0,0,.12); flex: 0 0 auto; }
 .related-dot { width: 15px; height: 15px; box-shadow: none; }
 .cap { background: var(--blue); }
+.module { background: #8b5cf6; }
 .feat { background: var(--green); }
 .flow { background: var(--orange); }
 .line-symbol { width: 24px; height: 1.5px; background: #8d99aa; position: relative; flex: 0 0 24px; }
 .line-symbol.arrow::after { content: ""; position: absolute; right: -1px; top: -4px; width: 0; height: 0; border-left: 7px solid #8d99aa; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+.line-symbol.contain { background: #8b5cf6; }
+.line-symbol.contain::after { content: ""; position: absolute; right: -1px; top: -4px; width: 0; height: 0; border-left: 7px solid #8b5cf6; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
 .line-symbol.dashed { background: repeating-linear-gradient(90deg, #8d99aa 0 5px, transparent 5px 8px); }
 .right-panel { display: flex; flex-direction: column; box-shadow: var(--shadow); min-height: 0; background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .detail-body { flex: 1 1 auto; min-height: 0; padding: 22px 26px 16px; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; }
@@ -120,6 +124,15 @@ body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSyst
   cursor: pointer;
 }
 .preview-link:hover { background: #dbeafe; border-color: rgba(37,99,235,.35); }
+.preview-link.disabled,
+.preview-current button:disabled {
+  opacity: .54;
+  cursor: not-allowed;
+}
+.preview-link.disabled {
+  display: inline-flex;
+  align-items: center;
+}
 .preview-current {
   flex: 0 0 auto;
   margin: 18px 26px 22px;

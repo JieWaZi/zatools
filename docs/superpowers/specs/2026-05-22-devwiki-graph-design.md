@@ -136,8 +136,7 @@ zatools devwiki graph --check
       "summary": "说明该功能解决的问题",
       "status": "active",
       "confidence": "medium",
-      "path": "wiki/topics/vip-failover.md",
-      "search_terms": ["vip", "接管", "failover"]
+      "path": "wiki/topics/vip-failover.md"
     }
   ],
   "edges": [
@@ -309,7 +308,7 @@ http://127.0.0.1:<port>/
   - Topic
   - Topic
   - Workflow
-- 搜索框按 `title`、`slug`、`summary`、`search_terms` 过滤。
+- 搜索框按 `title`、`slug`、`summary` 过滤。
 - 点击节点后：
   - 当前节点高亮；
   - 一跳邻居高亮；

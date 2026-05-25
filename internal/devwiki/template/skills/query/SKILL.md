@@ -6,12 +6,14 @@ argument-hint: "<问题>"
 
 # /devwiki-query
 
-> 先阅读通用约束：
-> - `references/evidence-grounding.md`
-> - `references/knowledge-placement.md`
-> - `references/zatools-qmd.md`
-> - 涉及代码追踪、代码归因或实现核对时，再读 `references/code-tracing.md`
-> - 涉及写入、保存回答或沉淀新结论时，再读 `references/mutation-safety.md`
+## 核心约束（内联）
+
+- **证据落地**：每个关键结论必须落到真实来源（wiki 页面、raw 文件或已核对代码）；`qmd` 只是召回加速器不是真相源；事实与推断必须拆开表达。
+- **视图分层读取**：先用 `--view card` 判断命中，再用 `--view core` 回答主问题，只有 core 不够时读 `--view explain`。card 只放判断“是不是这个页面”的信息，core 放高频主结论，explain 放低频补充。
+- **按需加载参考文档**：
+  - 仅本地搜索低置信、需 qmd 升档时 → 读 `references/zatools-qmd.md`
+  - 仅 locate_code / troubleshoot / 代码核实时 → 读 `references/code-tracing.md`
+  - 仅用户要求保存回答、沉淀结论、写入文件时 → 读 `references/mutation-safety.md`
 
 不要凭空回答项目事实；先查 DevWiki，再按需核对代码；每个关键结论都要能追溯来源。
 
@@ -27,19 +29,28 @@ argument-hint: "<问题>"
 
 ### Reads
 
-- `config/project.yaml`
-- `config/search.yaml`
-- `wiki/index.md`
-- `wiki/glossary.md`
-- `wiki/topics/*.md`
-- `wiki/workflows/*.md`
-- `wiki/troubleshooting/*.md`
-- 本地代码目录：仅当问题语义为 locate_code、troubleshoot，或用户明确要求当前实现、代码定位、配置项定位、日志关键字定位、修改影响或排障核实时读取
+**始终读取：**
+- `config/project.yaml`（全读，14 行极小。路径相对于项目根目录，不是 `wiki/config/`）
+
+**grep 定位（串行降级，禁止全读）：**
+- 第 1 层：`grep -iE '<关键词>' wiki/index.md` → 命中则停，选最佳候选
+- 第 2 层：index 无结果 → `grep -iE '<关键词>' wiki/glossary.md`
+- 第 3 层：glossary 无结果 → `grep -liE '<关键词>' wiki/<topics|workflows|troubleshooting>/*.md`
+- 每层命中后 Read + offset/limit 只看命中行上下文，不读全文件
+- 禁止并行搜多个源，禁止同时读多个候选的 card
+
+**视图分层读取（禁止用 Read 工具直接读 topic/workflow/troubleshooting 文件）：**
+- `zatools devwiki read <topic|workflow|troubleshooting> <slug> --view card` — 判断命中
+- `zatools devwiki read <topic|workflow|troubleshooting> <slug> --view core` — 回答主问题
+- `zatools devwiki read <topic|workflow|troubleshooting> <slug> --view explain` — 补充细节
+
+**代码目录：**
+- 仅当语义为 locate_code、troubleshoot，或用户明确要求当前实现、代码定位、配置项定位、日志关键字定位、修改影响或排障核实时读取
 
 ### Writes
 
 - 默认不写任何文件
-- 只有用户明确要求保存回答或沉淀结论时，才允许：
+- 只有用户明确要求保存回答或沉淀结论时，才允许（需先读 `references/mutation-safety.md`）：
   - CREATE `wiki/outputs/<query-slug>.md`
   - APPEND `wiki/log.md`
 
@@ -53,6 +64,7 @@ argument-hint: "<问题>"
 6. 如果文档已经足够回答，就不要为了“更稳”再默认展开代码阅读。
 7. `zatools qmd` 只是召回工具，不是真相源。
 8. 读取 view 时遵守知识经济学放置规则：先用 card 判断命中，再用 core 回答主问题，只有 core 不够时读取 explain。
+9. 搜索和读取串行降级，不并行：index → glossary → 目录 grep，候选逐个 card 验证，确认匹配才往下走。不为了“快”而并发读多个源或多个候选。
 
 ## 目录选择规则
 
@@ -78,18 +90,63 @@ argument-hint: "<问题>"
 
 ## Workflow
 
-### Step 1: 意图识别与范围收敛
+### Step 1: 意图识别
 
 1. 读取 `config/project.yaml`，确定代码仓配置和默认语言。
-2. 读取 `wiki/index.md`、`wiki/glossary.md`，建立全局上下文。
-3. 判断问题语义：
+2. 判断问题语义：
    - `explain_topic`：用户想了解能力、功能、配置、边界、规则、联动。
    - `locate_code`：用户想了解代码、入口、调用链、接口、数据流、怎么改、影响面、测试入口。
    - `troubleshoot`：用户想解决报错、不生效、异常现象、诊断路径、修复建议。
    - `public_answer`：用户要求对外说明、客户口径、官网/文档口径。
    - `compare`：用户要求比较两个主题、方案或实现路径。
 
-如果 `wiki/index.md` 或 `wiki/glossary.md` 缺失，输出：
+### Step 2: 串行定位候选页面
+
+**原则：串行降级，逐层深入。每一层拿到结果后先判断，够用就停，不往下走。禁止并行搜多个源。**
+
+从用户问题提取多关键词，按以下顺序串行搜索：
+
+**第 1 层：grep `wiki/index.md`**
+
+```bash
+grep -iE '<关键词1|关键词2|...>' wiki/index.md
+```
+
+命中后 Read + offset/limit 只看命中行。从结果中选出**最匹配的一个** slug。**index.md 命中后，禁止再跑当前 Step 的任何后续层（glossary、目录 grep），直接从命中行提取 slug 进入 Step 3。**
+
+**第 2 层：index 无结果 → grep `wiki/glossary.md`**
+
+```bash
+grep -iE '<关键词1|关键词2|...>' wiki/glossary.md
+```
+
+命中后 Read + offset/limit 只看命中行。从术语描述中提取新关键词或直接对应的话题名，回到第 1 层或直接进入第 3 层。
+
+**第 3 层：glossary 无结果 → grep 文档目录**
+
+根据语义选择目录，grep 文件内容：
+
+```bash
+# explain_topic → topics/
+grep -liE '<关键词>' wiki/topics/*.md
+
+# locate_code → workflows/ 优先
+grep -liE '<关键词>' wiki/workflows/*.md
+
+# troubleshoot → troubleshooting/ 优先
+grep -liE '<关键词>' wiki/troubleshooting/*.md
+```
+
+命中后取最匹配的文件，提取 slug 进入 Step 3。
+
+**第 4 层：全部无结果 → 低置信升档**
+
+- 先读 `references/zatools-qmd.md`
+- 再按其中路由规则升档到 `zatools qmd search`
+- `qmd search` 命中只是候选排序，最终结论必须回到真实 `wiki/` / `raw/` 页面
+- `qmd search/query` 报错、超时、collection 未注册时，明示“本轮 qmd 不可用，已降级”
+
+如果 `wiki/index.md`、`wiki/glossary.md` 或目标目录缺失，或者真实页面仍不足以支撑结论，输出：
 
 ```text
 当前 Project Brain 没有足够信息支持该结论。
@@ -101,16 +158,30 @@ argument-hint: "<问题>"
 devwiki-ingest
 ```
 
-### Step 2: 按语义召回候选资料
+### Step 3: 候选验证（view=card，逐个读）
 
-1. 默认先本地搜索 DevWiki 文档层：首查目录、辅助目录、`wiki/index.md`、`wiki/glossary.md`，必要时再查 `raw/`。
-2. 召回分档、低置信升档和 qmd fallback 统一遵守 `references/zatools-qmd.md`。
-3. view 读取顺序统一遵守 `references/knowledge-placement.md`。
-3. `zatools qmd search` 只作为候选排序；命中后必须读取真实 `wiki/` / `raw/` 页面，再按事实归属去重。
-4. 候选数量受控：top-K（K <= 12），优先读高相关页面。
-5. 如果 `qmd search/query` 报错、超时、collection 未注册、cache 不可写或模型缺失，明示“本轮 qmd 不可用，已降级”。
+1. 对 Step 2 选出的**单个**最佳候选，用 `zatools devwiki read <type> <slug> --view card` 读取导航卡。
+2. card 确认匹配 → 进入 Step 4 深度阅读。
+3. card 不匹配 → 回到 Step 2 的结果中选**下一个**候选，再次 card 验证。不要并发读多个 card。
+4. 所有候选都不匹配 → 回到 Step 2 的下一层继续搜索。
 
-### Step 3: 按需核对代码
+### Step 4: 按语义深度阅读
+
+**所有 topic/workflow/troubleshooting 页面读取必须使用 `zatools devwiki read`，禁止用 Read 工具直接读文件。**
+
+按语义控制深度：
+
+| 语义 | 阅读路径 | 止步条件 |
+|---|---|---|
+| explain_topic | topic card → topic core → (topic explain) | core 足够即停，不触发 workflow |
+| locate_code | topic card → topic core → workflow card → workflow core → (workflow explain) → 读 `code-tracing.md` → 代码核对 | 代码证据足够即停。**如果 workflow core 的代码表格已覆盖入口、核心逻辑、持久化三层且每行包含文件路径+行号+函数名，视为证据足够，直接据此组织回答，跳过实际代码文件读取。** |
+| troubleshoot | troubleshooting card → troubleshooting core → workflow core → 读 `code-tracing.md` → 代码核对 | 排障路径清晰即停 |
+| public_answer | topic card → topic core | core 足够即停，不读代码 |
+| compare | 各对象 topic card → topic core | 差异清晰即停 |
+
+每一层读取后判断：当前 view 是否足以回答用户问题？足够则停，不够才升到下一层。
+
+### Step 5: 按需核对代码
 
 以下情况必须核对代码：
 
@@ -120,14 +191,16 @@ devwiki-ingest
 - 排障问题必须确认运行时行为或日志出处
 - wiki / raw 证据不足以支撑结论
 
+核对前先读 `references/code-tracing.md`。**但如果 workflow core 的代码表格已包含文件路径、行号和函数名等精确锚点，跳过 code-tracing.md，直接用表格锚点进入代码核对。**
+
 核对顺序：
 
-1. 优先读取相关 workflow 页的 `core` view。
+1. 优先从已读取的 workflow `core` view 中获取代码锚点。
 2. 若已有明确代码锚点，用 `rg` 定向搜索。
 3. 如果没有候选目录，再扩大到配置代码仓根。
 4. 至少确认入口文件、关键函数、接口注册点、配置读取点、日志打印点或测试入口中的一层证据。
 
-### Step 4: 按语义组织回答
+### Step 6: 按语义组织回答
 
 每次回答先给一句语义识别：
 
@@ -159,14 +232,14 @@ troubleshoot 使用 Troubleshooting 回答重点：
 - 修复 / 恢复
 - 相关 Topic / Workflow
 
-Public answer 回答重点：
+public_answer 回答重点：
 
 - 对外结论
 - 可公开范围
 - 不应展开的内部信息
 - 依据
 
-Compare 回答重点：
+compare 回答重点：
 
 - 比较对象
 - 相同点
@@ -174,6 +247,6 @@ Compare 回答重点：
 - 适用场景
 - 依据 / 待确认
 
-### Step 5: 按需沉淀答案
+### Step 7: 按需沉淀答案
 
-只有用户明确要求保存回答、沉淀结论、写入报告时，才创建 `wiki/outputs/<query-slug>.md` 并追加 `wiki/log.md`。
+只有用户明确要求保存回答、沉淀结论、写入报告时，才先读 `references/mutation-safety.md`，再创建 `wiki/outputs/<query-slug>.md` 并追加 `wiki/log.md`。

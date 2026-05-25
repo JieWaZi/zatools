@@ -1,6 +1,6 @@
 let rawGraph;
 let cy;
-let currentFilter = 'topic';
+let currentFilter = 'module';
 let selectedNodeID = '';
 let currentPath = '';
 let currentTitle = '项目总览';
@@ -11,6 +11,7 @@ const els = {
   warningCount: document.getElementById('warningCount'),
   warningCountCard: document.getElementById('warningCountCard'),
   projectName: document.getElementById('projectName'),
+  moduleCount: document.getElementById('moduleCount'),
   topicCount: document.getElementById('topicCount'),
   workflowCount: document.getElementById('workflowCount'),
   edgeCount: document.getElementById('edgeCount'),
@@ -39,8 +40,9 @@ const markdownSamples = {
   default: '# 文档预览\n\n无法直接读取当前 Markdown 文件。\n\n请确认 `zatools devwiki graph` 正在 DevWiki 根目录下运行，并且节点 path 指向 `wiki/` 下的 Markdown 文件。\n\n```text\nzatools devwiki graph --force\n```'
 };
 
-const typeName = { topic: 'Topic', workflow: 'Workflow' };
+const typeName = { module: 'Module', topic: 'Topic', workflow: 'Workflow' };
 const typeStyle = {
+  module: { color: '#6d28d9', bg: '#f3e8ff', iconBg: 'linear-gradient(145deg, #8b5cf6, #6d28d9)', dot: 'module', icon: '◇' },
   topic: { color: '#1769de', bg: '#eaf3ff', iconBg: 'linear-gradient(145deg, #2f7df6, #0e63e8)', dot: 'cap', icon: '□' },
   workflow: { color: '#d76f00', bg: '#fff3e3', iconBg: 'linear-gradient(145deg, #ff9d28, #f07b00)', dot: 'flow', icon: '⌁' }
 };
@@ -98,13 +100,13 @@ function toCytoscapeElements(data) {
 }
 
 function computeLayeredPositions(nodes, edges) {
-  const byType = { topic: [], workflow: [] };
+  const byType = { module: [], topic: [], workflow: [] };
   nodes.forEach((node) => {
     if (!byType[node.type]) byType[node.type] = [];
     byType[node.type].push(node);
   });
   Object.keys(byType).forEach((type) => byType[type].sort((a, b) => a.slug.localeCompare(b.slug)));
-  const columns = { topic: 220, workflow: 620 };
+  const columns = { module: 140, topic: 420, workflow: 720 };
   const positions = {};
   Object.entries(byType).forEach(([type, list]) => {
     const step = Math.max(92, Math.min(150, 520 / Math.max(1, list.length)));
@@ -141,8 +143,9 @@ function initCytoscape(elements) {
     if (event.target === cy) clearSelection();
   });
   cy.ready(() => {
+    const firstModule = cy.nodes('[type = "module"]')[0];
     const firstTopic = cy.nodes('[type = "topic"]')[0];
-    const firstNode = firstTopic || cy.nodes()[0];
+    const firstNode = firstModule || firstTopic || cy.nodes()[0];
     applyFilterAndSearch();
     if (firstNode) selectNode(firstNode);
   });
@@ -152,9 +155,11 @@ function graphStyle() {
   return [
     { selector: 'node', style: { 'width': 126, 'height': 62, 'shape': 'round-rectangle', 'background-color': '#ffffff', 'background-fill': 'linear-gradient', 'background-gradient-direction': 'to-bottom-right', 'background-gradient-stop-colors': '#ffffff #eaf3ff', 'background-gradient-stop-positions': '0% 100%', 'border-width': 1.8, 'border-color': '#7db6ff', 'label': 'data(nodeLabel)', 'font-family': 'Inter, PingFang SC, Microsoft YaHei, sans-serif', 'font-size': 11.5, 'font-weight': 760, 'line-height': 1.25, 'color': '#1f2937', 'text-valign': 'center', 'text-halign': 'center', 'text-wrap': 'wrap', 'text-max-width': 112, 'text-outline-width': 0, 'shadow-blur': 20, 'shadow-opacity': 0.18, 'shadow-color': '#7db6ff', 'shadow-offset-x': 0, 'shadow-offset-y': 8, 'overlay-opacity': 0, 'transition-property': 'opacity, border-width, border-color, background-color, width, height, shadow-opacity', 'transition-duration': 180 } },
     { selector: 'node[type = "topic"]', style: { 'background-gradient-stop-colors': '#ffffff #eaf3ff', 'border-color': '#60a5fa', 'color': '#1d4ed8', 'shadow-color': '#60a5fa' } },
+    { selector: 'node[type = "module"]', style: { 'background-gradient-stop-colors': '#ffffff #f3e8ff', 'border-color': '#a78bfa', 'color': '#6d28d9', 'shadow-color': '#a78bfa' } },
     { selector: 'node[type = "workflow"]', style: { 'background-gradient-stop-colors': '#ffffff #fff0d9', 'border-color': '#fb923c', 'color': '#b95b00', 'shadow-color': '#fb923c' } },
     { selector: 'edge', style: { 'width': 1.6, 'curve-style': 'bezier', 'line-color': '#9aa7b8', 'target-arrow-color': '#9aa7b8', 'target-arrow-shape': 'triangle', 'arrow-scale': 0.9, 'opacity': 0.78, 'overlay-opacity': 0, 'transition-property': 'opacity, width, line-color, target-arrow-color', 'transition-duration': 180 } },
     { selector: 'edge[relation = "implemented_by"]', style: { 'line-color': '#49c98b', 'target-arrow-color': '#49c98b', 'width': 1.8 } },
+    { selector: 'edge[relation = "contains"]', style: { 'line-color': '#8b5cf6', 'target-arrow-color': '#8b5cf6', 'width': 2 } },
     { selector: 'edge[relation = "related"]', style: { 'line-style': 'dashed', 'line-dash-pattern': [6, 6], 'line-color': '#a4afbf', 'target-arrow-shape': 'none', 'opacity': 0.62 } },
     { selector: '.selected', style: { 'width': 150, 'height': 74, 'border-width': 3.4, 'border-color': '#16b86f', 'background-gradient-stop-colors': '#ffffff #dcfce7', 'shadow-blur': 30, 'shadow-opacity': 0.34, 'shadow-color': '#16b86f', 'z-index': 10 } },
     { selector: '.neighbor', style: { 'border-width': 3, 'opacity': 1, 'z-index': 8 } },
@@ -168,9 +173,10 @@ function graphStyle() {
 }
 
 function updateSummary(data) {
-  const counts = { topic: 0, workflow: 0 };
+  const counts = { module: 0, topic: 0, workflow: 0 };
   data.nodes.forEach((node) => counts[node.type]++);
   els.projectName.textContent = data.project && data.project.name ? data.project.name : '项目总览';
+  els.moduleCount.textContent = counts.module;
   els.topicCount.textContent = counts.topic;
   els.workflowCount.textContent = counts.workflow;
   els.edgeCount.textContent = data.edges.length;
@@ -189,8 +195,13 @@ function renderWarnings(warnings) {
 }
 
 function relatedItems(node, type) {
+  return relatedItemsByRelation(node, type, '');
+}
+
+function relatedItemsByRelation(node, type, relation) {
   const ids = new Set();
   node.connectedEdges().forEach((edge) => {
+    if (relation && edge.data('relation') !== relation) return;
     const other = edge.source().id() === node.id() ? edge.target() : edge.source();
     if (!type || other.data('type') === type) ids.add(other.id());
   });
@@ -205,13 +216,21 @@ function renderRelationList(el, items) {
   el.innerHTML = items.map((item) => {
     const data = item.data();
     const style = typeStyle[data.type] || typeStyle.topic;
-    return '<div class="related-item related-row"><button class="related-main related-button" type="button" data-node-id="' + escapeHTML(data.id) + '"><span class="related-dot ' + style.dot + '"></span><span class="related-title">' + escapeHTML(data.title || data.slug) + '</span></button><button class="preview-link related-preview" type="button" data-path="' + escapeHTML(data.path || '') + '" data-title="' + escapeHTML(data.title || data.slug) + '">预览</button></div>';
+    const preview = data.path ? '<button class="preview-link related-preview" type="button" data-path="' + escapeHTML(data.path || '') + '" data-title="' + escapeHTML(data.title || data.slug) + '">预览</button>' : '<span class="preview-link disabled">派生</span>';
+    return '<div class="related-item related-row"><button class="related-main related-button" type="button" data-node-id="' + escapeHTML(data.id) + '"><span class="related-dot ' + style.dot + '"></span><span class="related-title">' + escapeHTML(data.title || data.slug) + '</span></button>' + preview + '</div>';
   }).join('');
   el.querySelectorAll('[data-node-id]').forEach((button) => {
     button.addEventListener('click', () => {
       const target = cy.getElementById(button.dataset.nodeId);
       if (target && target.length) selectNode(target);
     });
+  });
+}
+
+function setRelationSectionsVisible(count) {
+  [els.relationTitle1, els.relationTitle2, els.relationTitle3].forEach((title, index) => {
+    const section = title.closest('.detail-section');
+    if (section) section.style.display = index < count ? '' : 'none';
   });
 }
 
@@ -233,17 +252,28 @@ function updateDetail(node) {
   els.detailType.style.background = style.bg;
   els.hintTitle.textContent = '已选中节点';
   els.hintText.textContent = '当前选中“' + data.title + '”，相关关系已高亮，非相关节点已淡化。';
+  document.getElementById('previewCurrentBtn').disabled = !data.path;
 
-  if (data.type === 'topic') {
-    const workflows = relatedItems(node, 'workflow');
-    const topics = relatedItems(node, 'topic');
-    els.relationTitle1.textContent = '实现 Workflow (' + workflows.length + ')';
+  if (data.type === 'module') {
+    const topics = relatedItemsByRelation(node, 'topic', 'contains');
+    setRelationSectionsVisible(1);
+    els.relationTitle1.textContent = '包含 Topic (' + topics.length + ')';
+    renderRelationList(els.relationList1, topics);
+    els.relationList2.innerHTML = '';
+    els.relationList3.innerHTML = '';
+  } else if (data.type === 'topic') {
+    setRelationSectionsVisible(3);
+    const modules = relatedItemsByRelation(node, 'module', 'contains');
+    const topics = relatedItemsByRelation(node, 'topic', 'related');
+    const workflows = relatedItemsByRelation(node, 'workflow', 'implemented_by');
+    els.relationTitle1.textContent = '所属 Module (' + modules.length + ')';
     els.relationTitle2.textContent = '相关 Topic (' + topics.length + ')';
-    els.relationTitle3.textContent = '相关 Workflow (' + workflows.length + ')';
-    renderRelationList(els.relationList1, workflows);
+    els.relationTitle3.textContent = '实现 Workflow (' + workflows.length + ')';
+    renderRelationList(els.relationList1, modules);
     renderRelationList(els.relationList2, topics);
     renderRelationList(els.relationList3, workflows);
   } else {
+    setRelationSectionsVisible(3);
     const topics = relatedItems(node, 'topic');
     const workflows = relatedItems(node, 'workflow');
     els.relationTitle1.textContent = '支撑 Topic (' + topics.length + ')';
@@ -255,17 +285,6 @@ function updateDetail(node) {
   }
 }
 
-function collectTwoHop(node, type) {
-  const found = new Map();
-  const oneHopNodes = node.closedNeighborhood().nodes();
-  oneHopNodes.forEach((item) => {
-    item.closedNeighborhood().nodes().forEach((candidate) => {
-      if (candidate.id() !== node.id() && candidate.data('type') === type) found.set(candidate.id(), candidate);
-    });
-  });
-  return Array.from(found.values());
-}
-
 function clearSelection() {
   if (!rawGraph) return;
   selectedNodeID = '';
@@ -275,7 +294,7 @@ function clearSelection() {
     cy.elements().removeClass('selected faded neighbor second-hop hidden-by-search hidden-by-type');
     applyFilterAndSearch();
   }
-  const counts = { topic: 0, workflow: 0 };
+  const counts = { module: 0, topic: 0, workflow: 0 };
   rawGraph.nodes.forEach((node) => counts[node.type]++);
   els.detailEyebrow.textContent = '项目总览';
   els.detailTitle.textContent = rawGraph.project.name || '项目总览';
@@ -289,11 +308,13 @@ function clearSelection() {
   els.detailType.style.background = '#eeeaff';
   els.hintTitle.textContent = '未选中节点';
   els.hintText.textContent = '在图中选择一个节点，查看详细信息和相关文档。';
-  els.relationTitle1.textContent = 'Topic 数量';
-  els.relationTitle2.textContent = 'Workflow 数量';
+  document.getElementById('previewCurrentBtn').disabled = true;
+  setRelationSectionsVisible(3);
+  els.relationTitle1.textContent = 'Module 数量';
+  els.relationTitle2.textContent = 'Topic 数量';
   els.relationTitle3.textContent = 'Workflow 数量';
-  els.relationList1.innerHTML = '<div class="related-item"><span class="related-dot cap"></span><span class="related-title">Topic ' + counts.topic + '</span></div>';
-  els.relationList2.innerHTML = '<div class="related-item"><span class="related-dot flow"></span><span class="related-title">Workflow ' + counts.workflow + '</span></div>';
+  els.relationList1.innerHTML = '<div class="related-item"><span class="related-dot module"></span><span class="related-title">Module ' + counts.module + '</span></div>';
+  els.relationList2.innerHTML = '<div class="related-item"><span class="related-dot cap"></span><span class="related-title">Topic ' + counts.topic + '</span></div>';
   els.relationList3.innerHTML = '<div class="related-item"><span class="related-dot flow"></span><span class="related-title">Workflow ' + counts.workflow + '</span></div>';
 }
 
@@ -315,7 +336,7 @@ function applyFilterAndSearch() {
   cy.elements().removeClass('hidden-by-search hidden-by-type search-match search-related search-edge');
   cy.nodes().forEach((node) => {
     const data = node.data();
-    const typeHidden = data.type !== currentFilter;
+    const typeHidden = !isVisibleInCurrentDimension(data.type);
     if (!kw && typeHidden) {
       node.addClass('hidden-by-type');
       return;
@@ -341,27 +362,62 @@ function applyFilterAndSearch() {
   updateSearchStateText(kw, searchState);
 }
 
+function isVisibleInCurrentDimension(type) {
+  if (currentFilter === 'module') return type === 'module' || type === 'topic';
+  if (currentFilter === 'topic') return type === 'topic';
+  return false;
+}
+
 function collectSearchVisibleNodeIDs(kw) {
   const matches = new Set();
   const related = new Set();
   const visible = new Set();
   if (!kw) return { matches, related, visible };
-  cy.nodes().forEach((node) => {
-    const data = node.data();
-    if (data.type === currentFilter && nodeMatchesSearch(node, kw)) {
-      matches.add(node.id());
-      visible.add(node.id());
+  if (currentFilter === 'module') {
+    collectModuleSearchVisibleNodeIDs(kw, matches, related, visible);
+  } else if (currentFilter === 'topic') {
+    collectTopicSearchVisibleNodeIDs(kw, matches, related, visible);
+  }
+  return { matches, related, visible };
+}
+
+function collectModuleSearchVisibleNodeIDs(kw, matches, related, visible) {
+  cy.nodes('[type = "module"], [type = "topic"]').forEach((node) => {
+    if (!nodeMatchesSearch(node, kw)) return;
+    matches.add(node.id());
+    visible.add(node.id());
+    if (node.data('type') === 'module') {
+      relatedTopicsForModule(node).forEach((topic) => addSearchRelated(topic, matches, related, visible));
+    } else {
+      modulesForTopic(node).forEach((module) => addSearchRelated(module, matches, related, visible));
     }
   });
-  matches.forEach((id) => {
-    const node = cy.getElementById(id);
-    node.connectedEdges().forEach((edge) => {
-      const other = edge.source().id() === id ? edge.target() : edge.source();
-      visible.add(other.id());
-      if (!matches.has(other.id())) related.add(other.id());
-    });
+}
+
+function collectTopicSearchVisibleNodeIDs(kw, matches, related, visible) {
+  cy.nodes('[type = "topic"]').forEach((node) => {
+    if (!nodeMatchesSearch(node, kw)) return;
+    matches.add(node.id());
+    visible.add(node.id());
+    relatedTopicsForTopic(node).forEach((topic) => addSearchRelated(topic, matches, related, visible));
   });
-  return { matches, related, visible };
+}
+
+function addSearchRelated(node, matches, related, visible) {
+  visible.add(node.id());
+  if (!matches.has(node.id())) related.add(node.id());
+}
+
+function relatedTopicsForModule(moduleNode) {
+  return relatedItemsByRelation(moduleNode, 'topic', 'contains');
+}
+
+function modulesForTopic(topicNode) {
+  return relatedItemsByRelation(topicNode, 'module', 'contains');
+}
+
+function relatedTopicsForTopic(topicNode) {
+  return relatedItemsByRelation(topicNode, 'topic', 'related');
 }
 
 function nodeMatchesSearch(node, kw) {

@@ -11,13 +11,17 @@ import (
 	"zatools/internal/skills"
 )
 
-func TestReadTopicCardIncludesFrontmatterAndCardSection(t *testing.T) {
+func TestReadTopicCardIncludesFilteredMetadataAndCardSection(t *testing.T) {
 	root := t.TempDir()
 	writeDevwikiReadFixture(t, root, "wiki/topics/vip.md", `---
 title: "VIP"
 slug: "vip"
 kind: topic
+status: draft
 summary: "VIP topic"
+formatter: "markdown"
+aliases: ["vip-service"]
+confidence: high
 ---
 # VIP
 
@@ -49,8 +53,15 @@ explain body
 		t.Fatalf("Read() error = %v", err)
 	}
 	got := out.String()
-	if !strings.Contains(got, `slug: "vip"`) || !strings.Contains(got, "card body") {
+	if !strings.Contains(got, `title: VIP`) ||
+		!strings.Contains(got, `status: draft`) ||
+		!strings.Contains(got, `summary: VIP topic`) ||
+		!strings.Contains(got, `confidence: high`) ||
+		!strings.Contains(got, "card body") {
 		t.Fatalf("card output = %q", got)
+	}
+	if strings.Contains(got, `slug: "vip"`) || strings.Contains(got, "kind: topic") || strings.Contains(got, `formatter: "markdown"`) || strings.Contains(got, "aliases:") {
+		t.Fatalf("card output should filter extra frontmatter: %q", got)
 	}
 	if strings.Contains(got, "core body") {
 		t.Fatalf("card output should not include core: %q", got)

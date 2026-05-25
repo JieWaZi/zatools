@@ -11,6 +11,7 @@ DevWiki 是一个单产品知识底座。文档库可以独立存在，并通过
 - 把原始资料放在 `raw/`
 - 把结构化知识沉淀到 `wiki/`
 - 用 `topics` 合并能力边界与功能规则
+- 用 Topic frontmatter 的 `module` 字段把相关主题聚合到 graph 父节点
 - 用 `workflows` 说明工程入口、调用链、关键逻辑、修改影响和验证方式
 - 用 `troubleshooting` 沉淀故障现象、诊断路径、证据和修复建议
 - 用 `zatools qmd ...` 加速 `wiki` 结构化知识召回
@@ -138,10 +139,11 @@ zatools qmd download --root .
 
 - `raw/` 是只读原始资料层
 - `wiki/topics/` 是主题页，合并能力边界与功能规则
+- Topic 的 `module` frontmatter 字段用于 graph 聚合展示，不对应独立模块页面
 - `wiki/workflows/` 是工程定位页
 - `wiki/troubleshooting/` 是排障知识页
 - `wiki/outputs/` 保存 ingest / maintain / query / code-to-doc / qmd-sync 报告
-- `wiki/glossary.md` 保存术语表
+- `wiki/glossary.md` 保存术语表；新建 Topic 或 Workflow 后必须先查是否已有关键术语或等价别名，不存在才添加
 
 ## 常用维护命令
 
@@ -164,6 +166,7 @@ zatools devwiki tool log --wiki-root wiki --message "init | note"
 - 原始文档进入 `raw/`
 - `devwiki-project-router` 作为总入口
 - `devwiki-ingest` 从原始资料生成和更新结构化 Wiki
+- `devwiki-topic` / `devwiki-workflow` 新建页面后必须检查并按需补充 `wiki/glossary.md`
 - `devwiki-maintain` 维护已有 Wiki 的证据一致性、过期内容、引用缺失和 query 污染
 - `devwiki-query` 覆盖知识查询、设计理解、代码定位和排障检索
 - `devwiki-code-to-doc` 从代码反向补 workflow，必要时补 topic

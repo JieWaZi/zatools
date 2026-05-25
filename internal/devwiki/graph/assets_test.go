@@ -76,17 +76,50 @@ func TestStaticAssetsRespectMarkdownPreviewContract(t *testing.T) {
 	if strings.Contains(indexHTML, `id="layoutSelect"`) {
 		t.Fatal("index.html should not render layout selector")
 	}
-	if !strings.Contains(indexHTML, `<option value="topic" selected>Topic</option>`) {
-		t.Fatal("index.html should default the dimension selector to Topic")
+	if !strings.Contains(indexHTML, `<option value="module" selected>Module</option>`) {
+		t.Fatal("index.html should default the dimension selector to Module")
 	}
 	if strings.Contains(indexHTML, `<option value="all"`) {
 		t.Fatal("index.html should not render an all-dimensions option")
 	}
+	if !strings.Contains(indexHTML, `<option value="topic">Topic</option>`) {
+		t.Fatal("index.html should render Topic as a selectable dimension")
+	}
 	if strings.Contains(indexHTML, `<option value="workflow"`) {
 		t.Fatal("index.html should not render Workflow as a selectable dimension")
 	}
-	if !strings.Contains(appJS, "let currentFilter = 'topic'") {
-		t.Fatal("app.js should default dimension filtering to Topic")
+	if !strings.Contains(appJS, "let currentFilter = 'module'") {
+		t.Fatal("app.js should default dimension filtering to Module")
+	}
+	if !strings.Contains(appJS, "if (currentFilter === 'module') return type === 'module' || type === 'topic'") {
+		t.Fatal("app.js should show module topics in Module dimension")
+	}
+	if !strings.Contains(appJS, "if (currentFilter === 'topic') return type === 'topic'") {
+		t.Fatal("app.js should only show topics in Topic dimension")
+	}
+	if !strings.Contains(appJS, `cy.nodes('[type = "module"], [type = "topic"]')`) {
+		t.Fatal("app.js should search modules and topics in Module dimension")
+	}
+	if !strings.Contains(appJS, `cy.nodes('[type = "topic"]')`) {
+		t.Fatal("app.js should search only topics in Topic dimension")
+	}
+	if !strings.Contains(appJS, "modulesForTopic(node).forEach") {
+		t.Fatal("app.js should show a matched topic's module in Module dimension search")
+	}
+	if !strings.Contains(appJS, "relatedTopicsForTopic(node).forEach") {
+		t.Fatal("app.js should show related topics for Topic dimension search")
+	}
+	if !strings.Contains(appJS, "els.relationTitle2.textContent = '相关 Topic (' + topics.length + ')'") {
+		t.Fatal("app.js should render related topics as the second topic detail group")
+	}
+	if !strings.Contains(appJS, "els.relationTitle3.textContent = '实现 Workflow (' + workflows.length + ')'") {
+		t.Fatal("app.js should render implementing workflows as the third topic detail group")
+	}
+	if !strings.Contains(appJS, "setRelationSectionsVisible(1)") {
+		t.Fatal("app.js should show only the contained Topic group for Module details")
+	}
+	if strings.Contains(appJS, "els.relationTitle2.textContent = '实现 Workflow (' + workflows.length + ')'") {
+		t.Fatal("app.js should not render implementing workflows as a Module detail group")
 	}
 	if strings.Contains(appJS, "currentFilter === 'all'") {
 		t.Fatal("app.js should not keep all-dimensions filtering logic")

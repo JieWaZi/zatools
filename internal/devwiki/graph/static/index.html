@@ -51,6 +51,7 @@
           <div class="left-metrics">
             <div class="left-metric blue"><strong id="topicCount">0</strong><span>Topic</span></div>
             <div class="left-metric green"><strong id="workflowCount">0</strong><span>Workflow</span></div>
+            <div class="left-metric purple"><strong id="moduleCount">0</strong><span>Module</span></div>
             <div class="left-metric"><strong id="edgeCount">0</strong><span>边数量</span></div>
           </div>
           <div class="left-build-card">
@@ -67,7 +68,8 @@
             <label class="select-control">
               <span>维度</span>
               <select id="typeSelect">
-                <option value="topic" selected>Topic</option>
+                <option value="module" selected>Module</option>
+                <option value="topic">Topic</option>
               </select>
             </label>
           </div>
@@ -83,12 +85,14 @@
           <div class="graph-bottom-legend">
             <div class="legend-inline-group">
               <span class="legend-inline-title">节点类型</span>
+              <span class="legend-inline-item"><i class="legend-dot module"></i>模块</span>
               <span class="legend-inline-item"><i class="legend-dot cap"></i>主题</span>
               <span class="legend-inline-item"><i class="legend-dot flow"></i>流程</span>
             </div>
             <div class="legend-inline-divider"></div>
             <div class="legend-inline-group">
               <span class="legend-inline-title">关系类型</span>
+              <span class="legend-inline-item"><i class="line-symbol contain"></i>包含</span>
               <span class="legend-inline-item"><i class="line-symbol arrow"></i>实现</span>
               <span class="legend-inline-item"><i class="line-symbol dashed"></i>相关</span>
             </div>

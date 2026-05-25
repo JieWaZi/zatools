@@ -127,8 +127,10 @@ zatools devwiki read workflow <slug> --view core
 - facts 与 inference 必须分开表达
 - 仅凭检索输出或其他派生内容，不能单独作为证据
 - Topic 只写主题边界、功能行为、关键规则和实现入口，不写代码路径、函数名、handler、调用链
+- Topic 的 `module` frontmatter 字段只用于 graph 聚合展示，不创建独立模块页面
 - Workflow 只写工程实现知识，代码路径、函数、类、配置文件必须有证据
 - 页面写入和证据字段更新必须遵守对应 DevWiki skill 的模板和引用规则
+- 新建 Topic 或 Workflow 后必须同步检查 `wiki/glossary.md`；先查是否已有关键术语或等价别名，不存在才添加
 - 项目知识任务先由 `devwiki-project-router` 判断意图、身份、证据需求和检索边界，再路由到 `devwiki-ingest`、`devwiki-topic`、`devwiki-workflow`、`devwiki-maintain`、`devwiki-query`、`devwiki-code-to-doc` 或 `devwiki-qmd-sync`
 - 中高风险写入必须先给 proposal，再落盘
 
@@ -139,7 +141,8 @@ zatools devwiki read workflow <slug> --view core
 - 如需下载 qmd models，初始化完成后可在 DevWiki 工作区内手动执行 `zatools qmd download --root .`
 - 对已有工作区补做或修复 qmd collection 注册、索引刷新与状态检查时，使用 `devwiki-qmd-sync`
 - 使用 `devwiki-project-router` 作为项目知识任务的默认总入口
-- 使用 `devwiki-ingest` 吸收 raw 文档并生成 TopicTask / WorkflowTask；Topic 正文交给 `devwiki-topic`，Workflow 正文交给 `devwiki-workflow`
+- 使用 `devwiki-ingest` 吸收 raw 文档并生成 TopicTask / WorkflowTask；TopicTask 需要带 module 建议，Topic 正文交给 `devwiki-topic`，Workflow 正文交给 `devwiki-workflow`
+- 使用 `devwiki-topic` 或 `devwiki-workflow` 新建页面后，必须先查 `wiki/glossary.md`，缺少关键术语时按通用格式补充
 - 使用 `devwiki-maintain` 维护已有 Wiki 的证据一致性、过期内容、引用缺失、关系错误和 query 污染
 - 使用 `devwiki-query` 查询 Wiki、raw、代码线索、设计意图和排障知识
 - 使用 `devwiki-code-to-doc` 从代码、接口、配置项、日志或路由反向生成或更新 workflow 页面

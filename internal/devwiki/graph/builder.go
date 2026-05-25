@@ -56,7 +56,7 @@ func Build(root string) (Graph, []Issue, error) {
 		node := pageNode(page)
 		graph.Nodes = append(graph.Nodes, node)
 		graph.Documents[node.ID] = Document{
-			Type:    page.Type,
+			Type:    node.Type,
 			Path:    page.Path,
 			Title:   node.Title,
 			Summary: node.Summary,
@@ -70,6 +70,7 @@ func Build(root string) (Graph, []Issue, error) {
 	}
 
 	edgeMap := map[string]*Edge{}
+	addModuleNodesAndEdges(&graph, edgeMap, pages)
 	for _, page := range pages {
 		switch page.Type {
 		case PageTypeTopic:
@@ -91,6 +92,41 @@ func Build(root string) (Graph, []Issue, error) {
 	return graph, issues, nil
 }
 
+func addModuleNodesAndEdges(graph *Graph, edgeMap map[string]*Edge, pages []Page) {
+	modules := map[string][]Page{}
+	for _, page := range pages {
+		if page.Type != PageTypeTopic || page.Module == "" {
+			continue
+		}
+		modules[page.Module] = append(modules[page.Module], page)
+	}
+	slugs := make([]string, 0, len(modules))
+	for slug := range modules {
+		slugs = append(slugs, slug)
+	}
+	sort.Strings(slugs)
+	for _, slug := range slugs {
+		topics := modules[slug]
+		title := moduleTitle(slug)
+		id := nodeID(NodeTypeModule, slug)
+		graph.Nodes = append(graph.Nodes, Node{
+			ID:      id,
+			Type:    NodeTypeModule,
+			Slug:    slug,
+			Title:   title,
+			Summary: fmt.Sprintf("包含 %d 个 Topic", len(topics)),
+		})
+		graph.Documents[id] = Document{
+			Type:    NodeTypeModule,
+			Title:   title,
+			Summary: fmt.Sprintf("包含 %d 个 Topic", len(topics)),
+		}
+		for _, topic := range topics {
+			addEdge(edgeMap, "contains", id, nodeID(NodeTypeTopic, topic.Slug), "包含主题", topic.Path)
+		}
+	}
+}
+
 func buildTopicEdges(edgeMap map[string]*Edge, index map[PageType]map[string]Page, page Page) []Issue {
 	var issues []Issue
 	for _, workflow := range page.Workflows {
@@ -99,7 +135,7 @@ func buildTopicEdges(edgeMap map[string]*Edge, index map[PageType]map[string]Pag
 			issues = append(issues, Issue{Level: IssueError, Path: page.Path, Message: fmt.Sprintf("missing workflow %q", workflow)})
 			continue
 		}
-		addEdge(edgeMap, "implemented_by", nodeID(PageTypeTopic, page.Slug), nodeID(PageTypeWorkflow, workflow), "实现流程", page.Path)
+		addEdge(edgeMap, "implemented_by", nodeID(NodeTypeTopic, page.Slug), nodeID(NodeTypeWorkflow, workflow), "实现流程", page.Path)
 		if !contains(target.Topics, page.Slug) {
 			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("reverse relation missing: workflow %q does not list topic %q", workflow, page.Slug)})
 		}
@@ -109,7 +145,7 @@ func buildTopicEdges(edgeMap map[string]*Edge, index map[PageType]map[string]Pag
 			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("related topic %q does not exist", related)})
 			continue
 		}
-		addUndirectedEdge(edgeMap, "related", nodeID(PageTypeTopic, page.Slug), nodeID(PageTypeTopic, related), "相关主题", page.Path)
+		addUndirectedEdge(edgeMap, "related", nodeID(NodeTypeTopic, page.Slug), nodeID(NodeTypeTopic, related), "相关主题", page.Path)
 	}
 	return issues
 }
@@ -122,7 +158,7 @@ func buildWorkflowEdges(edgeMap map[string]*Edge, index map[PageType]map[string]
 			issues = append(issues, Issue{Level: IssueError, Path: page.Path, Message: fmt.Sprintf("missing topic %q", topic)})
 			continue
 		}
-		addEdge(edgeMap, "implemented_by", nodeID(PageTypeTopic, topic), nodeID(PageTypeWorkflow, page.Slug), "实现流程", page.Path)
+		addEdge(edgeMap, "implemented_by", nodeID(NodeTypeTopic, topic), nodeID(NodeTypeWorkflow, page.Slug), "实现流程", page.Path)
 		if !contains(target.Workflows, page.Slug) {
 			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("reverse relation missing: topic %q does not list workflow %q", topic, page.Slug)})
 		}
@@ -132,15 +168,15 @@ func buildWorkflowEdges(edgeMap map[string]*Edge, index map[PageType]map[string]
 			issues = append(issues, Issue{Level: IssueWarning, Path: page.Path, Message: fmt.Sprintf("related workflow %q does not exist", related)})
 			continue
 		}
-		addUndirectedEdge(edgeMap, "related", nodeID(PageTypeWorkflow, page.Slug), nodeID(PageTypeWorkflow, related), "相关流程", page.Path)
+		addUndirectedEdge(edgeMap, "related", nodeID(NodeTypeWorkflow, page.Slug), nodeID(NodeTypeWorkflow, related), "相关流程", page.Path)
 	}
 	return issues
 }
 
 func pageNode(page Page) Node {
 	return Node{
-		ID:         nodeID(page.Type, page.Slug),
-		Type:       page.Type,
+		ID:         nodeID(NodeType(page.Type), page.Slug),
+		Type:       NodeType(page.Type),
 		Slug:       page.Slug,
 		Title:      page.Title,
 		Summary:    page.Summary,
@@ -150,8 +186,12 @@ func pageNode(page Page) Node {
 	}
 }
 
-func nodeID(typ PageType, slug string) string {
+func nodeID(typ NodeType, slug string) string {
 	return string(typ) + ":" + slug
+}
+
+func moduleTitle(slug string) string {
+	return strings.ReplaceAll(slug, "-", " ")
 }
 
 func addEdge(edges map[string]*Edge, typ string, source string, target string, label string, path string) {
