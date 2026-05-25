@@ -41,7 +41,6 @@ type Page struct {
 	Summary          string
 	Status           string
 	Confidence       string
-	SearchTerms      []string
 	Workflows        []string
 	Topics           []string
 	RelatedTopics    []string
@@ -57,15 +56,14 @@ type Project struct {
 
 // Node is a rendered graph node.
 type Node struct {
-	ID          string   `json:"id"`
-	Type        PageType `json:"type"`
-	Slug        string   `json:"slug"`
-	Title       string   `json:"title"`
-	Summary     string   `json:"summary"`
-	Status      string   `json:"status"`
-	Confidence  string   `json:"confidence"`
-	Path        string   `json:"path"`
-	SearchTerms []string `json:"search_terms"`
+	ID         string   `json:"id"`
+	Type       PageType `json:"type"`
+	Slug       string   `json:"slug"`
+	Title      string   `json:"title"`
+	Summary    string   `json:"summary"`
+	Status     string   `json:"status"`
+	Confidence string   `json:"confidence"`
+	Path       string   `json:"path"`
 }
 
 // Edge is a rendered graph relation between two nodes.

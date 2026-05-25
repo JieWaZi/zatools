@@ -43,7 +43,6 @@ sources: []
 visibility: internal
 confidence: medium
 last_verified_at: YYYY-MM-DD
-search_terms: []
 ---
 
 # <主题名>

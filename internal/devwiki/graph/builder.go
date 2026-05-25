@@ -139,15 +139,14 @@ func buildWorkflowEdges(edgeMap map[string]*Edge, index map[PageType]map[string]
 
 func pageNode(page Page) Node {
 	return Node{
-		ID:          nodeID(page.Type, page.Slug),
-		Type:        page.Type,
-		Slug:        page.Slug,
-		Title:       page.Title,
-		Summary:     page.Summary,
-		Status:      page.Status,
-		Confidence:  page.Confidence,
-		Path:        page.Path,
-		SearchTerms: page.SearchTerms,
+		ID:         nodeID(page.Type, page.Slug),
+		Type:       page.Type,
+		Slug:       page.Slug,
+		Title:      page.Title,
+		Summary:    page.Summary,
+		Status:     page.Status,
+		Confidence: page.Confidence,
+		Path:       page.Path,
 	}
 }
 

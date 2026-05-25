@@ -23,8 +23,6 @@ workflows:
 related_topics:
   - "[[ha-state]]"
 confidence: medium
-search_terms:
-  - "vip"
 ---
 # VIP 接管
 `)
@@ -48,8 +46,6 @@ topics:
 related_workflows:
   - "workflow-ha-state"
 confidence: medium
-search_terms:
-  - "keepalived"
 ---
 # VIP 接管实现
 `)

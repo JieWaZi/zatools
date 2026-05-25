@@ -1,6 +1,11 @@
 package graph
 
-import "testing"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+	"testing"
+)
 
 func TestBuildGraphCreatesNormalizedEdges(t *testing.T) {
 	root := t.TempDir()
@@ -100,6 +105,37 @@ func TestBuildWarnsForMissingReverseRelation(t *testing.T) {
 	}
 	if !hasIssue(issues, IssueWarning, "reverse relation") {
 		t.Fatalf("issues = %#v, want reverse relation warning", issues)
+	}
+}
+
+func TestBuildGraphJSONOmitsLegacyQueryMetadata(t *testing.T) {
+	root := t.TempDir()
+	legacyField := "search_" + "terms"
+	writeGraphFile(t, root, "config/project.yaml", "project_name: Sample\nproject_slug: sample\n")
+	writeGraphFile(t, root, "wiki/topics/vip.md", fmt.Sprintf(`---
+title: "VIP"
+slug: "vip"
+kind: topic
+status: active
+summary: "VIP"
+%s: ["legacy"]
+---
+# VIP
+`, legacyField))
+
+	graph, issues, err := Build(root)
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	if hasIssue(issues, IssueError, "") {
+		t.Fatalf("issues contain error: %#v", issues)
+	}
+	data, err := json.Marshal(graph)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	if strings.Contains(string(data), legacyField) || strings.Contains(string(data), "legacy") {
+		t.Fatalf("graph JSON contains removed query metadata: %s", data)
 	}
 }
 

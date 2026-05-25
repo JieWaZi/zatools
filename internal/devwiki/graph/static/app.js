@@ -79,7 +79,6 @@ function toCytoscapeElements(data) {
       path: node.path,
       confidence: node.confidence || '-',
       status: node.status || '-',
-      search_terms: node.search_terms || [],
       nodeLabel: node.title || node.slug,
       icon: typeStyle[node.type] ? typeStyle[node.type].icon : '⌬'
     },
@@ -367,8 +366,7 @@ function collectSearchVisibleNodeIDs(kw) {
 
 function nodeMatchesSearch(node, kw) {
   const data = node.data();
-  const terms = Array.isArray(data.search_terms) ? data.search_terms.join(' ') : '';
-  const text = (data.title + ' ' + data.slug + ' ' + data.summary + ' ' + terms).toLowerCase();
+  const text = (data.title + ' ' + data.slug + ' ' + data.summary).toLowerCase();
   return text.includes(kw);
 }
 

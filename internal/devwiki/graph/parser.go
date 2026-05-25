@@ -23,7 +23,6 @@ type frontmatter struct {
 	RelatedTopics    []string `yaml:"related_topics"`
 	RelatedWorkflows []string `yaml:"related_workflows"`
 	Confidence       string   `yaml:"confidence"`
-	SearchTerms      []string `yaml:"search_terms"`
 }
 
 // LoadPages parses all topic and workflow pages from a DevWiki root.
@@ -117,7 +116,6 @@ func parsePage(root string, rel string, typ PageType) (Page, []Issue, error) {
 		Summary:          strings.TrimSpace(fm.Summary),
 		Status:           strings.TrimSpace(fm.Status),
 		Confidence:       strings.TrimSpace(fm.Confidence),
-		SearchTerms:      trimStrings(fm.SearchTerms),
 		Workflows:        page.NormalizeReferences(fm.Workflows),
 		Topics:           page.NormalizeReferences(fm.Topics),
 		RelatedTopics:    page.NormalizeReferences(fm.RelatedTopics),
@@ -128,15 +126,4 @@ func parsePage(root string, rel string, typ PageType) (Page, []Issue, error) {
 func extractFrontmatter(data []byte) ([]byte, bool) {
 	raw, _, ok := page.ExtractFrontmatter(data)
 	return raw, ok
-}
-
-func trimStrings(values []string) []string {
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value != "" {
-			out = append(out, value)
-		}
-	}
-	return out
 }

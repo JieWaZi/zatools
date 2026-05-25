@@ -52,7 +52,7 @@ wiki/troubleshooting/
 
 | 置信等级 | 判断标准 | 后续动作 |
 |---|---|---|
-| high | 命中 1-5 个页面；有明确权威页；标题、summary、search_terms 或正文多处匹配；目录与意图一致 | 直接读命中页，不必升档 |
+| high | 命中 1-5 个页面；有明确权威页；标题、summary 或正文多处匹配；目录与意图一致 | 直接读命中页，不必升档 |
 | medium | 命中 6-20 条；有 2-4 个候选页面；需要读页面后判断主页面 | 先读候选页，仍无法排序则升档 |
 | low | 0 命中；超过 20 条散点命中；主要命中 index/glossary；短词命中过泛；active/deprecated/report 混杂；页面冲突；无法判断权威页 | 必须升到 `zatools qmd search` |
 

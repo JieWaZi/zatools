@@ -129,7 +129,6 @@ Maintain 必须按以下类型归类问题。
 - source path 格式错误；
 - index/glossary 漏更新；
 - 明显断链；
-- search_terms 缺失；
 - 页面状态字段缺失；
 - log 未记录；
 - 维护报告误放 active 且未被其他页面引用，可移入 outputs 并加 `exclude_from_query: true`；
@@ -333,7 +332,7 @@ zatools devwiki check graph
 
 ### 10.5 Query 防污染禁止
 
-- 不要只改正文，不改 summary/status/search_terms。
+- 不要只改正文，不改 summary/status。
 - 不要只改页面，不改 index/glossary 和页面入口链接。
 - 不要保留多个互相冲突的 active 入口。
 - 不要让旧页面继续作为主入口。

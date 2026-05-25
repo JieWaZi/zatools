@@ -47,7 +47,6 @@ type Meta struct {
 	RelatedTopics    []string `yaml:"related_topics"`
 	RelatedWorkflows []string `yaml:"related_workflows"`
 	Troubleshooting  []string `yaml:"troubleshooting"`
-	SearchTerms      []string `yaml:"search_terms"`
 	Confidence       string   `yaml:"confidence"`
 	LastVerifiedAt   string   `yaml:"last_verified_at"`
 }
@@ -293,7 +292,6 @@ func normalizeMeta(meta Meta) Meta {
 	meta.RelatedTopics = NormalizeReferences(meta.RelatedTopics)
 	meta.RelatedWorkflows = NormalizeReferences(meta.RelatedWorkflows)
 	meta.Troubleshooting = NormalizeReferences(meta.Troubleshooting)
-	meta.SearchTerms = trimStrings(meta.SearchTerms)
 	meta.Confidence = strings.TrimSpace(meta.Confidence)
 	meta.LastVerifiedAt = strings.TrimSpace(meta.LastVerifiedAt)
 	return meta

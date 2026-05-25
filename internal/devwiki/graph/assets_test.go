@@ -18,6 +18,7 @@ func TestStaticAssetsRespectMarkdownPreviewContract(t *testing.T) {
 		"copy-path",
 		"copy-small",
 		"文件路径",
+		"search_" + "terms",
 		"source: 'mock'",
 		"marked",
 		"DOMPurify",
