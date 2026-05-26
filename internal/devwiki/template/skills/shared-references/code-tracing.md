@@ -1,6 +1,6 @@
 # 代码追踪纪律
 
-> 供 `devwiki-query`、`devwiki-code-to-doc` 以及所有需要从入口锚点走到真实实现的技能共享使用。
+> 供 `devwiki-query`、`devwiki-code`、`devwiki-code-to-doc` 以及所有需要从入口锚点走到真实实现的技能共享使用。
 
 > 仅当工作流已经确认“这次确实需要看代码”时才使用本规范；如果文档已经能回答问题，`devwiki-query` 应先给出文档结论，再把代码核对作为可选补充。
 
@@ -46,7 +46,7 @@
 
 ### Step 2：召回 top-K 候选
 
-先按 `zatools-qmd.md` 做本地 Wiki 搜索；命中低置信、噪声过大或无法排序时，再用 `qmd search` 召回 top-K Wiki 候选。
+先按 `zatools-qmd.md` 做本地 Wiki 搜索；命中低置信、噪声过大或无法排序时，再用 `zatools devwiki search workflow <query...>` 召回 top-K Workflow 候选。多个关键词应作为多个参数传入，例如 `zatools devwiki search workflow 防脑裂 网关 ha-group gateway`，不要合并成一个带空格的字符串。
 
 只有当 Wiki/workflow 候选不足以确认关联 Workflow 或代码入口，或用户明确要求当前代码实现、调用链、日志出处、配置读取点时，才进入本地代码搜索。
 

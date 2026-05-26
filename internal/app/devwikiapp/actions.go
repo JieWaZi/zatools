@@ -462,7 +462,7 @@ func filterDevwikiCodeRepoSkills(found []skills.Skill) []skills.Skill {
 	selected := make([]skills.Skill, 0, 2)
 	for _, skill := range found {
 		switch skill.Name {
-		case "devwiki-query", "devwiki-code-to-doc":
+		case "devwiki-code", "devwiki-code-to-doc":
 			selected = append(selected, skill)
 		}
 	}

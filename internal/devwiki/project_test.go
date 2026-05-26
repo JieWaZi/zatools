@@ -197,6 +197,7 @@ func TestGenerateProjectRendersReadmeAndRuntimeTemplates(t *testing.T) {
 		"devwiki-qmd-sync",
 		"devwiki-project-router",
 		"devwiki-maintain",
+		"devwiki-code",
 		"devwiki-query",
 		"devwiki-code-to-doc",
 		"/tmp/go-skills",
@@ -271,6 +272,7 @@ func TestGenerateProjectRendersLatestRuntimeTemplates(t *testing.T) {
 				"使用 `zatools devwiki link`",
 				"devwiki-project-router",
 				"devwiki-maintain",
+				"devwiki-code",
 				"devwiki-query",
 				"devwiki-code-to-doc",
 				"wiki/topics/{slug}.md",
@@ -460,9 +462,43 @@ func TestExtractBuiltinSkillsMaterializesSharedReferencesIntoEachSkill(t *testin
 		t.Fatalf("qmd-sync skill should rely on shared qmd guidance instead of duplicating the section:\n%s", content)
 	}
 
-	wantNames := []string{"code-to-doc", "ingest", "maintain", "project-router", "qmd-sync", "query", "topic", "workflow"}
+	wantNames := []string{"code", "code-to-doc", "ingest", "maintain", "project-router", "qmd-sync", "query", "topic", "workflow"}
 	if strings.Join(gotNames, ",") != strings.Join(wantNames, ",") {
 		t.Fatalf("builtin skill dirs = %#v, want %#v", gotNames, wantNames)
+	}
+}
+
+func TestExtractBuiltinSkillsIncludesCodeGuidance(t *testing.T) {
+	t.Parallel()
+
+	root, cleanup, err := ExtractBuiltinSkills("zh")
+	if err != nil {
+		t.Fatalf("ExtractBuiltinSkills error = %v", err)
+	}
+	defer cleanup()
+
+	data, err := os.ReadFile(filepath.Join(root, "code", "SKILL.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(code/SKILL.md) error = %v", err)
+	}
+	content := string(data)
+	if !containsAll(content,
+		`name: "devwiki-code"`,
+		"修改代码、开发功能、修复 bug、调整接口/配置/业务逻辑、重构实现、补测试或提交代码",
+		"Code 不是 Query，也不是 Code-to-Doc",
+		"理解用户问题 → 结构化搜索 → card 验证 → 读取正文 → 代码核对 → 测试 → 实现 → 验证",
+		`zatools devwiki search <kind> <query...>`,
+		"多个关键词应作为多个参数传入，不要合并成一个带空格的字符串",
+		`[{"file":"workflow-ha-brain-split-protection.md","slug":"workflow-ha-brain-split-protection","title":"HA 脑裂监控与防护实现定位","score":"83%"}]`,
+		"`read workflow/topic` 后面的参数必须使用 `slug` 字段值",
+		"top 5 不满足，再 grep `wiki/index.md`",
+		"Workflow core 是代码修改的主入口",
+		"自动执行 `rg -n '<关键字段|函数|常量>' <明确文件>`",
+		"禁止在已有明确文件锚点时直接 `rg -n '<关键词>' .`",
+		"不要默认写入 DevWiki 文档",
+		"修改后导致 Wiki 过期时，只提示后续使用 `devwiki-code-to-doc`",
+	) {
+		t.Fatalf("code/SKILL.md missing code guidance:\n%s", content)
 	}
 }
 
@@ -487,6 +523,7 @@ func TestExtractBuiltinSkillsIncludesProjectRouterNewWorkflow(t *testing.T) {
 		"devwiki-topic",
 		"devwiki-workflow",
 		"devwiki-maintain",
+		"devwiki-code",
 		"devwiki-query",
 		"devwiki-code-to-doc",
 		"devwiki-qmd-sync",
@@ -889,7 +926,7 @@ func TestExtractBuiltinSkillsIncludesLocalWikiFirstQmdFallbackGuidance(t *testin
 	if !containsAll(content,
 		"本地 Wiki 优先，低置信升档",
 		"这里的“本地优先”首先指 `wiki/`，不是代码仓全局搜索",
-		"意图识别 → 本地 Wiki 搜索 → 命中质量判断 → qmd search → qmd query → raw/code 核对",
+		"意图识别 → 本地 Wiki 搜索 → 命中质量判断 → devwiki search → qmd query → raw/code 核对",
 		"`locate_exact`",
 		"`explain_topic`",
 		"`trace_implementation`",
@@ -899,7 +936,9 @@ func TestExtractBuiltinSkillsIncludesLocalWikiFirstQmdFallbackGuidance(t *testin
 		"`ssh`、`vip`、`auth`、`token`、`query`、`sync` 这类短词只是中锚点",
 		"默认先检索 DevWiki 文档层",
 		"low | 0 命中；超过 20 条散点命中",
-		"必须升到 `zatools qmd search`",
+		"必须升到 `zatools devwiki search <topic|workflow> <query...>`",
+		"多 query 结果使用 RRF",
+		"`devwiki search` 底层调用 `qmd search`",
 		"qmd 失败 fallback",
 		"本轮 qmd 不可用，已降级为本地 Wiki 搜索",
 		"raw/code 仍需本地核对",
@@ -1241,7 +1280,9 @@ func TestEnsureCodeRepoDevwikiLinkCreatesAgentsWhenMissing(t *testing.T) {
 		devwikiRoot,
 		filepath.Join(devwikiRoot, "AGENTS.md"),
 		"devwiki-query",
+		"devwiki-code",
 		"devwiki-code-to-doc",
+		"`devwiki-code` 修改当前代码库",
 		"必须写入关联 DevWiki 文档库",
 	) {
 		t.Fatalf("code AGENTS.md missing DevWiki link block:\n%s", agents)

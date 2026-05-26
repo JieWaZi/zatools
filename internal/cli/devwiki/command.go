@@ -34,6 +34,7 @@ func NewCommand() *cobra.Command {
 	devwikiCmd.AddCommand(newLinkCmd(service))
 	devwikiCmd.AddCommand(newUpdateCmd(service))
 	devwikiCmd.AddCommand(newReadCmd(service))
+	devwikiCmd.AddCommand(newSearchCmd(service))
 	devwikiCmd.AddCommand(newCheckCmd(service))
 	devwikiCmd.AddCommand(newGraphCmd(service))
 	devwikiCmd.AddCommand(newToolCmd())
@@ -111,6 +112,26 @@ func newReadCmd(service *devwikiapp.Service) *cobra.Command {
 	cmd.Flags().StringVar(&opts.Root, "root", ".", copy.FlagDevwikiRoot)
 	cmd.Flags().StringVar(&opts.View, "view", "card", copy.FlagDevwikiReadView)
 	cmd.Flags().StringVar(&opts.Format, "format", "text", copy.FlagDevwikiReadFormat)
+	return cmd
+}
+
+func newSearchCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	var opts devwikiapp.SearchOptions
+
+	cmd := &cobra.Command{
+		Use:         "search <topic|workflow> <query...>",
+		Short:       copy.DevwikiSearchShort,
+		Args:        cobra.MinimumNArgs(2),
+		Annotations: map[string]string{SuppressLogoAnnotation: "true"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.Kind = args[0]
+			opts.QueryTerms = args[1:]
+			opts.Stdout = cmd.OutOrStdout()
+			return service.Search(cmd.Context(), opts)
+		},
+	}
+	cmd.Flags().StringVar(&opts.Root, "root", ".", copy.FlagDevwikiRoot)
 	return cmd
 }
 

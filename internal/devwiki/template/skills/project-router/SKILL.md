@@ -1,6 +1,6 @@
 ---
 name: "devwiki-project-router"
-description: "当用户提出项目功能、设计文档、代码定位、故障排查、Wiki 构建、Wiki 查询、Wiki 健康维护、代码反向成文或 qmd 检索层维护相关请求时使用。"
+description: "当用户提出项目功能、设计文档、代码定位、代码修改、故障排查、Wiki 构建、Wiki 查询、Wiki 健康维护、代码反向成文或 qmd 检索层维护相关请求时使用。"
 argument-hint: "<问题、任务或文档范围>"
 ---
 
@@ -39,7 +39,8 @@ argument-hint: "<问题、任务或文档范围>"
 | topic_write | `devwiki-topic` | 创建或维护 `wiki/topics/`，只写主题边界、功能规则、关键状态和关联 Workflow |
 | workflow_write | `devwiki-workflow` | 创建或维护 `wiki/workflows/`，只写工程入口、代码定位、调用链、修改影响和验证方式 |
 | maintain | `devwiki-maintain` | 对已有 Wiki 做证据一致性、过期内容、引用缺失、入口错误和 query 污染维护 |
-| query | `devwiki-query` | 查询已有 Wiki、raw 和必要的代码线索，回答能力、功能、工程定位和排障问题 |
+| code | `devwiki-code` | 基于 DevWiki workflow 定位并修改当前代码仓，开发功能、修 bug、重构、补测试或提交代码 |
+| query | `devwiki-query` | 只读查询已有 Wiki、raw 和必要的代码线索，回答能力、功能、工程定位和排障问题 |
 | code_to_doc | `devwiki-code-to-doc` | 从代码、接口、配置项、日志或路由反向生成或更新 DevWiki 页面 |
 | qmd_sync | `devwiki-qmd-sync` | 补做或修复 qmd collection 注册、索引刷新与状态检查 |
 
@@ -81,7 +82,31 @@ devwiki-maintain
 
 默认需要读取目标 Wiki、source、index/glossary 和页面入口链接；涉及实现偏差时需要代码搜索。中高风险修正必须先输出 Maintain Proposal，再按确认落盘。
 
-### 3. 查询类
+### 3. 代码修改类
+
+命中条件：
+
+- 用户说「修改」「改成」「实现」「开发」「修复」「修 bug」「不生效」「重构」
+- 用户要求调整接口、配置、业务逻辑、持久化、调用链、页面行为或运行时行为
+- 用户要求补测试、跑测试、提交代码，或说「按这个方案做」「开始改」
+- 用户描述目标状态，例如「从全局改为按 group 配置」「新增字段」「删除旧字段」
+
+路由到：
+
+```text
+devwiki-code
+```
+
+默认需要 DevWiki workflow 定位和代码核对。路径优先为：
+
+```text
+index → workflow card/core → 必要 topic core → 代码核对 → 测试 → 实现 → 验证
+```
+
+不要转入 `devwiki-query` 做完整解释；Workflow core 是代码修改的主入口。
+修改后如果发现 Wiki 过期，只提示后续使用 `devwiki-code-to-doc` 更新文档，不在 code 流程里默认写 Wiki。
+
+### 4. 查询类
 
 命中条件：
 
@@ -89,6 +114,7 @@ devwiki-maintain
 - 用户问「这个设计怎么理解」「这个功能和哪个文档有关」
 - 用户要求「qmd 搜一下」「查一下 Wiki」「找相关设计 / 排障记录」
 - 用户问当前实现、接口、函数、文件归属或运行时行为
+- 用户只要求影响分析、代码定位或测试建议，但没有要求本轮修改代码
 
 路由到：
 
@@ -101,8 +127,9 @@ devwiki-query
 - 只问功能背景、设计意图、流程说明：先用 `wiki/` 和 `raw/`
 - 问实现现实、文件位置、函数职责、接口调用链：必须核对代码
 - 文档证据足够但用户没问实现：不要为了“更稳”默认展开代码
+- 一旦用户转为要求修改、修复、开发或提交，改走 `devwiki-code`
 
-### 4. 代码反向成文类
+### 5. 代码反向成文类
 
 命中条件：
 
@@ -117,8 +144,9 @@ devwiki-code-to-doc
 ```
 
 默认需要代码搜索；默认写入 `wiki/workflows/`，写入 Wiki 前必须先给出证据摘要、拟写路径和待确认事项。
+如果用户目标是修改生产代码，不走本 Skill，改走 `devwiki-code`。
 
-### 5. qmd 检索层维护类
+### 6. qmd 检索层维护类
 
 命中条件：
 
@@ -141,18 +169,20 @@ devwiki-qmd-sync
 1. `devwiki-qmd-sync`
 2. `devwiki-ingest`
 3. `devwiki-maintain`
-4. `devwiki-code-to-doc`
-5. `devwiki-query`
+4. `devwiki-code`
+5. `devwiki-code-to-doc`
+6. `devwiki-query`
 
 示例：
 
 - 「qmd 搜不到这些 Wiki 页面」优先是 `devwiki-qmd-sync`
 - 「把这 20 个设计文档总结成 Wiki」优先是 `devwiki-ingest`
 - 「query 总是答旧机制，帮我维护一下 Wiki」优先是 `devwiki-maintain`
+- 「把防脑裂网关配置从全局改成按 HA group 配置」优先是 `devwiki-code`
 - 「从这个接口反推出功能页」优先是 `devwiki-code-to-doc`
 - 「这个功能是什么」优先是 `devwiki-query`
 
-如果优先级仍无法判断，先追问用户目标产物：是回答问题、写入 Wiki、维护已有 Wiki、从代码成文，还是修复 qmd 检索层。
+如果优先级仍无法判断，先追问用户目标产物：是回答问题、修改代码、写入 Wiki、维护已有 Wiki、从代码成文，还是修复 qmd 检索层。
 
 ## User Role
 

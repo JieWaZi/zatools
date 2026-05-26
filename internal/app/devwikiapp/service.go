@@ -72,3 +72,8 @@ func (s *Service) Check(ctx context.Context, opts CheckOptions) error {
 func (s *Service) Read(ctx context.Context, opts ReadOptions) error {
 	return s.runRead(ctx, opts)
 }
+
+// Search searches DevWiki pages through qmd and returns compact JSON hits.
+func (s *Service) Search(ctx context.Context, opts SearchOptions) error {
+	return s.runSearch(ctx, opts)
+}

@@ -10,6 +10,8 @@ import (
 	"zatools/internal/ui"
 )
 
+const suppressLogoAnnotation = "zatools.io/suppress-logo"
+
 // NewCommand constructs the top-level `qmd` helper command.
 func NewCommand() *cobra.Command {
 	copy := ui.Messages()
@@ -21,6 +23,7 @@ func NewCommand() *cobra.Command {
 		SilenceUsage:       true,
 		SilenceErrors:      true,
 		DisableFlagParsing: true,
+		Annotations:        map[string]string{suppressLogoAnnotation: "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			models, passthrough, err := parseQMDArgs(args, defaultModels)
 			if err != nil {

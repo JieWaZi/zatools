@@ -28,6 +28,7 @@ type Catalog struct {
 	DevwikiGraphShort             string
 	DevwikiCheckShort             string
 	DevwikiReadShort              string
+	DevwikiSearchShort            string
 	RemoveShort                   string
 	CheckShort                    string
 	UpdateShort                   string
@@ -205,6 +206,7 @@ var catalogs = map[string]Catalog{
 		DevwikiGraphShort:             "生成并打开 DevWiki 图谱",
 		DevwikiCheckShort:             "校验 DevWiki 文档格式和图谱关系",
 		DevwikiReadShort:              "按 view 读取 DevWiki 页面",
+		DevwikiSearchShort:            "搜索 DevWiki Topic 或 Workflow 页面",
 		RemoveShort:                   "删除已安装技能",
 		CheckShort:                    "检查技能是否有可用更新",
 		UpdateShort:                   "更新已安装技能",
@@ -380,6 +382,7 @@ var catalogs = map[string]Catalog{
 		DevwikiGraphShort:             "Build and open the DevWiki graph",
 		DevwikiCheckShort:             "Validate DevWiki document format and graph relations",
 		DevwikiReadShort:              "Read a DevWiki page view",
+		DevwikiSearchShort:            "Search DevWiki Topic or Workflow pages",
 		RemoveShort:                   "Remove installed skills",
 		CheckShort:                    "Check for available skill updates",
 		UpdateShort:                   "Update installed skills",

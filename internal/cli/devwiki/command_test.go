@@ -28,6 +28,9 @@ func TestNewCommandIncludesInitAndToolSubcommands(t *testing.T) {
 	if sub, _, err := cmd.Find([]string{"check"}); err != nil || sub == nil {
 		t.Fatalf("missing subcommand %q: %v", "check", err)
 	}
+	if sub, _, err := cmd.Find([]string{"search"}); err != nil || sub == nil {
+		t.Fatalf("missing subcommand %q: %v", "search", err)
+	}
 }
 
 func TestDevwikiInitFlags(t *testing.T) {
@@ -157,5 +160,37 @@ func TestDevwikiReadCommandFlags(t *testing.T) {
 	}
 	if initCmd, _, err := cmd.Find([]string{"init"}); err != nil || initCmd.Annotations[SuppressLogoAnnotation] == "true" {
 		t.Fatalf("init command should not suppress logo: cmd=%v err=%v", initCmd, err)
+	}
+}
+
+func TestDevwikiSearchCommandFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	searchCmd, _, err := cmd.Find([]string{"search"})
+	if err != nil {
+		t.Fatalf("Find(search) error = %v", err)
+	}
+	if searchCmd == nil {
+		t.Fatal("search command is nil")
+	}
+	if searchCmd.Flags().Lookup("root") == nil {
+		t.Fatal("search command missing flag root")
+	}
+	if searchCmd.Annotations[SuppressLogoAnnotation] != "true" {
+		t.Fatalf("search command should suppress logo annotation")
+	}
+}
+
+func TestDevwikiSearchAcceptsMultipleQueryTerms(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	searchCmd, _, err := cmd.Find([]string{"search", "workflow", "防脑裂", "网关"})
+	if err != nil {
+		t.Fatalf("Find(search with multiple terms) error = %v", err)
+	}
+	if err := searchCmd.Args(searchCmd, []string{"workflow", "防脑裂", "网关"}); err != nil {
+		t.Fatalf("search Args() error = %v", err)
 	}
 }

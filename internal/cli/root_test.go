@@ -2,13 +2,17 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"zatools/internal/qmd"
 )
 
 func TestNewRootCmdIncludesExpectedSubcommands(t *testing.T) {
@@ -110,6 +114,27 @@ card body
 	}
 }
 
+func TestQMDDoesNotPrintLogo(t *testing.T) {
+	cmd := NewRootCmd()
+	cmd.SetArgs([]string{"qmd", "status"})
+	cmd.SetContext(qmd.WithCommandRunner(context.Background(), rootQMDHelperRunner(t)))
+	var commandOut bytes.Buffer
+	cmd.SetOut(&commandOut)
+	cmd.SetErr(io.Discard)
+
+	processOut := captureStdoutRootTest(t, func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+	})
+	if strings.Contains(processOut, "███████") || strings.Contains(commandOut.String(), "███████") {
+		t.Fatalf("qmd output should not include logo: stdout=%q commandOut=%q", processOut, commandOut.String())
+	}
+	if !strings.Contains(commandOut.String(), "argv=qmd status") {
+		t.Fatalf("qmd command did not run through helper: %q", commandOut.String())
+	}
+}
+
 func mustWriteRootTestFile(t *testing.T, path string, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -141,4 +166,32 @@ func captureStdoutRootTest(t *testing.T, fn func()) string {
 		t.Fatalf("Close reader error = %v", err)
 	}
 	return string(data)
+}
+
+func rootQMDHelperRunner(t *testing.T) func(context.Context, string, ...string) *exec.Cmd {
+	t.Helper()
+
+	return func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		commandArgs := []string{"-test.run=TestRootQMDHelperProcess", "--", name}
+		commandArgs = append(commandArgs, args...)
+		cmd := exec.CommandContext(ctx, os.Args[0], commandArgs...)
+		cmd.Env = append(os.Environ(), "GO_WANT_ROOT_QMD_HELPER=1")
+		return cmd
+	}
+}
+
+func TestRootQMDHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_ROOT_QMD_HELPER") != "1" {
+		return
+	}
+
+	args := os.Args
+	for i, arg := range os.Args {
+		if arg == "--" {
+			args = os.Args[i+1:]
+			break
+		}
+	}
+	_, _ = os.Stdout.WriteString("argv=" + strings.Join(args, " ") + "\n")
+	os.Exit(0)
 }

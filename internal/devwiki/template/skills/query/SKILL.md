@@ -1,6 +1,6 @@
 ---
 name: "devwiki-query"
-description: "当用户询问项目能力、功能说明、实现细节、配置、排障、对外说明、比较分析或已有 DevWiki 知识时使用。"
+description: "当用户询问项目能力、功能说明、配置规则、现有实现位置、排障知识、对外说明、比较分析或已有 DevWiki 知识，并且不要求修改代码时使用。若用户要求开发、修改、修复、重构、补测试或提交代码，应使用 devwiki-code。"
 argument-hint: "<问题>"
 ---
 
@@ -16,6 +16,13 @@ argument-hint: "<问题>"
   - 仅用户要求保存回答、沉淀结论、写入文件时 → 读 `references/mutation-safety.md`
 
 不要凭空回答项目事实；先查 DevWiki，再按需核对代码；每个关键结论都要能追溯来源。
+
+## 与 devwiki-code 的边界
+
+- 本 Skill 是只读查询：回答知识、规则、现有实现、代码位置、影响面和排障线索。
+- 如果用户表达了要修改代码、开发功能、修 bug、调整接口/配置/业务逻辑、重构、补测试或提交代码，本 Skill 只做简短转交：使用 `devwiki-code`。
+- 不要在修改类请求中继续执行 query 的 locate_code 全流程；修改类请求由 `devwiki-code` 走 `index → workflow card/core → 必要 topic core → 代码核对 → 测试 → 实现 → 验证`。
+- 只有用户明确要求保存回答、沉淀结论或写入报告时，本 Skill 才写 `wiki/outputs/`；默认不写代码，也不写 Wiki 页面。
 
 ## Outputs
 
@@ -71,7 +78,7 @@ argument-hint: "<问题>"
 | 用户意图 | 用户实际在问 | 优先目录 | 辅助目录 |
 |---|---|---|---|
 | explain_topic | 能力边界、功能规则、配置、状态、联动、流程规则 | `wiki/topics/` | `wiki/glossary.md`, `raw/` |
-| locate_code | 代码在哪里、调用链、接口、内部逻辑、怎么改、影响范围 | `wiki/workflows/` | `wiki/topics/`, 之后才 `rg` |
+| locate_code | 代码在哪里、调用链、接口、内部逻辑、当前实现、影响范围 | `wiki/workflows/` | `wiki/topics/`, 之后才 `rg` |
 | troubleshoot | 报错、不生效、怎么排查、怎么修复 | `wiki/troubleshooting/` | `wiki/workflows/`, `wiki/topics/` |
 | public_answer | 对外说明、客户口径、官网/文档口径 | public 可见 Topic | 不读代码 |
 
@@ -93,9 +100,10 @@ argument-hint: "<问题>"
 ### Step 1: 意图识别
 
 1. 读取 `config/project.yaml`，确定代码仓配置和默认语言。
-2. 判断问题语义：
+2. 如果用户要求修改代码、开发功能、修 bug、调整接口/配置/业务逻辑、重构、补测试或提交代码，停止本 Skill，转交 `devwiki-code`。
+3. 判断问题语义：
    - `explain_topic`：用户想了解能力、功能、配置、边界、规则、联动。
-   - `locate_code`：用户想了解代码、入口、调用链、接口、数据流、怎么改、影响面、测试入口。
+   - `locate_code`：用户想了解代码、入口、调用链、接口、数据流、当前实现、影响面、测试入口，但不要求本轮修改代码。
    - `troubleshoot`：用户想解决报错、不生效、异常现象、诊断路径、修复建议。
    - `public_answer`：用户要求对外说明、客户口径、官网/文档口径。
    - `compare`：用户要求比较两个主题、方案或实现路径。
@@ -142,8 +150,8 @@ grep -liE '<关键词>' wiki/troubleshooting/*.md
 **第 4 层：全部无结果 → 低置信升档**
 
 - 先读 `references/zatools-qmd.md`
-- 再按其中路由规则升档到 `zatools qmd search`
-- `qmd search` 命中只是候选排序，最终结论必须回到真实 `wiki/` / `raw/` 页面
+- 再按其中路由规则升档到 `zatools devwiki search <topic|workflow> <query...>`
+- `devwiki search` 命中只是候选排序，最终结论必须回到真实 `wiki/` / `raw/` 页面
 - `qmd search/query` 报错、超时、collection 未注册时，明示“本轮 qmd 不可用，已降级”
 
 如果 `wiki/index.md`、`wiki/glossary.md` 或目标目录缺失，或者真实页面仍不足以支撑结论，输出：

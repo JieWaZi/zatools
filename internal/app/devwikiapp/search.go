@@ -1,0 +1,265 @@
+package devwikiapp
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"zatools/internal/devwiki/page"
+	"zatools/internal/qmd"
+)
+
+const searchRRFK = 60.0
+
+// SearchOptions describes `zatools devwiki search` execution options.
+type SearchOptions struct {
+	Root       string
+	Kind       string
+	Query      string
+	QueryTerms []string
+	Stdout     io.Writer
+}
+
+// SearchResult is one compact DevWiki search hit.
+type SearchResult struct {
+	File  string `json:"file"`
+	Slug  string `json:"slug"`
+	Title string `json:"title"`
+	Score string `json:"score"`
+}
+
+func (s *Service) runSearch(ctx context.Context, opts SearchOptions) error {
+	stdout := opts.Stdout
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+	root := opts.Root
+	if root == "" {
+		root = s.runtime.Workspace.CWD
+	}
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	kind := strings.TrimSpace(opts.Kind)
+	if kind != page.KindTopic && kind != page.KindWorkflow {
+		return fmt.Errorf("unsupported devwiki search kind %q", kind)
+	}
+	queries := normalizeSearchQueries(opts)
+	if len(queries) == 0 {
+		return fmt.Errorf("devwiki search query cannot be empty")
+	}
+
+	resultSets := make([][]SearchResult, 0, len(queries))
+	for _, query := range queries {
+		var searchOut bytes.Buffer
+		if err := qmd.RunCommandInDir(ctx, absRoot, []string{"search", query}, qmd.Models{}, &searchOut, os.Stderr); err != nil {
+			return err
+		}
+		resultSets = append(resultSets, parseQMDSearchOutput(searchOut.String(), kind))
+	}
+	results := fuseSearchResults(resultSets)
+	if results == nil {
+		results = []SearchResult{}
+	}
+	fillSearchResultSlugs(absRoot, kind, results)
+	encoder := json.NewEncoder(stdout)
+	encoder.SetEscapeHTML(false)
+	return encoder.Encode(results)
+}
+
+func normalizeSearchQueries(opts SearchOptions) []string {
+	raw := opts.QueryTerms
+	if len(raw) == 0 {
+		raw = []string{opts.Query}
+	}
+	queries := make([]string, 0, len(raw))
+	for _, query := range raw {
+		query = strings.TrimSpace(query)
+		if query == "" {
+			continue
+		}
+		queries = append(queries, query)
+	}
+	return queries
+}
+
+func fuseSearchResults(resultSets [][]SearchResult) []SearchResult {
+	if len(resultSets) == 0 {
+		return nil
+	}
+	if len(resultSets) == 1 {
+		return resultSets[0]
+	}
+
+	type fusedResult struct {
+		result SearchResult
+		score  float64
+		order  int
+	}
+	fused := make(map[string]*fusedResult)
+	order := 0
+	for _, results := range resultSets {
+		for rank, result := range results {
+			if result.File == "" {
+				continue
+			}
+			item, ok := fused[result.File]
+			if !ok {
+				item = &fusedResult{result: result, order: order}
+				fused[result.File] = item
+				order++
+			}
+			item.score += 1 / (searchRRFK + float64(rank+1))
+		}
+	}
+
+	items := make([]fusedResult, 0, len(fused))
+	var maxScore float64
+	for _, item := range fused {
+		items = append(items, *item)
+		if item.score > maxScore {
+			maxScore = item.score
+		}
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].score == items[j].score {
+			return items[i].order < items[j].order
+		}
+		return items[i].score > items[j].score
+	})
+
+	results := make([]SearchResult, 0, len(items))
+	for _, item := range items {
+		result := item.result
+		result.Score = formatFusedSearchScore(item.score, maxScore)
+		results = append(results, result)
+	}
+	return results
+}
+
+func formatFusedSearchScore(score float64, maxScore float64) string {
+	if maxScore <= 0 {
+		return "0%"
+	}
+	percent := int((score/maxScore)*100 + 0.5)
+	if percent < 0 {
+		percent = 0
+	}
+	if percent > 100 {
+		percent = 100
+	}
+	return fmt.Sprintf("%d%%", percent)
+}
+
+func parseQMDSearchOutput(output string, kind string) []SearchResult {
+	dir := "topics"
+	if kind == page.KindWorkflow {
+		dir = "workflows"
+	}
+
+	var results []SearchResult
+	var currentFile string
+	var currentTitle string
+	for _, rawLine := range strings.Split(output, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" {
+			currentFile = ""
+			currentTitle = ""
+			continue
+		}
+		if file, ok := parseQMDSearchFileLine(line, dir); ok {
+			currentFile = file
+			currentTitle = ""
+			continue
+		}
+		if currentFile == "" {
+			continue
+		}
+		if title, ok := parseQMDSearchTitleLine(line); ok {
+			currentTitle = title
+			continue
+		}
+		score, ok := parseQMDSearchScoreLine(line)
+		if !ok {
+			continue
+		}
+		results = append(results, SearchResult{File: currentFile, Title: currentTitle, Score: score})
+		currentFile = ""
+		currentTitle = ""
+	}
+	return results
+}
+
+func fillSearchResultSlugs(root string, kind string, results []SearchResult) {
+	dir := "topics"
+	if kind == page.KindWorkflow {
+		dir = "workflows"
+	}
+	for index := range results {
+		rel := filepath.ToSlash(filepath.Join("wiki", dir, results[index].File))
+		doc, err := page.Load(root, rel)
+		if err != nil {
+			continue
+		}
+		results[index].Slug = doc.Meta.Slug
+	}
+}
+
+func parseQMDSearchFileLine(line string, dir string) (string, bool) {
+	firstField := strings.Fields(line)
+	if len(firstField) == 0 {
+		return "", false
+	}
+	path := firstField[0]
+	if index := strings.LastIndex(path, ":"); index >= 0 && isQMDLineNumberSuffix(path[index+1:]) {
+		path = path[:index]
+	}
+	path = strings.Trim(filepath.ToSlash(path), "/")
+	prefix := dir + "/"
+	if strings.HasPrefix(path, prefix) {
+		return filepath.Base(path), true
+	}
+	marker := "/" + prefix
+	index := strings.Index(path, marker)
+	if index < 0 {
+		return "", false
+	}
+	return filepath.Base(path[index+len(marker):]), true
+}
+
+func parseQMDSearchScoreLine(line string) (string, bool) {
+	label, value, ok := strings.Cut(line, ":")
+	if !ok || !strings.EqualFold(strings.TrimSpace(label), "Score") {
+		return "", false
+	}
+	score := strings.TrimSpace(value)
+	return score, score != ""
+}
+
+func parseQMDSearchTitleLine(line string) (string, bool) {
+	label, value, ok := strings.Cut(line, ":")
+	if !ok || !strings.EqualFold(strings.TrimSpace(label), "Title") {
+		return "", false
+	}
+	title := strings.TrimSpace(value)
+	return title, title != ""
+}
+
+func isQMDLineNumberSuffix(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, char := range value {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return true
+}

@@ -27,7 +27,7 @@
     └── outputs/                 ← ingest / maintain / query / code-to-doc / qmd-sync 报告
 ```
 
-本目录就是 DevWiki 文档库根目录。代码库通过 AGENTS/CLAUDE 中的托管关联块指向本目录。Agent 在代码库内使用 `devwiki-query` 或 `devwiki-code-to-doc` 前，必须先阅读本文件；查询以本目录的 `wiki/`、`raw/`、`config/search.yaml` 为知识来源，生成的新 Wiki 文件也必须写回本目录。
+本目录就是 DevWiki 文档库根目录。代码库通过 AGENTS/CLAUDE 中的托管关联块指向本目录。Agent 在代码库内使用 `devwiki-query`、`devwiki-code` 或 `devwiki-code-to-doc` 前，必须先阅读本文件；查询以本目录的 `wiki/`、`raw/`、`config/search.yaml` 为知识来源，生成的新 Wiki 文件也必须写回本目录。
 
 `raw/` 是事实来源层，`wiki/` 是结构化知识层。`config/search.yaml` 只保存检索配置，不替代事实内容。
 
@@ -109,6 +109,8 @@ Topic 和 Workflow 页面必须使用 `devwiki:section` 标记：
 zatools devwiki read topic <slug> --view card
 zatools devwiki read topic <slug> --view core
 zatools devwiki read workflow <slug> --view core
+zatools devwiki search topic <query...>
+zatools devwiki search workflow <query...>
 ```
 
 ## 检索顺序
@@ -119,7 +121,7 @@ zatools devwiki read workflow <slug> --view core
 - 代码问题：`workflows → topics → rg`
 - 排障问题：`troubleshooting → workflows → topics`
 
-检索通道按成本升档：本地搜索、`zatools qmd search`、`zatools qmd query`。`qmd` 只是召回工具，不是真相源。
+检索通道按成本升档：本地搜索、`zatools devwiki search <topic|workflow>`、`zatools qmd query`。`qmd` 只是召回工具，不是真相源。
 
 ## Workflow 约束
 
@@ -131,7 +133,7 @@ zatools devwiki read workflow <slug> --view core
 - Workflow 只写工程实现知识，代码路径、函数、类、配置文件必须有证据
 - 页面写入和证据字段更新必须遵守对应 DevWiki skill 的模板和引用规则
 - 新建 Topic 或 Workflow 后必须同步检查 `wiki/glossary.md`；先查是否已有关键术语或等价别名，不存在才添加
-- 项目知识任务先由 `devwiki-project-router` 判断意图、身份、证据需求和检索边界，再路由到 `devwiki-ingest`、`devwiki-topic`、`devwiki-workflow`、`devwiki-maintain`、`devwiki-query`、`devwiki-code-to-doc` 或 `devwiki-qmd-sync`
+- 项目知识任务先由 `devwiki-project-router` 判断意图、身份、证据需求和检索边界，再路由到 `devwiki-ingest`、`devwiki-topic`、`devwiki-workflow`、`devwiki-maintain`、`devwiki-code`、`devwiki-query`、`devwiki-code-to-doc` 或 `devwiki-qmd-sync`
 - 中高风险写入必须先给 proposal，再落盘
 
 ## 操作说明
@@ -144,7 +146,8 @@ zatools devwiki read workflow <slug> --view core
 - 使用 `devwiki-ingest` 吸收 raw 文档并生成 TopicTask / WorkflowTask；TopicTask 需要带 module 建议，Topic 正文交给 `devwiki-topic`，Workflow 正文交给 `devwiki-workflow`
 - 使用 `devwiki-topic` 或 `devwiki-workflow` 新建页面后，必须先查 `wiki/glossary.md`，缺少关键术语时按通用格式补充
 - 使用 `devwiki-maintain` 维护已有 Wiki 的证据一致性、过期内容、引用缺失、关系错误和 query 污染
-- 使用 `devwiki-query` 查询 Wiki、raw、代码线索、设计意图和排障知识
+- 使用 `devwiki-code` 基于关联 DevWiki workflow 定位并修改当前代码仓
+- 使用 `devwiki-query` 只读查询 Wiki、raw、代码线索、设计意图和排障知识
 - 使用 `devwiki-code-to-doc` 从代码、接口、配置项、日志或路由反向生成或更新 workflow 页面
 
 这份运行时规则应保持稳定，只在 DevWiki 的项目目录、链接规范或工作流约束发生真实变化时修改。
