@@ -117,7 +117,7 @@ zatools qmd download --root .
 | `devwiki-workflow` | 创建或维护 `wiki/workflows/`，只写工程入口、代码定位、调用链、修改影响和验证方式 |
 | `devwiki-maintain` | 维护已有 Wiki 的证据一致性、过期内容、引用缺失、入口错误和 query 污染 |
 | `devwiki-code` | 基于 DevWiki workflow 定位并修改当前代码仓，开发功能、修 bug、重构、补测试或提交代码 |
-| `devwiki-query` | 只读查询已有 Wiki、raw 和必要的代码线索，回答功能、设计、流程、代码定位和排障问题 |
+| `devwiki-query` | 只读查询已有 Wiki、raw 和文档内代码线索，回答功能、设计、流程、代码定位和排障问题；真实代码核查交给 `devwiki-code` |
 | `devwiki-code-to-doc` | 从代码、接口、配置项、日志或路由反向生成或更新 workflow / 代码定位页面 |
 
 ## 目录结构
@@ -180,6 +180,6 @@ zatools devwiki tool log --wiki-root wiki --message "init | note"
 - `devwiki-topic` / `devwiki-workflow` 新建页面后必须检查并按需补充 `wiki/glossary.md`
 - `devwiki-maintain` 维护已有 Wiki 的证据一致性、过期内容、引用缺失和 query 污染
 - `devwiki-code` 覆盖基于 DevWiki workflow 的代码修改、功能开发、修复和测试验证
-- `devwiki-query` 覆盖只读知识查询、设计理解、代码定位和排障检索
+- `devwiki-query` 覆盖只读知识查询、设计理解、文档内代码定位和排障检索；真实代码核查交给 `devwiki-code`
 - `devwiki-code-to-doc` 从代码反向补 workflow，必要时补 topic
 - `devwiki-qmd-sync` 维护 qmd collection 注册、索引和状态

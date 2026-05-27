@@ -10,7 +10,7 @@ argument-hint: "<要开发、修改、修复或提交的功能/问题>"
 
 `devwiki-code` 负责把 DevWiki 中的 Workflow 锚点转化为当前代码仓的真实代码改动，并用最小搜索、最小改动、最小验证完成开发任务。
 
-- `devwiki-query`：只读回答知识、规则、现有实现和排障线索，不改代码。
+- `devwiki-query`：只读回答知识、规则、文档中的实现说明和排障线索，不改代码，也不搜索真实代码。
 - `devwiki-code-to-doc`：从真实代码反向生成或更新 DevWiki 文档，不改生产代码。
 
 Code 不是 Query，也不是 Code-to-Doc：本 Skill 的目标是修改当前代码仓，不能只停在知识回答，也不能把代码修改任务改写成文档生成任务。

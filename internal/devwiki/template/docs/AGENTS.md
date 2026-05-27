@@ -147,7 +147,7 @@ zatools devwiki search workflow <query...>
 - 使用 `devwiki-topic` 或 `devwiki-workflow` 新建页面后，必须先查 `wiki/glossary.md`，缺少关键术语时按通用格式补充
 - 使用 `devwiki-maintain` 维护已有 Wiki 的证据一致性、过期内容、引用缺失、关系错误和 query 污染
 - 使用 `devwiki-code` 基于关联 DevWiki workflow 定位并修改当前代码仓
-- 使用 `devwiki-query` 只读查询 Wiki、raw、代码线索、设计意图和排障知识
+- 使用 `devwiki-query` 只读查询 Wiki、raw、文档内代码线索、设计意图和排障知识；真实代码核查交给 `devwiki-code`
 - 使用 `devwiki-code-to-doc` 从代码、接口、配置项、日志或路由反向生成或更新 workflow 页面
 
 这份运行时规则应保持稳定，只在 DevWiki 的项目目录、链接规范或工作流约束发生真实变化时修改。

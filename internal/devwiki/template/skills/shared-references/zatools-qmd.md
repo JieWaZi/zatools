@@ -26,7 +26,7 @@ DevWiki 技能做召回时，默认先用 `zatools devwiki search index/glossary
 |---|---|---|
 | `locate_exact` | 文件在哪里、哪个函数定义、哪个接口注册、错误码在哪里 | 本地 Wiki / 必要时本地代码精确定位 |
 | `explain_topic` | 某功能是什么、怎么工作、有哪些边界 | `devwiki search index/glossary`；低置信或噪声大时升到 `devwiki search topic` |
-| `trace_implementation` | 怎么实现、调用链怎么走、状态写到哪里 | 先找 Wiki/workflow 候选，再做代码核对 |
+| `trace_implementation` | 怎么实现、调用链怎么走、状态写到哪里 | query 场景先读 Wiki/workflow；明确要求当前代码核查时转 `devwiki-code` |
 | `troubleshoot` | 报错原因、不生效怎么查、日志从哪里来 | 先找 troubleshooting/workflow 候选，再按需核对 raw/code |
 | `design_intent` | 为什么这么设计、整体架构是什么 | `devwiki search index/glossary`；不足时 `devwiki search`，再不足才 `qmd query` |
 | `wiki_maintenance` | 页面是否重复、过期、冲突、query 是否会命中旧内容 | 本地 Wiki 审计 + `qmd search/status/update` 按需验证 |
@@ -45,7 +45,7 @@ zatools devwiki search glossary <query...> --root <真实文档库根目录>
 
 `index` 返回 `type`、`description`、`slug`；`glossary` 返回 `glossary`、`type`、`description`、`slug`。这两个命令是本地表格检索，不依赖 qmd，也不输出 `score`；agent 必须根据 `description` 和用户问题做语义打分。
 
-必要时再扩展到 `raw/`。只有当问题明确要求实现现实、代码入口、调用链、日志出处、配置读取点、测试入口，或需要写入/修正 代码定位 时，才进入代码搜索。
+必要时再扩展到 `raw/`。只有当问题明确要求当前代码核查、真实调用链、日志出处、配置读取点、测试入口，或需要写入/修正代码定位时，才进入代码搜索；如果当前目标是 `devwiki-query`，应转 `devwiki-code`，不要由 query 直接搜索代码。
 
 结构化搜索置信判断：
 

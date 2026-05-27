@@ -40,7 +40,7 @@ argument-hint: "<问题、任务或文档范围>"
 | workflow_write | `devwiki-workflow` | 创建或维护 `wiki/workflows/`，只写工程入口、代码定位、调用链、修改影响和验证方式 |
 | maintain | `devwiki-maintain` | 对已有 Wiki 做证据一致性、过期内容、引用缺失、入口错误和 query 污染维护 |
 | code | `devwiki-code` | 基于 DevWiki workflow 定位并修改当前代码仓，开发功能、修 bug、重构、补测试或提交代码 |
-| query | `devwiki-query` | 只读查询已有 Wiki、raw 和必要的代码线索，回答能力、功能、工程定位和排障问题 |
+| query | `devwiki-query` | 只读查询已有 Wiki、raw 和文档内代码线索，回答能力、功能、工程定位和排障问题；真实代码核查转 `devwiki-code` |
 | code_to_doc | `devwiki-code-to-doc` | 从代码、接口、配置项、日志或路由反向生成或更新 DevWiki 页面 |
 | qmd_sync | `devwiki-qmd-sync` | 补做或修复 qmd collection 注册、索引刷新与状态检查 |
 
@@ -125,8 +125,9 @@ devwiki-query
 默认需要项目知识检索。是否看代码取决于问题：
 
 - 只问功能背景、设计意图、流程说明：先用 `wiki/` 和 `raw/`
-- 问实现现实、文件位置、函数职责、接口调用链：必须核对代码
-- 文档证据足够但用户没问实现：不要为了“更稳”默认展开代码
+- 问“怎么实现”、入口、模块职责、接口调用链但没有明确要求核对当前代码：仍走 `devwiki-query`，优先读 workflow card/core/explain，总结文档中的代码线索
+- 明确要求查代码、核对当前实现、找文件函数/行号、确认真实调用链或运行态：改走 `devwiki-code`
+- 文档证据足够时不要为了“更稳”默认展开代码
 - 一旦用户转为要求修改、修复、开发或提交，改走 `devwiki-code`
 
 ### 5. 代码反向成文类
@@ -240,7 +241,7 @@ internal_non_developer
 
 ## Code Search Rules
 
-不要无边界全局搜索代码。只有以下情况才进入代码搜索：
+不要无边界全局搜索代码。只有以下情况才进入代码搜索；如果当前目标是 `devwiki-query`，遇到这些条件应转 `devwiki-code`，不要由 query 直接搜索代码：
 
 - 用户明确问文件、函数、接口、调用链、实现现实、运行时行为
 - `wiki/` / `raw/` 证据不足，且必须用代码才能回答
