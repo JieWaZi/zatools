@@ -13,6 +13,8 @@ import (
 
 	"zatools/internal/devwiki/page"
 	"zatools/internal/qmd"
+
+	"golang.org/x/sync/errgroup"
 )
 
 const searchRRFK = 60.0
@@ -56,13 +58,21 @@ func (s *Service) runSearch(ctx context.Context, opts SearchOptions) error {
 		return fmt.Errorf("devwiki search query cannot be empty")
 	}
 
-	resultSets := make([][]SearchResult, 0, len(queries))
-	for _, query := range queries {
-		var searchOut bytes.Buffer
-		if err := qmd.RunCommandInDir(ctx, absRoot, []string{"search", query}, qmd.Models{}, &searchOut, os.Stderr); err != nil {
-			return err
-		}
-		resultSets = append(resultSets, parseQMDSearchOutput(searchOut.String(), kind))
+	resultSets := make([][]SearchResult, len(queries))
+	group, groupCtx := errgroup.WithContext(ctx)
+	for i, query := range queries {
+		i, query := i, query
+		group.Go(func() error {
+			var searchOut bytes.Buffer
+			if err := qmd.RunCommandInDir(groupCtx, absRoot, []string{"search", query}, qmd.Models{}, &searchOut, os.Stderr); err != nil {
+				return err
+			}
+			resultSets[i] = parseQMDSearchOutput(searchOut.String(), kind)
+			return nil
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return err
 	}
 	results := fuseSearchResults(resultSets)
 	if results == nil {

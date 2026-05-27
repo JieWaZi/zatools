@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	common "zatools/internal/app/common"
 	"zatools/internal/qmd"
@@ -94,6 +96,74 @@ summary: "Gateway workflow"
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("results = %#v, want %#v", got, want)
+	}
+}
+
+func TestSearchRunsQueryTermsConcurrently(t *testing.T) {
+	root := t.TempDir()
+	writeDevwikiReadFixture(t, root, "wiki/workflows/workflow-ha-brain-split-protection.md", `---
+title: "HA 脑裂监控与防护实现定位"
+slug: workflow-ha-brain-split-protection
+kind: workflow
+summary: "HA workflow"
+---
+# HA 脑裂监控与防护实现定位
+`)
+	writeDevwikiReadFixture(t, root, "wiki/workflows/workflow-ha-gateway-config.md", `---
+title: "HA 网关配置实现定位"
+slug: workflow-ha-gateway-config
+kind: workflow
+summary: "Gateway workflow"
+---
+# HA 网关配置实现定位
+`)
+	service := NewServiceWithRuntime(common.Runtime{Workspace: skills.NewWorkspace(root)})
+	var (
+		mu       sync.Mutex
+		started  int
+		release  = make(chan struct{})
+		timedOut bool
+	)
+	runner := devwikiSearchQMDHelperRunner(t, root)
+	ctx := qmd.WithCommandRunner(context.Background(), func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		mu.Lock()
+		started++
+		if started == 2 {
+			close(release)
+		}
+		mu.Unlock()
+
+		select {
+		case <-release:
+		case <-time.After(2 * time.Second):
+			mu.Lock()
+			timedOut = true
+			mu.Unlock()
+		case <-ctx.Done():
+		}
+		return runner(ctx, name, args...)
+	})
+	var out bytes.Buffer
+
+	err := service.Search(ctx, SearchOptions{
+		Root:       root,
+		Kind:       "workflow",
+		QueryTerms: []string{"防脑裂", "网关"},
+		Stdout:     &out,
+	})
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+
+	mu.Lock()
+	gotStarted := started
+	gotTimedOut := timedOut
+	mu.Unlock()
+	if gotStarted != 2 {
+		t.Fatalf("started qmd searches = %d, want 2", gotStarted)
+	}
+	if gotTimedOut {
+		t.Fatal("qmd searches did not overlap before timeout")
 	}
 }
 

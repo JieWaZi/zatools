@@ -47,9 +47,9 @@ argument-hint: "<问题>"
 - 禁止并行搜多个源，禁止同时读多个候选的 card
 
 **视图分层读取（禁止用 Read 工具直接读 topic/workflow/troubleshooting 文件）：**
-- `zatools devwiki read <topic|workflow|troubleshooting> <slug> --view card` — 判断命中
-- `zatools devwiki read <topic|workflow|troubleshooting> <slug> --view core` — 回答主问题
-- `zatools devwiki read <topic|workflow|troubleshooting> <slug> --view explain` — 补充细节
+- `zatools devwiki read <topic|workflow|troubleshooting> <slug> --view card --root <真实文档库根目录>` — 判断命中
+- `zatools devwiki read <topic|workflow|troubleshooting> <slug> --view core --root <真实文档库根目录>` — 回答主问题
+- `zatools devwiki read <topic|workflow|troubleshooting> <slug> --view explain --root <真实文档库根目录>` — 补充细节
 
 **代码目录：**
 - 仅当语义为 locate_code、troubleshoot，或用户明确要求当前实现、代码定位、配置项定位、日志关键字定位、修改影响或排障核实时读取
@@ -168,7 +168,7 @@ devwiki-ingest
 
 ### Step 3: 候选验证（view=card，逐个读）
 
-1. 对 Step 2 选出的**单个**最佳候选，用 `zatools devwiki read <type> <slug> --view card` 读取导航卡。
+1. 对 Step 2 选出的**单个**最佳候选，用 `zatools devwiki read <type> <slug> --view card --root <真实文档库根目录>` 读取导航卡。
 2. card 确认匹配 → 进入 Step 4 深度阅读。
 3. card 不匹配 → 回到 Step 2 的结果中选**下一个**候选，再次 card 验证。不要并发读多个 card。
 4. 所有候选都不匹配 → 回到 Step 2 的下一层继续搜索。
