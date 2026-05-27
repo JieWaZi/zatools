@@ -21,6 +21,11 @@ type CheckOptions struct {
 	Stdout io.Writer
 }
 
+type documentCheckFile struct {
+	Rel  string
+	Kind string
+}
+
 func (s *Service) runCheck(ctx context.Context, opts CheckOptions) error {
 	_ = ctx
 	stdout := opts.Stdout
@@ -87,7 +92,12 @@ func runDocumentCheck(stdout io.Writer, root string, paths []string) error {
 		return err
 	}
 	var issues []string
-	for _, rel := range files {
+	for _, file := range files {
+		rel := file.Rel
+		if file.Kind != "sectioned" {
+			issues = append(issues, checkSupportFile(root, rel)...)
+			continue
+		}
 		doc, err := devwikipage.Load(root, rel)
 		if err != nil {
 			issues = append(issues, fmt.Sprintf("%s: %v", rel, err))
@@ -109,11 +119,11 @@ func runDocumentCheck(stdout io.Writer, root string, paths []string) error {
 	return nil
 }
 
-func collectDocumentCheckFiles(root string, paths []string) ([]string, error) {
+func collectDocumentCheckFiles(root string, paths []string) ([]documentCheckFile, error) {
 	if len(paths) == 0 {
 		paths = []string{filepath.Join(root, "wiki")}
 	}
-	var files []string
+	var files []documentCheckFile
 	for _, input := range paths {
 		abs := input
 		if !filepath.IsAbs(abs) {
@@ -130,8 +140,8 @@ func collectDocumentCheckFiles(root string, paths []string) ([]string, error) {
 					return nil, err
 				}
 				rel = filepath.ToSlash(rel)
-				if isSectionedWikiDocument(rel) {
-					files = append(files, rel)
+				if kind := documentCheckKind(rel); kind != "" {
+					files = append(files, documentCheckFile{Rel: rel, Kind: kind})
 				}
 			}
 			continue
@@ -151,8 +161,8 @@ func collectDocumentCheckFiles(root string, paths []string) ([]string, error) {
 				return err
 			}
 			rel = filepath.ToSlash(rel)
-			if isSectionedWikiDocument(rel) {
-				files = append(files, rel)
+			if kind := documentCheckKind(rel); kind != "" {
+				files = append(files, documentCheckFile{Rel: rel, Kind: kind})
 			}
 			return nil
 		})
@@ -163,9 +173,96 @@ func collectDocumentCheckFiles(root string, paths []string) ([]string, error) {
 	return files, nil
 }
 
-func isSectionedWikiDocument(rel string) bool {
+func documentCheckKind(rel string) string {
 	rel = filepath.ToSlash(filepath.Clean(rel))
-	return strings.HasPrefix(rel, "wiki/topics/") || strings.HasPrefix(rel, "wiki/workflows/")
+	if strings.HasPrefix(rel, "wiki/topics/") || strings.HasPrefix(rel, "wiki/workflows/") {
+		return "sectioned"
+	}
+	switch rel {
+	case "wiki/index.md", "wiki/glossary.md", "wiki/log.md":
+		return "support"
+	default:
+		return ""
+	}
+}
+
+func checkSupportFile(root string, rel string) []string {
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	if err != nil {
+		return []string{fmt.Sprintf("%s: %v", rel, err)}
+	}
+	text := string(data)
+	switch rel {
+	case "wiki/index.md":
+		return checkRequiredTable(rel, text, []string{"type", "description", "slug"})
+	case "wiki/glossary.md":
+		return checkRequiredTable(rel, text, []string{"glossary", "type", "description", "slug"})
+	case "wiki/log.md":
+		if !strings.HasPrefix(strings.TrimLeft(text, "\ufeff\r\n\t "), "# Wiki Log") {
+			return []string{fmt.Sprintf("%s: missing required title %q", rel, "# Wiki Log")}
+		}
+	}
+	return nil
+}
+
+func checkRequiredTable(rel string, text string, required []string) []string {
+	var issues []string
+	headers, rows, ok := firstMarkdownTable(text)
+	if !ok {
+		return []string{fmt.Sprintf("%s: missing required table", rel)}
+	}
+	if len(headers) != len(required) {
+		issues = append(issues, fmt.Sprintf("%s: table must have columns %s", rel, strings.Join(required, ", ")))
+	} else {
+		for index, header := range headers {
+			if header != required[index] {
+				issues = append(issues, fmt.Sprintf("%s: table column %d must be %q", rel, index+1, required[index]))
+			}
+		}
+	}
+	for rowIndex, row := range rows {
+		if len(row) != len(headers) {
+			issues = append(issues, fmt.Sprintf("%s: table row %d has %d cell(s), want %d", rel, rowIndex+1, len(row), len(headers)))
+			continue
+		}
+		for cellIndex, cell := range row {
+			if strings.TrimSpace(cell) == "" {
+				name := fmt.Sprintf("column %d", cellIndex+1)
+				if cellIndex < len(headers) {
+					name = headers[cellIndex]
+				}
+				issues = append(issues, fmt.Sprintf("%s: table row %d has empty %s", rel, rowIndex+1, name))
+			}
+		}
+	}
+	return issues
+}
+
+func firstMarkdownTable(text string) ([]string, [][]string, bool) {
+	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
+	for index := 0; index < len(lines); index++ {
+		headers, ok := parseMarkdownTableLine(lines[index])
+		if !ok || index+1 >= len(lines) {
+			continue
+		}
+		separator, ok := parseMarkdownTableLine(lines[index+1])
+		if !ok || !isMarkdownTableSeparator(separator) {
+			continue
+		}
+		for i := range headers {
+			headers[i] = strings.ToLower(strings.TrimSpace(headers[i]))
+		}
+		var rows [][]string
+		for rowIndex := index + 2; rowIndex < len(lines); rowIndex++ {
+			row, ok := parseMarkdownTableLine(lines[rowIndex])
+			if !ok {
+				break
+			}
+			rows = append(rows, row)
+		}
+		return headers, rows, true
+	}
+	return nil, nil, false
 }
 
 func runGraphCheck(stdout io.Writer, root string) error {

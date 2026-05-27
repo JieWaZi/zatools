@@ -137,5 +137,5 @@ zatools qmd status
 - 未核对内容是否标为待确认。
 - 修改影响和测试验证是否可执行。
 - 新建 Workflow 后是否已先查 glossary，确认关键术语存在或已补充。
-- 是否已执行 `zatools devwiki check document` 校验 `devwiki:section` 分块。
+- 是否已执行 `zatools devwiki check document` 校验 index/glossary/log 格式和 `devwiki:section` 分块。
 - 是否已执行 `zatools devwiki check graph`。

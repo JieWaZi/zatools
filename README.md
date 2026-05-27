@@ -155,7 +155,7 @@ zatools devwiki init [project-name] [--agent <codex|cursor|claude>] [--code-dir 
 zatools devwiki link [--root <devwiki-root>] [--agent <codex|cursor|claude>] [--code-dir <dir>]... [--yes]
 zatools devwiki update
 zatools devwiki read <topic|workflow> <slug> [--view <card|core|explain>] [--format text]
-zatools devwiki search <topic|workflow> <query...> [--root <dir>]
+zatools devwiki search <index|glossary|topic|workflow> <query...> [--root <dir>]
 zatools devwiki check [document|graph] [path...] [--root <dir>]
 zatools devwiki graph [--root <dir>] [--host 127.0.0.1] [--port 0] [--no-open] [--force]
 zatools devwiki tool reset --scope <wiki|raw|log|checkpoints|all> [--project-root <dir>] [--yes]
@@ -168,8 +168,8 @@ zatools devwiki tool log --wiki-root <dir> --message "<text>"
 - `devwiki link`：将已有 DevWiki 文档库关联到代码库
 - `devwiki update`：更新当前作用域内的 DevWiki 内置 skills，并尽力执行 qmd 注册、索引和向量刷新；qmd 失败只提示告警
 - `devwiki read`：按 topic / workflow 的 `card`、`core`、`explain` 视图读取结构化页面内容
-- `devwiki search`：对每个 query 分别调用 `qmd search` 后按 topic / workflow 目录过滤，多个 query 用 RRF 融合排序，输出 `file`、`slug`、`title` 和 `score` JSON
-- `devwiki check`：校验文档分块和图谱关系；未指定类型时检查 document 和 graph，未指定路径时检查 `wiki/`
+- `devwiki search`：`index` / `glossary` 本地解析结构化表格并输出最小 JSON；`topic` / `workflow` 调用 `qmd search` 后过滤并输出 `file`、`slug`、`title` 和 `score` JSON
+- `devwiki check`：校验 index/glossary/log 格式、Topic/Workflow 文档分块和图谱关系；未指定类型时检查 document 和 graph，未指定路径时检查 `wiki/`
 - `devwiki graph`：从 topic / workflow 页面生成图谱数据并启动本地页面
 - `tool reset`：默认只输出 dry-run 计划，加 `--yes` 后才会执行
 - `tool log`：向 `wiki/log.md` 追加操作记录

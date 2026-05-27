@@ -121,7 +121,7 @@ zatools devwiki search workflow <query...>
 - 代码问题：`workflows → topics → rg`
 - 排障问题：`troubleshooting → workflows → topics`
 
-检索通道按成本升档：本地搜索、`zatools devwiki search <topic|workflow>`、`zatools qmd query`。`qmd` 只是召回工具，不是真相源。
+检索通道按成本升档：`zatools devwiki search index/glossary`、`zatools devwiki search topic/workflow`、`zatools qmd query`。`qmd` 只是召回工具，不是真相源。
 
 ## Workflow 约束
 

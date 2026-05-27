@@ -157,5 +157,5 @@ zatools qmd status
 - workflows / related_topics 是否是字符串数组。
 - 新建 Topic 后是否已先查 glossary，确认关键术语存在或已补充。
 - 来源、冲突和不确定内容是否清楚标注。
-- 是否已执行 `zatools devwiki check document` 校验 `devwiki:section` 分块。
+- 是否已执行 `zatools devwiki check document` 校验 index/glossary/log 格式和 `devwiki:section` 分块。
 - 是否已执行 `zatools devwiki check graph`。

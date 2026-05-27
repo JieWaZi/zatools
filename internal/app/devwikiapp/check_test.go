@@ -61,10 +61,20 @@ func TestCheckDocumentAcceptsSpecificFile(t *testing.T) {
 	}
 }
 
-func TestCheckDocumentIgnoresSupportFilesWithoutSections(t *testing.T) {
+func TestCheckDocumentAcceptsSupportFileFormats(t *testing.T) {
 	root := t.TempDir()
-	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "index.md"), "# Wiki Index\n")
-	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "glossary.md"), "# Glossary\n")
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "index.md"), `# Wiki Index
+
+| type | description | slug |
+|---|---|---|
+| topic | Topic entry | ok |
+`)
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "glossary.md"), `# Glossary
+
+| glossary | type | description | slug |
+|---|---|---|---|
+| Term | topic | Topic term | ok |
+`)
 	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "log.md"), "# Wiki Log\n\n- entry\n")
 	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "topics", "ok.md"), validTopicDocument("ok"))
 
@@ -74,8 +84,43 @@ func TestCheckDocumentIgnoresSupportFilesWithoutSections(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Check(document) error = %v, output=%q", err, out.String())
 	}
-	if strings.Contains(out.String(), "index.md") || strings.Contains(out.String(), "glossary.md") || strings.Contains(out.String(), "log.md") {
-		t.Fatalf("support files should not be checked, output=%q", out.String())
+	if !strings.Contains(out.String(), "DevWiki document check passed") {
+		t.Fatalf("output = %q", out.String())
+	}
+}
+
+func TestCheckDocumentRejectsInvalidSupportFileFormats(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "index.md"), `# Wiki Index
+
+| type | slug |
+|---|---|
+| topic | ok |
+`)
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "glossary.md"), `# Glossary
+
+| glossary | type | description | slug |
+|---|---|---|---|
+| Term | topic | | ok |
+`)
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "log.md"), "# Wrong Log\n")
+	mustWriteFileDevwikiApp(t, filepath.Join(root, "wiki", "topics", "ok.md"), validTopicDocument("ok"))
+
+	service := NewServiceWithRuntime(common.Runtime{Workspace: skills.NewWorkspace(root)})
+	var out bytes.Buffer
+	err := service.Check(context.Background(), CheckOptions{Root: root, Types: []string{"document"}, Stdout: &out})
+	if err == nil {
+		t.Fatal("Check(document) error = nil, want support file format error")
+	}
+	output := out.String()
+	for _, want := range []string{
+		"wiki/index.md: table must have columns type, description, slug",
+		"wiki/glossary.md: table row 1 has empty description",
+		"wiki/log.md: missing required title",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output missing %q: %s", want, output)
+		}
 	}
 }
 

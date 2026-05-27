@@ -39,11 +39,11 @@ argument-hint: "<问题>"
 **始终读取：**
 - `config/project.yaml`（全读，14 行极小。路径相对于项目根目录，不是 `wiki/config/`）
 
-**grep 定位（串行降级，禁止全读）：**
-- 第 1 层：`grep -iE '<关键词>' wiki/index.md` → 命中则停，选最佳候选
-- 第 2 层：index 无结果 → `grep -iE '<关键词>' wiki/glossary.md`
-- 第 3 层：glossary 无结果 → `grep -liE '<关键词>' wiki/<topics|workflows|troubleshooting>/*.md`
-- 每层命中后 Read + offset/limit 只看命中行上下文，不读全文件
+**结构化定位（串行降级）：**
+- 第 1 层：`zatools devwiki search index <关键词...> --root <真实文档库根目录>` → 命中则停，选最佳候选
+- 第 2 层：index 无结果 → `zatools devwiki search glossary <关键词...> --root <真实文档库根目录>`
+- 第 3 层：glossary 无结果 → 按语义使用 `zatools devwiki search <topic|workflow> <关键词...> --root <真实文档库根目录>`
+- `index` 返回 `type`、`description`、`slug`；`glossary` 返回 `glossary`、`type`、`description`、`slug`；两者不返回 `score`
 - 禁止并行搜多个源，禁止同时读多个候选的 card
 
 **视图分层读取（禁止用 Read 工具直接读 topic/workflow/troubleshooting 文件）：**
@@ -71,7 +71,7 @@ argument-hint: "<问题>"
 6. 如果文档已经足够回答，就不要为了“更稳”再默认展开代码阅读。
 7. `zatools qmd` 只是召回工具，不是真相源。
 8. 读取 view 时遵守知识经济学放置规则：先用 card 判断命中，再用 core 回答主问题，只有 core 不够时读取 explain。
-9. 搜索和读取串行降级，不并行：index → glossary → 目录 grep，候选逐个 card 验证，确认匹配才往下走。不为了“快”而并发读多个源或多个候选。
+9. 搜索和读取串行降级，不并行：`devwiki search index` → `devwiki search glossary` → `devwiki search topic/workflow`，候选逐个 card 验证，确认匹配才往下走。不为了“快”而并发读多个源或多个候选。
 
 ## 目录选择规则
 
@@ -114,43 +114,40 @@ argument-hint: "<问题>"
 
 从用户问题提取多关键词，按以下顺序串行搜索：
 
-**第 1 层：grep `wiki/index.md`**
+**第 1 层：`devwiki search index`**
 
 ```bash
-grep -iE '<关键词1|关键词2|...>' wiki/index.md
+zatools devwiki search index "<关键词1>" "<关键词2>" --root <真实文档库根目录>
 ```
 
-命中后 Read + offset/limit 只看命中行。从结果中选出**最匹配的一个** slug。**index.md 命中后，禁止再跑当前 Step 的任何后续层（glossary、目录 grep），直接从命中行提取 slug 进入 Step 3。**
+命中后根据 `description`、`type`、`slug` 选出**最匹配的一个**入口。**index 命中后，禁止再跑当前 Step 的任何后续层（glossary、topic/workflow search），直接使用返回的 `type` 和 `slug` 进入 Step 3。**
 
-**第 2 层：index 无结果 → grep `wiki/glossary.md`**
+**第 2 层：index 无结果 → `devwiki search glossary`**
 
 ```bash
-grep -iE '<关键词1|关键词2|...>' wiki/glossary.md
+zatools devwiki search glossary "<关键词1>" "<关键词2>" --root <真实文档库根目录>
 ```
 
-命中后 Read + offset/limit 只看命中行。从术语描述中提取新关键词或直接对应的话题名，回到第 1 层或直接进入第 3 层。
+命中后根据 `glossary` 和 `description` 判断是否能直接路由到返回的 `type` / `slug`。如果只是提供同义词，提取新关键词后回到第 1 层；如果能直接路由，进入 Step 3。
 
-**第 3 层：glossary 无结果 → grep 文档目录**
+**第 3 层：glossary 无结果 → `devwiki search topic/workflow`**
 
-根据语义选择目录，grep 文件内容：
+根据语义选择 kind：
 
 ```bash
-# explain_topic → topics/
-grep -liE '<关键词>' wiki/topics/*.md
+# explain_topic → topic
+zatools devwiki search topic "<关键词1>" "<关键词2>" --root <真实文档库根目录>
 
-# locate_code → workflows/ 优先
-grep -liE '<关键词>' wiki/workflows/*.md
-
-# troubleshoot → troubleshooting/ 优先
-grep -liE '<关键词>' wiki/troubleshooting/*.md
+# locate_code / troubleshoot → workflow 优先
+zatools devwiki search workflow "<关键词1>" "<关键词2>" --root <真实文档库根目录>
 ```
 
-命中后取最匹配的文件，提取 slug 进入 Step 3。
+命中后根据 `title`、`slug`、`score` 取最匹配候选，使用返回的 `slug` 进入 Step 3。
 
 **第 4 层：全部无结果 → 低置信升档**
 
 - 先读 `references/zatools-qmd.md`
-- 再按其中路由规则升档到 `zatools devwiki search <topic|workflow> <query...>`
+- 再按其中路由规则升档到 `zatools qmd query`
 - `devwiki search` 命中只是候选排序，最终结论必须回到真实 `wiki/` / `raw/` 页面
 - `qmd search/query` 报错、超时、collection 未注册时，明示“本轮 qmd 不可用，已降级”
 

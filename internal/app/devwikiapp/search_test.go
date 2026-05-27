@@ -167,6 +167,107 @@ summary: "Gateway workflow"
 	}
 }
 
+func TestSearchIndexParsesTableAndWritesJSON(t *testing.T) {
+	root := t.TempDir()
+	writeDevwikiReadFixture(t, root, "wiki/index.md", `# Wiki Index
+
+| type | description | slug |
+|---|---|---|
+| topic | HA 脑裂监控与防护的业务规则入口 | ha-brain-split-protection |
+| workflow | HA 网关配置的实现定位入口 | workflow-ha-gateway-config |
+| workflow | missing slug row | |
+`)
+	service := NewServiceWithRuntime(common.Runtime{Workspace: skills.NewWorkspace(root)})
+	var out bytes.Buffer
+
+	err := service.Search(context.Background(), SearchOptions{
+		Root:       root,
+		Kind:       "index",
+		QueryTerms: []string{"脑裂", "missing"},
+		Stdout:     &out,
+	})
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+
+	var got []IndexSearchResult
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("Unmarshal output error = %v, output=%q", err, out.String())
+	}
+	want := []IndexSearchResult{
+		{Type: "topic", Description: "HA 脑裂监控与防护的业务规则入口", Slug: "ha-brain-split-protection"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("results = %#v, want %#v", got, want)
+	}
+	if strings.Contains(out.String(), "score") {
+		t.Fatalf("index search output should not include score: %s", out.String())
+	}
+}
+
+func TestSearchGlossaryParsesTableAndWritesJSON(t *testing.T) {
+	root := t.TempDir()
+	writeDevwikiReadFixture(t, root, "wiki/glossary.md", `# Glossary
+
+| glossary | type | description | slug |
+|---|---|---|---|
+| 脑裂 | topic | HA 集群节点互相误判时的隔离与恢复规则 | ha-brain-split-protection |
+| 网关配置 | workflow | HA 网关配置下发和持久化实现链路 | workflow-ha-gateway-config |
+| 无效术语 | topic | missing slug | |
+`)
+	service := NewServiceWithRuntime(common.Runtime{Workspace: skills.NewWorkspace(root)})
+	var out bytes.Buffer
+
+	err := service.Search(context.Background(), SearchOptions{
+		Root:       root,
+		Kind:       "glossary",
+		QueryTerms: []string{"持久化"},
+		Stdout:     &out,
+	})
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+
+	var got []GlossarySearchResult
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("Unmarshal output error = %v, output=%q", err, out.String())
+	}
+	want := []GlossarySearchResult{
+		{Glossary: "网关配置", Type: "workflow", Description: "HA 网关配置下发和持久化实现链路", Slug: "workflow-ha-gateway-config"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("results = %#v, want %#v", got, want)
+	}
+	if strings.Contains(out.String(), "score") {
+		t.Fatalf("glossary search output should not include score: %s", out.String())
+	}
+}
+
+func TestSearchIndexWritesEmptyJSONArrayWhenNoRowsMatch(t *testing.T) {
+	root := t.TempDir()
+	writeDevwikiReadFixture(t, root, "wiki/index.md", `# Wiki Index
+
+| type | description | slug |
+|---|---|---|
+| topic | HA 脑裂监控与防护的业务规则入口 | ha-brain-split-protection |
+`)
+	service := NewServiceWithRuntime(common.Runtime{Workspace: skills.NewWorkspace(root)})
+	var out bytes.Buffer
+
+	err := service.Search(context.Background(), SearchOptions{
+		Root:   root,
+		Kind:   "index",
+		Query:  "不存在",
+		Stdout: &out,
+	})
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+	if strings.TrimSpace(out.String()) != "[]" {
+		t.Fatalf("Search() output = %q, want []", out.String())
+	}
+}
+
 func TestParseQMDSearchOutputKeepsOnlyRequestedKind(t *testing.T) {
 	input := `qmd://devwiki-huawei-zddi-wiki/topics/ha-brain-split-protection.md:2 #be1507
 Title: HA 脑裂监控与防护

@@ -120,7 +120,7 @@ func newSearchCmd(service *devwikiapp.Service) *cobra.Command {
 	var opts devwikiapp.SearchOptions
 
 	cmd := &cobra.Command{
-		Use:         "search <topic|workflow> <query...>",
+		Use:         "search <index|glossary|topic|workflow> <query...>",
 		Short:       copy.DevwikiSearchShort,
 		Args:        cobra.MinimumNArgs(2),
 		Annotations: map[string]string{SuppressLogoAnnotation: "true"},

@@ -36,6 +36,21 @@ type SearchResult struct {
 	Score string `json:"score"`
 }
 
+// IndexSearchResult is one compact wiki/index.md search hit.
+type IndexSearchResult struct {
+	Type        string `json:"type"`
+	Description string `json:"description"`
+	Slug        string `json:"slug"`
+}
+
+// GlossarySearchResult is one compact wiki/glossary.md search hit.
+type GlossarySearchResult struct {
+	Glossary    string `json:"glossary"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+	Slug        string `json:"slug"`
+}
+
 func (s *Service) runSearch(ctx context.Context, opts SearchOptions) error {
 	stdout := opts.Stdout
 	if stdout == nil {
@@ -50,12 +65,26 @@ func (s *Service) runSearch(ctx context.Context, opts SearchOptions) error {
 		return err
 	}
 	kind := strings.TrimSpace(opts.Kind)
-	if kind != page.KindTopic && kind != page.KindWorkflow {
-		return fmt.Errorf("unsupported devwiki search kind %q", kind)
-	}
 	queries := normalizeSearchQueries(opts)
 	if len(queries) == 0 {
 		return fmt.Errorf("devwiki search query cannot be empty")
+	}
+	switch kind {
+	case "index":
+		results, err := searchIndexTable(absRoot, queries)
+		if err != nil {
+			return err
+		}
+		return encodeSearchJSON(stdout, results)
+	case "glossary":
+		results, err := searchGlossaryTable(absRoot, queries)
+		if err != nil {
+			return err
+		}
+		return encodeSearchJSON(stdout, results)
+	case page.KindTopic, page.KindWorkflow:
+	default:
+		return fmt.Errorf("unsupported devwiki search kind %q", kind)
 	}
 
 	resultSets := make([][]SearchResult, len(queries))
@@ -79,9 +108,13 @@ func (s *Service) runSearch(ctx context.Context, opts SearchOptions) error {
 		results = []SearchResult{}
 	}
 	fillSearchResultSlugs(absRoot, kind, results)
+	return encodeSearchJSON(stdout, results)
+}
+
+func encodeSearchJSON(stdout io.Writer, value any) error {
 	encoder := json.NewEncoder(stdout)
 	encoder.SetEscapeHTML(false)
-	return encoder.Encode(results)
+	return encoder.Encode(value)
 }
 
 func normalizeSearchQueries(opts SearchOptions) []string {
@@ -272,4 +305,135 @@ func isQMDLineNumberSuffix(value string) bool {
 		}
 	}
 	return true
+}
+
+func searchIndexTable(root string, queries []string) ([]IndexSearchResult, error) {
+	data, err := os.ReadFile(filepath.Join(root, "wiki", "index.md"))
+	if err != nil {
+		return nil, err
+	}
+	rows := parseMarkdownTableRows(string(data))
+	results := make([]IndexSearchResult, 0, len(rows))
+	for _, row := range rows {
+		result := IndexSearchResult{
+			Type:        row["type"],
+			Description: row["description"],
+			Slug:        row["slug"],
+		}
+		if result.Type == "" || result.Description == "" || result.Slug == "" {
+			continue
+		}
+		if searchTableRowMatches(queries, result.Type, result.Description, result.Slug) {
+			results = append(results, result)
+		}
+	}
+	if results == nil {
+		results = []IndexSearchResult{}
+	}
+	return results, nil
+}
+
+func searchGlossaryTable(root string, queries []string) ([]GlossarySearchResult, error) {
+	data, err := os.ReadFile(filepath.Join(root, "wiki", "glossary.md"))
+	if err != nil {
+		return nil, err
+	}
+	rows := parseMarkdownTableRows(string(data))
+	results := make([]GlossarySearchResult, 0, len(rows))
+	for _, row := range rows {
+		result := GlossarySearchResult{
+			Glossary:    row["glossary"],
+			Type:        row["type"],
+			Description: row["description"],
+			Slug:        row["slug"],
+		}
+		if result.Glossary == "" || result.Type == "" || result.Description == "" || result.Slug == "" {
+			continue
+		}
+		if searchTableRowMatches(queries, result.Glossary, result.Type, result.Description, result.Slug) {
+			results = append(results, result)
+		}
+	}
+	if results == nil {
+		results = []GlossarySearchResult{}
+	}
+	return results, nil
+}
+
+func parseMarkdownTableRows(text string) []map[string]string {
+	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
+	var headers []string
+	var rows []map[string]string
+	for _, line := range lines {
+		cells, ok := parseMarkdownTableLine(line)
+		if !ok {
+			headers = nil
+			continue
+		}
+		if len(headers) == 0 {
+			headers = make([]string, len(cells))
+			for i, cell := range cells {
+				headers[i] = strings.ToLower(strings.TrimSpace(cell))
+			}
+			continue
+		}
+		if isMarkdownTableSeparator(cells) {
+			continue
+		}
+		if len(cells) != len(headers) {
+			continue
+		}
+		row := make(map[string]string, len(headers))
+		for i, header := range headers {
+			row[header] = strings.TrimSpace(cells[i])
+		}
+		rows = append(rows, row)
+	}
+	return rows
+}
+
+func parseMarkdownTableLine(line string) ([]string, bool) {
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, "|") || !strings.HasSuffix(line, "|") {
+		return nil, false
+	}
+	line = strings.Trim(line, "|")
+	parts := strings.Split(line, "|")
+	cells := make([]string, len(parts))
+	for i, part := range parts {
+		cells[i] = strings.TrimSpace(part)
+	}
+	return cells, len(cells) > 0
+}
+
+func isMarkdownTableSeparator(cells []string) bool {
+	if len(cells) == 0 {
+		return false
+	}
+	for _, cell := range cells {
+		cell = strings.TrimSpace(cell)
+		if cell == "" {
+			return false
+		}
+		for _, char := range cell {
+			if char != '-' && char != ':' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func searchTableRowMatches(queries []string, values ...string) bool {
+	haystack := strings.ToLower(strings.Join(values, "\n"))
+	for _, query := range queries {
+		query = strings.ToLower(strings.TrimSpace(query))
+		if query == "" {
+			continue
+		}
+		if strings.Contains(haystack, query) {
+			return true
+		}
+	}
+	return false
 }

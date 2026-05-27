@@ -218,7 +218,7 @@ internal_non_developer
 
 ### 需要项目知识时
 
-按 `references/zatools-qmd.md` 的“本地 Wiki 优先，低置信升档”规则执行。Router 只判断是否需要项目知识、qmd 和代码搜索；具体分档、短词处理、fallback 和停止条件都由该 reference 统一维护。
+按 `references/zatools-qmd.md` 的“结构化入口优先，低置信升档”规则执行。Router 只判断是否需要项目知识、qmd 和代码搜索；具体分档、短词处理、fallback 和停止条件都由该 reference 统一维护。
 
 ### 必须查询项目知识的场景
 

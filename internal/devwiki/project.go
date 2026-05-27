@@ -190,10 +190,12 @@ func ensureRepoLayout(root string) error {
 		}
 	}
 
-	if err := os.WriteFile(filepath.Join(root, "wiki", "index.md"), []byte("# Wiki Index\n"), 0o644); err != nil {
+	index := "# Wiki Index\n\n| type | description | slug |\n|---|---|---|\n"
+	if err := os.WriteFile(filepath.Join(root, "wiki", "index.md"), []byte(index), 0o644); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(root, "wiki", "glossary.md"), []byte("# Glossary\n"), 0o644); err != nil {
+	glossary := "# Glossary\n\n| glossary | type | description | slug |\n|---|---|---|---|\n"
+	if err := os.WriteFile(filepath.Join(root, "wiki", "glossary.md"), []byte(glossary), 0o644); err != nil {
 		return err
 	}
 	return os.WriteFile(filepath.Join(root, "wiki", "log.md"), []byte("# Wiki Log\n\n> Append-only chronological log.\n"), 0o644)

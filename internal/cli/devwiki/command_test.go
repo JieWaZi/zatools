@@ -194,3 +194,18 @@ func TestDevwikiSearchAcceptsMultipleQueryTerms(t *testing.T) {
 		t.Fatalf("search Args() error = %v", err)
 	}
 }
+
+func TestDevwikiSearchAcceptsIndexAndGlossaryKinds(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	for _, kind := range []string{"index", "glossary"} {
+		searchCmd, _, err := cmd.Find([]string{"search", kind, "脑裂"})
+		if err != nil {
+			t.Fatalf("Find(search %s) error = %v", kind, err)
+		}
+		if err := searchCmd.Args(searchCmd, []string{kind, "脑裂"}); err != nil {
+			t.Fatalf("search Args(%s) error = %v", kind, err)
+		}
+	}
+}
