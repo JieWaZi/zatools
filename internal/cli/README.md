@@ -22,7 +22,7 @@ DevWiki 是一个单产品知识底座。文档库可以独立存在，并通过
 ### 第一步：执行 `zatools devwiki init`
 
 ```bash
-zatools devwiki init "sample" --agent codex --code-dir "/var/folders/dr/7x6dd2vx1bbgbgrhs1r1p9180000gn/T/TestDevwikiInitDoesNotPrintLogo4008262860/001" --yes
+zatools devwiki init "sample" --agent codex --code-dir "/var/folders/dr/7x6dd2vx1bbgbgrhs1r1p9180000gn/T/TestDevwikiInitDoesNotPrintLogo1323017748/001" --yes
 ```
 
 `zatools devwiki init` 会完成以下动作：
@@ -161,7 +161,7 @@ zatools devwiki search glossary <query...> --project <project>
 zatools devwiki search workflow <query...> --project <project>
 zatools devwiki read workflow <slug> --view core --project <project>
 zatools devwiki server --project <project> --host 0.0.0.0 --port 5697
-zatools devwiki graph --project <project>
+zatools devwiki graph --project <project> --host 0.0.0.0 --port 5696
 zatools devwiki check document
 zatools devwiki check graph
 zatools devwiki update

@@ -5,5 +5,5 @@ language: zh
 code_repos:
     - name: "001"
       slug: "001"
-      path: /var/folders/dr/7x6dd2vx1bbgbgrhs1r1p9180000gn/T/TestDevwikiInitDoesNotPrintLogo4008262860/001
+      path: /var/folders/dr/7x6dd2vx1bbgbgrhs1r1p9180000gn/T/TestDevwikiInitDoesNotPrintLogo1323017748/001
       default: true

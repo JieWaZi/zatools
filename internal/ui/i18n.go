@@ -129,6 +129,7 @@ type Catalog struct {
 	DevwikiRepoAddSuccessFmt      string
 	DevwikiRepoLinkSuccessFmt     string
 	DevwikiRepoFailureFmt         string
+	DevwikiGraphOpenFailedFmt     string
 	Cancelled                     string
 	InstallationCancelled         string
 	RemovalCancelled              string
@@ -314,6 +315,7 @@ var catalogs = map[string]Catalog{
 		DevwikiRepoAddSuccessFmt:      "已添加 DevWiki project `%s`\nsource: %s\nconfig: %s\n",
 		DevwikiRepoLinkSuccessFmt:     "已绑定代码仓 `%s` 到 DevWiki project `%s`\nrepo: %s\nconfig: %s\ninstalled skills: devwiki-code, devwiki-code-to-doc\n",
 		DevwikiRepoFailureFmt:         "%s 失败：%v\n",
+		DevwikiGraphOpenFailedFmt:     "%s!%s 无法自动打开浏览器：%v；服务已继续运行，可手动打开 %s\n",
 		Cancelled:                     "已取消",
 		InstallationCancelled:         "安装已取消",
 		RemovalCancelled:              "删除已取消",
@@ -497,6 +499,7 @@ var catalogs = map[string]Catalog{
 		DevwikiRepoAddSuccessFmt:      "Added DevWiki project `%s`\nsource: %s\nconfig: %s\n",
 		DevwikiRepoLinkSuccessFmt:     "Linked code repo `%s` to DevWiki project `%s`\nrepo: %s\nconfig: %s\ninstalled skills: devwiki-code, devwiki-code-to-doc\n",
 		DevwikiRepoFailureFmt:         "%s failed: %v\n",
+		DevwikiGraphOpenFailedFmt:     "%s!%s unable to open browser automatically: %v; the server is still running, open %s manually\n",
 		Cancelled:                     "Cancelled",
 		InstallationCancelled:         "Installation cancelled",
 		RemovalCancelled:              "Removal cancelled",

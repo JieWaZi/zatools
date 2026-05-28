@@ -32,6 +32,10 @@ func (s *Service) runGraph(ctx context.Context, opts GraphOptions) error {
 	if stdout == nil {
 		stdout = os.Stdout
 	}
+	stderr := opts.Stderr
+	if stderr == nil {
+		stderr = os.Stderr
+	}
 	root := opts.Root
 	if opts.Project != "" {
 		cfg, err := devwiki.LoadRepoConfig(opts.Project)
@@ -96,7 +100,7 @@ func (s *Service) runGraph(ctx context.Context, opts GraphOptions) error {
 	fmt.Fprintf(stdout, "DevWiki graph serving at %s\n", url)
 	if !opts.NoOpen {
 		if err := devwikigraph.OpenBrowser(url); err != nil {
-			fmt.Fprintf(stdout, "%s!%s open browser failed: %v\n", ui.Yellow, ui.Reset, err)
+			fmt.Fprintf(stderr, ui.Messages().DevwikiGraphOpenFailedFmt, ui.Yellow, ui.Reset, err, url)
 		}
 	}
 	<-ctx.Done()

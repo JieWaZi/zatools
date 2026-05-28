@@ -129,11 +129,11 @@ func TestDevwikiGraphCommandFlags(t *testing.T) {
 			t.Fatalf("graph command missing flag %q", flag)
 		}
 	}
-	if got := graphCmd.Flags().Lookup("port").DefValue; got != "0" {
-		t.Fatalf("graph port default = %q, want 0", got)
+	if got := graphCmd.Flags().Lookup("port").DefValue; got != "5696" {
+		t.Fatalf("graph port default = %q, want 5696", got)
 	}
-	if got := graphCmd.Flags().Lookup("host").DefValue; got != "127.0.0.1" {
-		t.Fatalf("graph host default = %q, want 127.0.0.1", got)
+	if got := graphCmd.Flags().Lookup("host").DefValue; got != "0.0.0.0" {
+		t.Fatalf("graph host default = %q, want 0.0.0.0", got)
 	}
 }
 

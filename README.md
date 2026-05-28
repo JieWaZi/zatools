@@ -201,7 +201,7 @@ zatools devwiki repo info [project]
 zatools devwiki read <topic|workflow> <slug> [--view <card|core|explain>] [--format text] [--root <dir>] [--project <project>]
 zatools devwiki search <index|glossary|topic|workflow> <query...> [--root <dir>] [--project <project>]
 zatools devwiki check [document|graph] [path...] [--root <dir>]
-zatools devwiki graph [--root <dir>] [--project <project>] [--host 127.0.0.1] [--port 0] [--no-open] [--force]
+zatools devwiki graph [--root <dir>] [--project <project>] [--host 0.0.0.0] [--port 5696] [--no-open] [--force]
 zatools devwiki server [--root <dir>] [--project <project>] [--host 0.0.0.0] [--port 5697]
 zatools devwiki tool reset --scope <wiki|raw|log|checkpoints|all> [--project-root <dir>] [--yes]
 zatools devwiki tool log --wiki-root <dir> --message "<text>"
@@ -215,7 +215,7 @@ zatools devwiki tool log --wiki-root <dir> --message "<text>"
 - `devwiki read`：按 topic / workflow 的 `card`、`core`、`explain` 视图读取结构化页面内容
 - `devwiki search`：`index` / `glossary` 本地解析结构化表格并输出最小 JSON；`topic` / `workflow` 调用 `qmd search` 后过滤并输出 `file`、`slug`、`title` 和 `score` JSON
 - `devwiki check`：校验 index/glossary/log 格式、Topic/Workflow 文档分块和图谱关系；未指定类型时检查 document 和 graph，未指定路径时检查 `wiki/`
-- `devwiki graph`：从 topic / workflow 页面生成图谱数据并启动本地图谱页面
+- `devwiki graph`：从 topic / workflow 页面生成图谱数据并启动本地图谱页面，默认监听 `0.0.0.0:5696`，可通过 `--host` / `--port` 指定；自动打开浏览器失败时只提示，不影响服务运行
 - `devwiki server`：启动只读 HTTP API，默认 `0.0.0.0:5697`，接口使用内置 Basic Auth
 - `tool reset`：默认只输出 dry-run 计划，加 `--yes` 后才会执行
 - `tool log`：向 `wiki/log.md` 追加操作记录

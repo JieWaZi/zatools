@@ -38,7 +38,7 @@ type ServerOptions struct {
 func Serve(ctx context.Context, opts ServerOptions) (string, error) {
 	host := opts.Host
 	if host == "" {
-		host = "127.0.0.1"
+		host = "0.0.0.0"
 	}
 	return serveHTTP(ctx, host, opts.Port, graphHandler(opts))
 }
