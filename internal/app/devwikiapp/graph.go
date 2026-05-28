@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"zatools/internal/devwiki"
 	devwikigraph "zatools/internal/devwiki/graph"
 	"zatools/internal/ui"
 )
@@ -15,6 +16,7 @@ import (
 // GraphOptions describes `zatools devwiki graph` execution options.
 type GraphOptions struct {
 	Root    string
+	Project string
 	Host    string
 	Port    int
 	NoOpen  bool
@@ -31,6 +33,16 @@ func (s *Service) runGraph(ctx context.Context, opts GraphOptions) error {
 		stdout = os.Stdout
 	}
 	root := opts.Root
+	if opts.Project != "" {
+		cfg, err := devwiki.LoadRepoConfig(opts.Project)
+		if err != nil {
+			return err
+		}
+		if cfg.Source.Type != devwiki.RepoSourceLocal {
+			return fmt.Errorf("devwiki graph can only serve local project sources")
+		}
+		root = cfg.Source.Path
+	}
 	if root == "" {
 		root = s.runtime.Workspace.CWD
 	}

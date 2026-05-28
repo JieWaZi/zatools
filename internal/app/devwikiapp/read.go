@@ -8,19 +8,20 @@ import (
 	"path/filepath"
 	"strings"
 
+	"zatools/internal/devwiki"
 	"zatools/internal/devwiki/page"
-
-	"gopkg.in/yaml.v3"
+	"zatools/internal/devwiki/retrieval"
 )
 
 // ReadOptions describes `zatools devwiki read` execution options.
 type ReadOptions struct {
-	Root   string
-	Kind   string
-	Slug   string
-	View   string
-	Format string
-	Stdout io.Writer
+	Root    string
+	Project string
+	Kind    string
+	Slug    string
+	View    string
+	Format  string
+	Stdout  io.Writer
 }
 
 func (s *Service) runRead(ctx context.Context, opts ReadOptions) error {
@@ -29,7 +30,18 @@ func (s *Service) runRead(ctx context.Context, opts ReadOptions) error {
 	if stdout == nil {
 		stdout = os.Stdout
 	}
+	opts.Stdout = stdout
 	root := opts.Root
+	if strings.TrimSpace(opts.Project) != "" {
+		cfg, err := devwiki.LoadRepoConfig(opts.Project)
+		if err != nil {
+			return err
+		}
+		if cfg.Source.Type == devwiki.RepoSourceRemote {
+			return s.readRemote(ctx, cfg, opts)
+		}
+		root = cfg.Source.Path
+	}
 	if root == "" {
 		root = s.runtime.Workspace.CWD
 	}
@@ -58,60 +70,10 @@ func (s *Service) runRead(ctx context.Context, opts ReadOptions) error {
 		return fmt.Errorf("unsupported %s view %q", kind, view)
 	}
 
-	rel, err := page.FindRootRelativePage(absRoot, kind, opts.Slug)
+	text, err := retrieval.ReadText(absRoot, kind, opts.Slug, view)
 	if err != nil {
 		return err
 	}
-	doc, err := page.Load(absRoot, rel)
-	if err != nil {
-		return err
-	}
-	if doc.Meta.Kind != "" && doc.Meta.Kind != kind {
-		return fmt.Errorf("%s: frontmatter kind %q does not match requested kind %q", rel, doc.Meta.Kind, kind)
-	}
-	section, ok := doc.SectionByID(view)
-	if !ok {
-		return fmt.Errorf("%s: missing section %q", rel, view)
-	}
-	if view == "card" {
-		meta, err := marshalCardMeta(doc.Meta)
-		if err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintln(stdout, "---"); err != nil {
-			return err
-		}
-		if _, err := stdout.Write(meta); err != nil {
-			return err
-		}
-		if len(meta) == 0 || meta[len(meta)-1] != '\n' {
-			if _, err := fmt.Fprintln(stdout); err != nil {
-				return err
-			}
-		}
-		if _, err := fmt.Fprintln(stdout, "---"); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintln(stdout); err != nil {
-			return err
-		}
-	}
-	_, err = fmt.Fprintln(stdout, section.Content)
+	_, err = stdout.Write([]byte(text))
 	return err
-}
-
-type cardMeta struct {
-	Title      string `yaml:"title"`
-	Status     string `yaml:"status"`
-	Summary    string `yaml:"summary"`
-	Confidence string `yaml:"confidence"`
-}
-
-func marshalCardMeta(meta page.Meta) ([]byte, error) {
-	return yaml.Marshal(cardMeta{
-		Title:      meta.Title,
-		Status:     meta.Status,
-		Summary:    meta.Summary,
-		Confidence: meta.Confidence,
-	})
 }

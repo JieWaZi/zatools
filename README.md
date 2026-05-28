@@ -24,7 +24,7 @@
 | --- | --- | --- | --- |
 | `skill` | 已支持 | `zatools skill ...` | 支持发现、安装、删除、检查更新、更新、初始化模板 |
 | `rule` | 已支持 | `zatools rule ...` | 支持发现、安装、删除、检查更新、更新 |
-| `devwiki` | 已支持 | `zatools devwiki ...` | 支持初始化、关联、更新和内置维护工具 |
+| `devwiki` | 已支持 | `zatools devwiki ...` | 支持初始化、项目配置、查询、图谱、只读服务、更新和内置维护工具 |
 | `qmd` | 已支持 | `zatools qmd ...` | 封装 qmd，统一注入模型和缓存配置 |
 | `agent` | 已支持 | `--agent` | 作为安装目标使用，不是独立资产类型 |
 | `command` | 未实现 | 无 | 暂无安装逻辑 |
@@ -73,8 +73,13 @@ zatools
 │   └── update
 ├── devwiki
 │   ├── init
-│   ├── link
 │   ├── update
+│   ├── repo
+│   ├── read
+│   ├── search
+│   ├── check
+│   ├── graph
+│   ├── server
 │   └── tool
 │       ├── reset
 │       └── log
@@ -152,12 +157,15 @@ zatools rule add ./examples/rules --yes
 
 ```bash
 zatools devwiki init [project-name] [--agent <codex|cursor|claude>] [--code-dir <dir>]... [--global] [--yes]
-zatools devwiki link [--root <devwiki-root>] [--agent <codex|cursor|claude>] [--code-dir <dir>]... [--yes]
 zatools devwiki update
-zatools devwiki read <topic|workflow> <slug> [--view <card|core|explain>] [--format text]
-zatools devwiki search <index|glossary|topic|workflow> <query...> [--root <dir>]
+zatools devwiki repo add <project> [path] [--remote <url>]
+zatools devwiki repo link <project> <repo-slug> <path>
+zatools devwiki repo info [project]
+zatools devwiki read <topic|workflow> <slug> [--view <card|core|explain>] [--format text] [--root <dir>] [--project <project>]
+zatools devwiki search <index|glossary|topic|workflow> <query...> [--root <dir>] [--project <project>]
 zatools devwiki check [document|graph] [path...] [--root <dir>]
-zatools devwiki graph [--root <dir>] [--host 127.0.0.1] [--port 0] [--no-open] [--force]
+zatools devwiki graph [--root <dir>] [--project <project>] [--host 127.0.0.1] [--port 0] [--no-open] [--force]
+zatools devwiki server [--root <dir>] [--project <project>] [--host 0.0.0.0] [--port 5697]
 zatools devwiki tool reset --scope <wiki|raw|log|checkpoints|all> [--project-root <dir>] [--yes]
 zatools devwiki tool log --wiki-root <dir> --message "<text>"
 ```
@@ -165,12 +173,13 @@ zatools devwiki tool log --wiki-root <dir> --message "<text>"
 说明：
 
 - `devwiki init`：初始化 DevWiki 文档库，并安装运行时所需 skills
-- `devwiki link`：将已有 DevWiki 文档库关联到代码库
 - `devwiki update`：更新当前作用域内的 DevWiki 内置 skills，并尽力执行 qmd 注册、索引和向量刷新；qmd 失败只提示告警
+- `devwiki repo`：维护用户级 DevWiki 项目配置，支持本地文档库或远端 HTTP API；输出默认 JSON，`repo info` 无参数时只列出 project 名称，有 project 时同时包含已绑定代码仓路径
 - `devwiki read`：按 topic / workflow 的 `card`、`core`、`explain` 视图读取结构化页面内容
 - `devwiki search`：`index` / `glossary` 本地解析结构化表格并输出最小 JSON；`topic` / `workflow` 调用 `qmd search` 后过滤并输出 `file`、`slug`、`title` 和 `score` JSON
 - `devwiki check`：校验 index/glossary/log 格式、Topic/Workflow 文档分块和图谱关系；未指定类型时检查 document 和 graph，未指定路径时检查 `wiki/`
-- `devwiki graph`：从 topic / workflow 页面生成图谱数据并启动本地页面
+- `devwiki graph`：从 topic / workflow 页面生成图谱数据并启动本地图谱页面
+- `devwiki server`：启动只读 HTTP API，默认 `0.0.0.0:5697`，接口使用内置 Basic Auth
 - `tool reset`：默认只输出 dry-run 计划，加 `--yes` 后才会执行
 - `tool log`：向 `wiki/log.md` 追加操作记录
 

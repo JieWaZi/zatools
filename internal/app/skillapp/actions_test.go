@@ -470,7 +470,7 @@ func TestServiceAddBuiltinDevwikiLibrary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadLock error = %v", err)
 	}
-	wantSkills := []string{"devwiki-code", "devwiki-code-to-doc", "devwiki-ingest", "devwiki-maintain", "devwiki-project-router", "devwiki-qmd-sync", "devwiki-query", "devwiki-topic", "devwiki-workflow"}
+	wantSkills := []string{"devwiki-code", "devwiki-code-to-doc", "devwiki-ingest", "devwiki-maintain", "devwiki-project-router", "devwiki-query", "devwiki-topic", "devwiki-workflow"}
 	for _, name := range wantSkills {
 		entry, ok := lock.Entries(skills.SkillAsset)[name]
 		if !ok {

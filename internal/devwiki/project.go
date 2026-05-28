@@ -86,6 +86,25 @@ func NormalizeCodeRepos(baseDir string, codeDirs []string) ([]CodeRepo, error) {
 	return repos, nil
 }
 
+// ProjectSlugFromRoot reads config/project.yaml and returns the DevWiki project slug.
+func ProjectSlugFromRoot(root string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(root, "config", "project.yaml"))
+	if err != nil {
+		return "", err
+	}
+	var parsed struct {
+		ProjectSlug string `yaml:"project_slug"`
+	}
+	if err := yaml.Unmarshal(data, &parsed); err != nil {
+		return "", err
+	}
+	slug := strings.TrimSpace(parsed.ProjectSlug)
+	if slug == "" {
+		return "", fmt.Errorf("devwiki project_slug is required in %s", filepath.Join(root, "config", "project.yaml"))
+	}
+	return slug, nil
+}
+
 // BuiltinSkillsPath 返回内置技能模板在嵌入文件系统中的路径。
 func BuiltinSkillsPath(_ string) string {
 	return path.Join("template", "skills")
@@ -313,7 +332,7 @@ func renderProjectDoc(spec ProjectSpec, name string) (string, error) {
 }
 
 // EnsureCodeRepoDevwikiLink writes managed DevWiki association text into a code repository.
-func EnsureCodeRepoDevwikiLink(codeRoot string, devwikiRoot string, agent string, lang string) error {
+func EnsureCodeRepoDevwikiLink(codeRoot string, devwikiRoot string, projectSlug string, agent string, lang string) error {
 	runtimeFile, err := runtimeFilenameForAgent(agent)
 	if err != nil {
 		return err
@@ -322,16 +341,22 @@ func EnsureCodeRepoDevwikiLink(codeRoot string, devwikiRoot string, agent string
 		return err
 	}
 
-	devwikiRoot, err = filepath.Abs(devwikiRoot)
-	if err != nil {
-		return err
-	}
 	codeRoot, err = filepath.Abs(codeRoot)
 	if err != nil {
 		return err
 	}
-	runtimePath := filepath.Join(devwikiRoot, runtimeFile)
-	block := renderCodeRepoDevwikiLinkBlock(devwikiRoot, runtimePath, lang)
+	devwikiRoot = strings.TrimSpace(devwikiRoot)
+	if devwikiRoot != "" {
+		devwikiRoot, err = filepath.Abs(devwikiRoot)
+		if err != nil {
+			return err
+		}
+	}
+	runtimePath := ""
+	if devwikiRoot != "" {
+		runtimePath = filepath.Join(devwikiRoot, runtimeFile)
+	}
+	block := renderCodeRepoDevwikiLinkBlock(devwikiRoot, runtimePath, projectSlug, lang)
 	wrote := false
 	for _, filename := range []string{"AGENTS.md", "CLAUDE.md"} {
 		targetPath := filepath.Join(codeRoot, filename)
@@ -350,20 +375,29 @@ func EnsureCodeRepoDevwikiLink(codeRoot string, devwikiRoot string, agent string
 	return upsertManagedFileBlock(filepath.Join(codeRoot, "AGENTS.md"), block, lang)
 }
 
-func renderCodeRepoDevwikiLinkBlock(devwikiRoot string, runtimePath string, lang string) string {
+func renderCodeRepoDevwikiLinkBlock(devwikiRoot string, runtimePath string, projectSlug string, lang string) string {
 	_ = lang
 
-	return strings.Join([]string{
+	lines := []string{
 		codeLinkStartMarker,
 		"## 关联 DevWiki",
-		fmt.Sprintf("DevWiki 文档库根目录：`%s`。", devwikiRoot),
-		fmt.Sprintf("在本代码库回答项目知识问题、修改代码，或使用 `devwiki-query` / `devwiki-code` / `devwiki-code-to-doc` 前，必须先阅读 `%s`。", runtimePath),
-		"查询时以关联 DevWiki 根目录下的 `wiki/`、`raw/`、`config/search.yaml` 为知识来源。",
+		fmt.Sprintf("DevWiki project：`%s`。", projectSlug),
+		fmt.Sprintf("统一查询命令使用：`--project %s`。", projectSlug),
+	}
+	if strings.TrimSpace(devwikiRoot) != "" {
+		lines = append(lines,
+			fmt.Sprintf("DevWiki 文档库根目录：`%s`。", devwikiRoot),
+			fmt.Sprintf("在本代码库回答项目知识问题、修改代码，或使用 `devwiki-query` / `devwiki-code` / `devwiki-code-to-doc` 前，必须先阅读 `%s`。", runtimePath),
+			"查询时以关联 DevWiki 根目录下的 `wiki/`、`raw/`、`config/search.yaml` 为知识来源。",
+			"`devwiki-code-to-doc` 生成的 workflow / topic 相关页面必须写入关联 DevWiki 文档库，不要写入本代码库。",
+		)
+	}
+	lines = append(lines,
 		"`devwiki-code` 修改当前代码库；修改前应优先使用关联 DevWiki 的 workflow 定位代码入口和规则边界。",
-		"`devwiki-code-to-doc` 生成的 workflow / 代码定位页面必须写入关联 DevWiki 文档库，不要写入本代码库。",
 		codeLinkEndMarker,
 		"",
-	}, "\n")
+	)
+	return strings.Join(lines, "\n")
 }
 
 func upsertManagedFileBlock(targetPath string, block string, lang string) error {

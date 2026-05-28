@@ -231,7 +231,6 @@ func TestInitCreatesProjectAndInstallsCodexSkillsIntoCurrentProjectRoot(t *testi
 		".agents/skills/devwiki-code/SKILL.md",
 		".agents/skills/devwiki-query/SKILL.md",
 		".agents/skills/devwiki-code-to-doc/SKILL.md",
-		".agents/skills/devwiki-qmd-sync/SKILL.md",
 	} {
 		if _, err := os.Stat(filepath.Join(docRoot, rel)); err != nil {
 			t.Fatalf("missing doc-root installed skill %s: %v", rel, err)
@@ -367,59 +366,6 @@ func TestInitDoesNotWarmQMDModelsAndPrintsManualDownloadHint(t *testing.T) {
 
 	if !strings.Contains(output, "zatools qmd download --root .") {
 		t.Fatalf("Init output missing manual qmd download hint:\n%s", output)
-	}
-}
-
-func TestLinkAssociatesExistingDevwikiRootWithCodeRepository(t *testing.T) {
-	docRoot := t.TempDir()
-	codeRoot := t.TempDir()
-	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
-
-	if err := devwiki.GenerateProject(docRoot, devwiki.ProjectSpec{
-		ProjectName: "Linked Project",
-		ProjectSlug: "linked-project",
-		Agent:       "codex",
-		Lang:        "zh",
-		CodeRepos: []devwiki.CodeRepo{
-			{Name: "code", Slug: "code", Path: codeRoot, Default: true},
-		},
-	}); err != nil {
-		t.Fatalf("GenerateProject error = %v", err)
-	}
-
-	service := NewServiceWithRuntime(common.Runtime{
-		Workspace: skills.NewWorkspace(docRoot),
-		IsTTY:     false,
-	})
-
-	if err := service.Link(context.Background(), LinkOptions{
-		DevwikiRoot: docRoot,
-		Agent:       "codex",
-		Lang:        "zh",
-		CodeDirs:    []string{codeRoot},
-		Yes:         true,
-	}); err != nil {
-		t.Fatalf("Link error = %v", err)
-	}
-
-	if _, err := os.Stat(filepath.Join(codeRoot, ".agents", "skills", "devwiki-code", "SKILL.md")); err != nil {
-		t.Fatalf("missing linked code repo code skill: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(codeRoot, ".agents", "skills", "devwiki-code-to-doc", "SKILL.md")); err != nil {
-		t.Fatalf("missing linked code repo code-to-doc skill: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(codeRoot, ".agents", "skills", "devwiki-query", "SKILL.md")); err == nil {
-		t.Fatal("link should not install devwiki-query into code repo")
-	}
-	if _, err := os.Stat(filepath.Join(codeRoot, ".agents", "skills", "devwiki-project-router", "SKILL.md")); err == nil {
-		t.Fatal("link should not install full DevWiki skill set into code repo")
-	}
-	agentsData, err := os.ReadFile(filepath.Join(codeRoot, "AGENTS.md"))
-	if err != nil {
-		t.Fatalf("ReadFile(code AGENTS.md) error = %v", err)
-	}
-	if !containsAll(string(agentsData), docRoot, filepath.Join(docRoot, "AGENTS.md"), "devwiki-query", "devwiki-code", "devwiki-code-to-doc") {
-		t.Fatalf("code AGENTS.md missing DevWiki link guidance:\n%s", string(agentsData))
 	}
 }
 

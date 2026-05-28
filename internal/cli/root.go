@@ -26,7 +26,7 @@ func NewRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			if cmd.Annotations[devwikicmd.SuppressLogoAnnotation] == "true" {
+			if suppressLogo(cmd) {
 				return
 			}
 			showLogoOnce.Do(ui.ShowLogo)
@@ -38,7 +38,9 @@ func NewRootCmd() *cobra.Command {
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		showLogoOnce.Do(ui.ShowLogo)
+		if !suppressLogo(cmd) {
+			showLogoOnce.Do(ui.ShowLogo)
+		}
 		writeHelp(cmd.OutOrStdout(), cmd)
 	})
 	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
@@ -49,6 +51,16 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(newCompletionCmd(rootCmd))
 	ui.ApplyHelpLocalization(rootCmd)
 	return rootCmd
+}
+
+func suppressLogo(cmd *cobra.Command) bool {
+	if cmd == nil {
+		return false
+	}
+	if cmd.Annotations[devwikicmd.SuppressLogoAnnotation] == "true" {
+		return true
+	}
+	return strings.HasPrefix(cmd.CommandPath(), ui.CommandName()+" devwiki")
 }
 
 func writeHelp(w io.Writer, cmd *cobra.Command) {

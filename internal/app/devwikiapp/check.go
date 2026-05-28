@@ -11,6 +11,7 @@ import (
 
 	devwikigraph "zatools/internal/devwiki/graph"
 	devwikipage "zatools/internal/devwiki/page"
+	"zatools/internal/devwiki/retrieval"
 )
 
 // CheckOptions describes `zatools devwiki check` execution options.
@@ -241,12 +242,12 @@ func checkRequiredTable(rel string, text string, required []string) []string {
 func firstMarkdownTable(text string) ([]string, [][]string, bool) {
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
 	for index := 0; index < len(lines); index++ {
-		headers, ok := parseMarkdownTableLine(lines[index])
+		headers, ok := retrieval.ParseMarkdownTableLine(lines[index])
 		if !ok || index+1 >= len(lines) {
 			continue
 		}
-		separator, ok := parseMarkdownTableLine(lines[index+1])
-		if !ok || !isMarkdownTableSeparator(separator) {
+		separator, ok := retrieval.ParseMarkdownTableLine(lines[index+1])
+		if !ok || !retrieval.IsMarkdownTableSeparator(separator) {
 			continue
 		}
 		for i := range headers {
@@ -254,7 +255,7 @@ func firstMarkdownTable(text string) ([]string, [][]string, bool) {
 		}
 		var rows [][]string
 		for rowIndex := index + 2; rowIndex < len(lines); rowIndex++ {
-			row, ok := parseMarkdownTableLine(lines[rowIndex])
+			row, ok := retrieval.ParseMarkdownTableLine(lines[rowIndex])
 			if !ok {
 				break
 			}

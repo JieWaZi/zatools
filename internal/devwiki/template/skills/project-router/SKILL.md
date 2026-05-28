@@ -42,7 +42,7 @@ argument-hint: "<问题、任务或文档范围>"
 | code | `devwiki-code` | 基于 DevWiki workflow 定位并修改当前代码仓，开发功能、修 bug、重构、补测试或提交代码 |
 | query | `devwiki-query` | 只读查询已有 Wiki、raw 和文档内代码线索，回答能力、功能、工程定位和排障问题；真实代码核查转 `devwiki-code` |
 | code_to_doc | `devwiki-code-to-doc` | 从代码、接口、配置项、日志或路由反向生成或更新 DevWiki 页面 |
-| qmd_sync | `devwiki-qmd-sync` | 补做或修复 qmd collection 注册、索引刷新与状态检查 |
+| qmd_maintenance | qmd maintenance commands | 直接执行 `zatools qmd sync/update/status`，不再路由到独立 qmd-sync skill |
 
 ## Intent Detection
 
@@ -155,19 +155,18 @@ devwiki-code-to-doc
 - 用户要求检查 `config/search.yaml`、`zatools qmd sync/update/status/embed`
 - 已有工作区需要补做或修复 qmd collection 注册、索引刷新与状态检查
 
-路由到：
+处理方式：
 
 ```text
-devwiki-qmd-sync
+qmd maintenance commands
 ```
 
-只处理 qmd 检索层，不替代 ingest / query / code-to-doc。
+在本地 DevWiki 工作区直接执行 `zatools qmd sync/update/status` 等维护命令。只处理 qmd 检索层，不替代 ingest / query / code-to-doc；不再使用独立 `devwiki-qmd-sync` skill。
 
 ## Multi-Intent Priority
 
 同一句请求可能命中多个意图时，按以下优先级收敛：
-
-1. `devwiki-qmd-sync`
+1. qmd maintenance commands
 2. `devwiki-ingest`
 3. `devwiki-maintain`
 4. `devwiki-code`
@@ -175,8 +174,7 @@ devwiki-qmd-sync
 6. `devwiki-query`
 
 示例：
-
-- 「qmd 搜不到这些 Wiki 页面」优先是 `devwiki-qmd-sync`
+- 「qmd 搜不到这些 Wiki 页面」优先执行 `zatools qmd sync/update/status` 维护命令
 - 「把这 20 个设计文档总结成 Wiki」优先是 `devwiki-ingest`
 - 「query 总是答旧机制，帮我维护一下 Wiki」优先是 `devwiki-maintain`
 - 「把防脑裂网关配置从全局改成按 HA group 配置」优先是 `devwiki-code`
@@ -227,7 +225,7 @@ internal_non_developer
 - 查询排障经验、历史会议或已有 Wiki 页面
 - 判断是否已有类似页面或类似 topic
 - 准备把文档或代码证据写入 Wiki
-- 判断请求应属于 ingest、maintain、query、code-to-doc 还是 qmd-sync
+- 判断请求应属于 ingest、maintain、query、code-to-doc 还是 qmd maintenance
 
 ### 不进入 DevWiki 检索的场景
 
@@ -324,6 +322,6 @@ internal_non_developer
 - **Wiki 有旧结论污染 query**：若目标是修正已有知识健康，路由到 `devwiki-maintain`
 - **raw 为空**：提示先准备原始资料；若用户问题要求从代码反推，先确认是否允许基于代码生成草稿
 - **qmd 不可用**：降级为本地搜索，并在回答中说明「本轮 qmd 不可用，已降级」
-- **代码目录未配置**：只基于 `wiki/` / `raw/` 处理，并说明未核对代码
+- **代码目录未配置**：先提示可用 `zatools devwiki repo info <project>` 检查 `code_repos`；本轮只基于 `wiki/` / `raw/` 处理，并说明未核对代码
 - **目标 Skill 未安装**：输出路由结果、缺失 Skill 名称和需要的下一步输入
 - **身份不允许访问**：提供可见范围内的回答版本，或要求切换到内部开发身份

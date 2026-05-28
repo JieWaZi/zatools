@@ -8,7 +8,7 @@
 
 ## 检索路由（结构化入口优先，低置信升档）
 
-DevWiki 技能做召回时，默认先用 `zatools devwiki search index/glossary` 检索结构化入口；这里的“本地优先”首先指 DevWiki 的结构化表格，不是代码仓全局搜索。
+DevWiki 技能做召回时，默认先用 `zatools devwiki search index/glossary` 检索结构化入口；这里的“结构化入口优先”指 DevWiki 的 index/glossary 表格，不是代码仓全局搜索。
 
 基础顺序：
 
@@ -27,10 +27,9 @@ DevWiki 技能做召回时，默认先用 `zatools devwiki search index/glossary
 | `locate_exact` | 文件在哪里、哪个函数定义、哪个接口注册、错误码在哪里 | 本地 Wiki / 必要时本地代码精确定位 |
 | `explain_topic` | 某功能是什么、怎么工作、有哪些边界 | `devwiki search index/glossary`；低置信或噪声大时升到 `devwiki search topic` |
 | `trace_implementation` | 怎么实现、调用链怎么走、状态写到哪里 | query 场景先读 Wiki/workflow；明确要求当前代码核查时转 `devwiki-code` |
-| `troubleshoot` | 报错原因、不生效怎么查、日志从哪里来 | 先找 troubleshooting/workflow 候选，再按需核对 raw/code |
+| `troubleshoot` | 报错原因、不生效怎么查、日志从哪里来 | 先找 workflow/topic 候选；troubleshooting 可作为页面内容和导航线索，再按需核对 raw/code |
 | `design_intent` | 为什么这么设计、整体架构是什么 | `devwiki search index/glossary`；不足时 `devwiki search`，再不足才 `qmd query` |
 | `wiki_maintenance` | 页面是否重复、过期、冲突、query 是否会命中旧内容 | 本地 Wiki 审计 + `qmd search/status/update` 按需验证 |
-| `qmd_maintenance` | qmd 不可用、collection 没注册、索引异常 | 交给 `devwiki-qmd-sync` |
 
 不要把所有关键词都当成精确锚点。`ssh`、`vip`、`auth`、`token`、`query`、`sync` 这类短词只是中锚点；如果用户问“怎么实现 / 怎么设计 / 怎么排障”，不能因为本地命中这些短词就停止。
 
@@ -39,11 +38,11 @@ DevWiki 技能做召回时，默认先用 `zatools devwiki search index/glossary
 默认先检索 DevWiki 结构化入口：
 
 ```bash
-zatools devwiki search index <query...> --root <真实文档库根目录>
-zatools devwiki search glossary <query...> --root <真实文档库根目录>
+zatools devwiki search index <query...> --project <project>
+zatools devwiki search glossary <query...> --project <project>
 ```
 
-`index` 返回 `type`、`description`、`slug`；`glossary` 返回 `glossary`、`type`、`description`、`slug`。这两个命令是本地表格检索，不依赖 qmd，也不输出 `score`；agent 必须根据 `description` 和用户问题做语义打分。
+`index` 返回 `type`、`description`、`slug`；`glossary` 返回 `glossary`、`type`、`description`、`slug`。这两个命令是结构化表格检索；在 `--project` 下由 CLI 根据统一配置选择本地文档库或远端 HTTP API，不依赖 qmd，也不输出 `score`。agent 必须根据 `description` 和用户问题做语义打分。
 
 必要时再扩展到 `raw/`。只有当问题明确要求当前代码核查、真实调用链、日志出处、配置读取点、测试入口，或需要写入/修正代码定位时，才进入代码搜索；如果当前目标是 `devwiki-query`，应转 `devwiki-code`，不要由 query 直接搜索代码。
 
@@ -53,15 +52,15 @@ zatools devwiki search glossary <query...> --root <真实文档库根目录>
 |---|---|---|
 | high | index/glossary 命中 1-5 个入口；`type` 与意图一致；`description` 明确覆盖用户问题 | 直接读命中页，不必升档 |
 | medium | 命中 6-20 条；有 2-4 个候选入口；需要读 card 后判断主页面 | 先读候选页，仍无法排序则升档 |
-| low | 0 命中；超过 20 条散点命中；短词命中过泛；active/deprecated/report 混杂；页面冲突；无法判断权威页 | 必须升到 `zatools devwiki search <topic|workflow> <query...>` |
+| low | 0 命中；超过 20 条散点命中；短词命中过泛；active/deprecated/report 混杂；页面冲突；无法判断权威页 | 必须升到 `zatools devwiki search <topic|workflow> <query...> --project <project>` |
 
 ### 第 2 档：`zatools devwiki search topic/workflow`（噪声收敛和关键词召回）
 
 当 index/glossary 低置信、噪声过大、无法排序，或问题本身偏语义/主题类时，使用 `devwiki search topic/workflow`：
 
 - 典型场景：「ssh 是怎么实现的」「SAML metadata 相关设计」「鉴权失败日志出处」「和支付回调相关的文档」
-- 使用 `zatools devwiki search topic <query...>` 只召回 `wiki/topics/` 命中；使用 `zatools devwiki search workflow <query...>` 只召回 `wiki/workflows/` 命中
-- 多个关键词应作为多个参数传入，例如 `zatools devwiki search workflow 防脑裂 网关 ha-group gateway`，不要合并成一个带空格的字符串
+- 使用 `zatools devwiki search topic <query...> --project <project>` 只召回 `wiki/topics/` 命中；使用 `zatools devwiki search workflow <query...> --project <project>` 只召回 `wiki/workflows/` 命中
+- 多个关键词应作为多个参数传入，例如 `zatools devwiki search workflow 防脑裂 网关 ha-group gateway --project <project>`，不要合并成一个带空格的字符串
 - 多 query 结果使用 RRF（Reciprocal Rank Fusion）按各关键词下的排名融合排序，`score` 为融合后的相对百分比
 - 默认只召回 `wiki` collection；只有用户手动在 `config/search.yaml` 添加 raw 或 code collection 后，才会覆盖这些额外目录
 - `devwiki search topic/workflow` 底层调用 `qmd search`，不依赖向量，CPU 友好，适合作为结构化入口搜索的升档
@@ -84,7 +83,7 @@ zatools devwiki search glossary <query...> --root <真实文档库根目录>
 |---|---|
 | `devwiki search topic/workflow` / `qmd search` 报错、超时、命令不存在、cache 不可写 | 降级为 `devwiki search index/glossary` + 必要 raw 搜索 |
 | `qmd query` 报错、超时、模型缺失、加速不可用 | 先降级到 `devwiki search topic/workflow`；若 search 也失败，再 `devwiki search index/glossary` |
-| collection 未注册或文件数异常 | 本轮使用 `devwiki search index/glossary`，并建议 `devwiki-qmd-sync` / `zatools qmd sync --root . --apply` |
+| collection 未注册或文件数异常 | 本轮使用 `devwiki search index/glossary --project <project>`，并建议在本地 DevWiki 工作区执行 `zatools qmd sync --root . --apply` |
 | index 明显过期 | 本轮可本地查，结尾建议 `zatools qmd update` |
 | raw/code 未进入 collection | 明示 qmd 默认只搜 `wiki`，raw/code 仍需本地核对 |
 

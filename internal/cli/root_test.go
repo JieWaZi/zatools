@@ -114,6 +114,38 @@ card body
 	}
 }
 
+func TestDevwikiInitDoesNotPrintLogo(t *testing.T) {
+	cmd := NewRootCmd()
+	cmd.SetArgs([]string{"devwiki", "init", "sample", "--code-dir", t.TempDir(), "--yes"})
+	var commandOut bytes.Buffer
+	cmd.SetOut(&commandOut)
+	cmd.SetErr(io.Discard)
+
+	processOut := captureStdoutRootTest(t, func() {
+		_ = cmd.Execute()
+	})
+	if strings.Contains(processOut, "███████") || strings.Contains(commandOut.String(), "███████") {
+		t.Fatalf("devwiki init output should not include logo: stdout=%q commandOut=%q", processOut, commandOut.String())
+	}
+}
+
+func TestDevwikiRootDoesNotPrintLogo(t *testing.T) {
+	cmd := NewRootCmd()
+	cmd.SetArgs([]string{"devwiki"})
+	var commandOut bytes.Buffer
+	cmd.SetOut(&commandOut)
+	cmd.SetErr(io.Discard)
+
+	processOut := captureStdoutRootTest(t, func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+	})
+	if strings.Contains(processOut, "███████") || strings.Contains(commandOut.String(), "███████") {
+		t.Fatalf("devwiki root output should not include logo: stdout=%q commandOut=%q", processOut, commandOut.String())
+	}
+}
+
 func TestQMDDoesNotPrintLogo(t *testing.T) {
 	cmd := NewRootCmd()
 	cmd.SetArgs([]string{"qmd", "status"})

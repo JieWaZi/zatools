@@ -38,8 +38,8 @@ zatools devwiki check document
 
 - 只放当前推荐入口和高价值导航。
 - 每条入口必须写成表格行，字段顺序固定为 `type / description / slug`。
-- `type` 只能使用 `topic`、`workflow` 或 `troubleshooting`。
-- `slug` 必须是后续 `zatools devwiki read <type> <slug>` 可直接使用的页面 slug，不写文件名和 wiki link。
+- `type` 可记录 `topic`、`workflow` 或 `troubleshooting`。
+- `slug` 对 topic/workflow 必须是后续 `zatools devwiki read <type> <slug>` 可直接使用的页面 slug，不写文件名和 wiki link。
 - `description` 写一句可检索、可让 agent 做语义判断的说明。
 - 不写完整页面摘要、实现细节、排障过程或维护报告。
 - 不把 deprecated、report、outputs 页面作为主入口。
@@ -70,8 +70,8 @@ zatools devwiki check document
 - 一个术语说明要回答“这个能力/主题解决什么问题、覆盖哪些关键行为、和哪些场景相关”。
 - 每条术语必须写成表格行，字段顺序固定为 `glossary / type / description / slug`。
 - `glossary` 写术语或常用别名；同一个概念有多个常用叫法时，可以各写一行并指向同一个 `slug`。
-- `type` 只能使用 `topic`、`workflow` 或 `troubleshooting`。
-- `slug` 必须是后续 `zatools devwiki read <type> <slug>` 可直接使用的页面 slug，不写文件名和 wiki link。
+- `type` 可记录 `topic`、`workflow` 或 `troubleshooting`；v1 统一 CLI 的 `read/search` 类型只使用 `topic|workflow`。
+- `slug` 对 topic/workflow 必须是后续 `zatools devwiki read <type> <slug>` 可直接使用的页面 slug，不写文件名和 wiki link。
 - 新建 Topic 或 Workflow 后必须检查 `wiki/glossary.md`。
 - 先搜索是否已有同名术语、等价别名或可复用入口；不存在才追加。
 - 已有术语能覆盖时，不新增重复行；必要时只补充说明中的常用别名。

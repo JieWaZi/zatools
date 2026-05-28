@@ -51,8 +51,8 @@ func TestResolveSourceBuiltinDevwikiExtractsEmbeddedSkills(t *testing.T) {
 		t.Fatalf("SearchRoot returned error: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(searchRoot, "qmd-sync", "SKILL.md")); err != nil {
-		t.Fatalf("missing builtin qmd-sync skill: %v", err)
+	if _, err := os.Stat(filepath.Join(searchRoot, "qmd-sync", "SKILL.md")); err == nil {
+		t.Fatal("builtin devwiki should not include qmd-sync skill")
 	}
 }
 

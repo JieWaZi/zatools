@@ -24,7 +24,7 @@
     ├── topics/                  ← 主题边界、功能规则与实现入口
     ├── workflows/               ← 工程定位、调用链与代码线索
     ├── troubleshooting/         ← 排障知识
-    └── outputs/                 ← ingest / maintain / query / code-to-doc / qmd-sync 报告
+    └── outputs/                 ← ingest / maintain / query / code-to-doc 报告
 ```
 
 本目录就是 DevWiki 文档库根目录。代码库通过 AGENTS/CLAUDE 中的托管关联块指向本目录。Agent 在代码库内使用 `devwiki-query`、`devwiki-code` 或 `devwiki-code-to-doc` 前，必须先阅读本文件；查询以本目录的 `wiki/`、`raw/`、`config/search.yaml` 为知识来源，生成的新 Wiki 文件也必须写回本目录。
@@ -106,12 +106,23 @@ Topic 和 Workflow 页面必须使用 `devwiki:section` 标记：
 读取命令：
 
 ```bash
-zatools devwiki read topic <slug> --view card
-zatools devwiki read topic <slug> --view core
-zatools devwiki read workflow <slug> --view core
-zatools devwiki search topic <query...>
-zatools devwiki search workflow <query...>
+zatools devwiki read topic <slug> --view card --project <project>
+zatools devwiki read topic <slug> --view core --project <project>
+zatools devwiki read workflow <slug> --view core --project <project>
+zatools devwiki search topic <query...> --project <project>
+zatools devwiki search workflow <query...> --project <project>
+zatools devwiki repo info
+zatools devwiki repo info <project>
+zatools devwiki search index <query...> --project <project>
+zatools devwiki search glossary <query...> --project <project>
+zatools devwiki search workflow <query...> --project <project>
+zatools devwiki read workflow <slug> --view core --project <project>
+zatools devwiki server --project <project> --host 0.0.0.0 --port 5697
 ```
+
+代码仓 `AGENTS.md` / `CLAUDE.md` 的 DevWiki link block 会写入 `DevWiki project`。如果无法从 link block 判断 project，可执行 `zatools devwiki repo info`；无参数时仅输出已配置 project 名称 JSON 数组。
+
+`zatools devwiki repo info <project>` 默认输出 JSON，包含 DevWiki `source` 和所有关联代码仓 `code_repos[].path`。
 
 ## 检索顺序
 
@@ -119,7 +130,7 @@ zatools devwiki search workflow <query...>
 
 - 主题、能力、功能、规则问题：`topics`
 - 代码问题：`workflows → topics → rg`
-- 排障问题：`troubleshooting → workflows → topics`
+- 排障问题：先找相关 workflow/topic；troubleshooting 是排障知识目录，v1 统一 CLI 读取类型仍只使用 `topic|workflow`
 
 检索通道按成本升档：`zatools devwiki search index/glossary`、`zatools devwiki search topic/workflow`、`zatools qmd query`。`qmd` 只是召回工具，不是真相源。
 
@@ -133,15 +144,15 @@ zatools devwiki search workflow <query...>
 - Workflow 只写工程实现知识，代码路径、函数、类、配置文件必须有证据
 - 页面写入和证据字段更新必须遵守对应 DevWiki skill 的模板和引用规则
 - 新建 Topic 或 Workflow 后必须同步检查 `wiki/glossary.md`；先查是否已有关键术语或等价别名，不存在才添加
-- 项目知识任务先由 `devwiki-project-router` 判断意图、身份、证据需求和检索边界，再路由到 `devwiki-ingest`、`devwiki-topic`、`devwiki-workflow`、`devwiki-maintain`、`devwiki-code`、`devwiki-query`、`devwiki-code-to-doc` 或 `devwiki-qmd-sync`
+- 项目知识任务先由 `devwiki-project-router` 判断意图、身份、证据需求和检索边界，再路由到 `devwiki-ingest`、`devwiki-topic`、`devwiki-workflow`、`devwiki-maintain`、`devwiki-code`、`devwiki-query`、`devwiki-code-to-doc` 或 qmd 维护命令
 - 中高风险写入必须先给 proposal，再落盘
 
 ## 操作说明
 
 - 使用 `zatools devwiki init` 在当前目录初始化 DevWiki 文档库并安装 skills
-- 使用 `zatools devwiki link` 将已有 DevWiki 文档库关联到代码库，并在代码库中写入 AGENTS/CLAUDE 关联规则
+- 使用 `zatools devwiki repo link <project> <repo-slug> <path>` 将代码库路径写入用户级 DevWiki 项目配置
 - 如需下载 qmd models，初始化完成后可在 DevWiki 工作区内手动执行 `zatools qmd download --root .`
-- 对已有工作区补做或修复 qmd collection 注册、索引刷新与状态检查时，使用 `devwiki-qmd-sync`
+- 对已有工作区补做或修复 qmd collection 注册、索引刷新与状态检查时，直接执行 `zatools qmd sync/update/status`
 - 使用 `devwiki-project-router` 作为项目知识任务的默认总入口
 - 使用 `devwiki-ingest` 吸收 raw 文档并生成 TopicTask / WorkflowTask；TopicTask 需要带 module 建议，Topic 正文交给 `devwiki-topic`，Workflow 正文交给 `devwiki-workflow`
 - 使用 `devwiki-topic` 或 `devwiki-workflow` 新建页面后，必须先查 `wiki/glossary.md`，缺少关键术语时按通用格式补充

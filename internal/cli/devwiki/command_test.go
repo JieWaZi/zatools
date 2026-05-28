@@ -1,6 +1,10 @@
 package devwikicmd
 
-import "testing"
+import (
+	"bytes"
+	"strings"
+	"testing"
+)
 
 func TestNewCommandIncludesInitAndToolSubcommands(t *testing.T) {
 	t.Parallel()
@@ -25,11 +29,17 @@ func TestNewCommandIncludesInitAndToolSubcommands(t *testing.T) {
 	if sub, _, err := cmd.Find([]string{"graph"}); err != nil || sub == nil {
 		t.Fatalf("missing subcommand %q: %v", "graph", err)
 	}
+	if sub, _, err := cmd.Find([]string{"server"}); err != nil || sub == nil {
+		t.Fatalf("missing subcommand %q: %v", "server", err)
+	}
 	if sub, _, err := cmd.Find([]string{"check"}); err != nil || sub == nil {
 		t.Fatalf("missing subcommand %q: %v", "check", err)
 	}
 	if sub, _, err := cmd.Find([]string{"search"}); err != nil || sub == nil {
 		t.Fatalf("missing subcommand %q: %v", "search", err)
+	}
+	if sub, _, err := cmd.Find([]string{"repo"}); err != nil || sub == nil {
+		t.Fatalf("missing subcommand %q: %v", "repo", err)
 	}
 }
 
@@ -52,16 +62,14 @@ func TestDevwikiInitFlags(t *testing.T) {
 	}
 }
 
-func TestDevwikiLinkDoesNotExposeLangFlag(t *testing.T) {
+func TestDevwikiDoesNotExposeTopLevelLinkCommand(t *testing.T) {
 	t.Parallel()
 
 	cmd := NewCommand()
-	linkCmd, _, err := cmd.Find([]string{"link"})
-	if err != nil {
-		t.Fatalf("Find(link) error = %v", err)
-	}
-	if linkCmd.Flags().Lookup("lang") != nil {
-		t.Fatal("link command should not expose lang flag")
+	for _, sub := range cmd.Commands() {
+		if sub.Name() == "link" {
+			t.Fatal("devwiki should not expose top-level link command; use devwiki repo link")
+		}
 	}
 }
 
@@ -116,10 +124,40 @@ func TestDevwikiGraphCommandFlags(t *testing.T) {
 	if graphCmd == nil {
 		t.Fatal("graph command is nil")
 	}
-	for _, flag := range []string{"root", "host", "port", "no-open", "force", "check"} {
+	for _, flag := range []string{"root", "project", "host", "port", "no-open", "force", "check"} {
 		if graphCmd.Flags().Lookup(flag) == nil {
 			t.Fatalf("graph command missing flag %q", flag)
 		}
+	}
+	if got := graphCmd.Flags().Lookup("port").DefValue; got != "0" {
+		t.Fatalf("graph port default = %q, want 0", got)
+	}
+	if got := graphCmd.Flags().Lookup("host").DefValue; got != "127.0.0.1" {
+		t.Fatalf("graph host default = %q, want 127.0.0.1", got)
+	}
+}
+
+func TestDevwikiServerCommandFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	serverCmd, _, err := cmd.Find([]string{"server"})
+	if err != nil {
+		t.Fatalf("Find(server) error = %v", err)
+	}
+	if serverCmd == nil {
+		t.Fatal("server command is nil")
+	}
+	for _, flag := range []string{"root", "project", "host", "port"} {
+		if serverCmd.Flags().Lookup(flag) == nil {
+			t.Fatalf("server command missing flag %q", flag)
+		}
+	}
+	if got := serverCmd.Flags().Lookup("host").DefValue; got != "0.0.0.0" {
+		t.Fatalf("server host default = %q, want 0.0.0.0", got)
+	}
+	if got := serverCmd.Flags().Lookup("port").DefValue; got != "5697" {
+		t.Fatalf("server port default = %q, want 5697", got)
 	}
 }
 
@@ -150,7 +188,7 @@ func TestDevwikiReadCommandFlags(t *testing.T) {
 	if readCmd == nil {
 		t.Fatal("read command is nil")
 	}
-	for _, flag := range []string{"root", "view", "format"} {
+	for _, flag := range []string{"root", "project", "view", "format"} {
 		if readCmd.Flags().Lookup(flag) == nil {
 			t.Fatalf("read command missing flag %q", flag)
 		}
@@ -177,8 +215,65 @@ func TestDevwikiSearchCommandFlags(t *testing.T) {
 	if searchCmd.Flags().Lookup("root") == nil {
 		t.Fatal("search command missing flag root")
 	}
+	if searchCmd.Flags().Lookup("project") == nil {
+		t.Fatal("search command missing flag project")
+	}
 	if searchCmd.Annotations[SuppressLogoAnnotation] != "true" {
 		t.Fatalf("search command should suppress logo annotation")
+	}
+}
+
+func TestDevwikiRepoCommandSurface(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	for _, path := range [][]string{
+		{"repo", "add"},
+		{"repo", "link"},
+		{"repo", "info"},
+	} {
+		sub, _, err := cmd.Find(path)
+		if err != nil || sub == nil {
+			t.Fatalf("missing subcommand %v: cmd=%v err=%v", path, sub, err)
+		}
+	}
+
+	addCmd, _, err := cmd.Find([]string{"repo", "add"})
+	if err != nil {
+		t.Fatalf("Find(repo add) error = %v", err)
+	}
+	if addCmd.Flags().Lookup("remote") == nil {
+		t.Fatal("repo add command missing flag remote")
+	}
+
+	infoCmd, _, err := cmd.Find([]string{"repo", "info"})
+	if err != nil {
+		t.Fatalf("Find(repo info) error = %v", err)
+	}
+	if err := infoCmd.Args(infoCmd, []string{}); err != nil {
+		t.Fatalf("repo info should accept zero args: %v", err)
+	}
+	if err := infoCmd.Args(infoCmd, []string{"huawei-zddi"}); err != nil {
+		t.Fatalf("repo info should accept one arg: %v", err)
+	}
+	format := infoCmd.Flags().Lookup("format")
+	if format == nil {
+		t.Fatal("repo info command missing flag format")
+	}
+	if format.DefValue != "json" {
+		t.Fatalf("repo info format default = %q, want json", format.DefValue)
+	}
+	repoCmd, _, err := cmd.Find([]string{"repo"})
+	if err != nil {
+		t.Fatalf("Find(repo) error = %v", err)
+	}
+	for _, sub := range repoCmd.Commands() {
+		if sub.Name() == "path" {
+			t.Fatal("repo command should not expose path subcommand; use repo info")
+		}
+		if sub.Name() == "list" {
+			t.Fatal("repo command should not expose list subcommand; use repo info")
+		}
 	}
 }
 
@@ -207,5 +302,79 @@ func TestDevwikiSearchAcceptsIndexAndGlossaryKinds(t *testing.T) {
 		if err := searchCmd.Args(searchCmd, []string{kind, "脑裂"}); err != nil {
 			t.Fatalf("search Args(%s) error = %v", kind, err)
 		}
+	}
+}
+
+func TestDevwikiRepoAddPrintsReadableFailure(t *testing.T) {
+	cmd := NewCommand()
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
+	cmd.SetArgs([]string{"repo", "add", "huawei-zddi"})
+
+	err := cmd.Execute()
+
+	if err == nil {
+		t.Fatal("Execute() error = nil, want failure")
+	}
+	if !strings.Contains(errOut.String(), "DevWiki repo add 失败") ||
+		!strings.Contains(errOut.String(), "requires exactly one local path or --remote url") {
+		t.Fatalf("stderr = %q", errOut.String())
+	}
+}
+
+func TestDevwikiRepoAddPrintsReadableArgFailure(t *testing.T) {
+	cmd := NewCommand()
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
+	cmd.SetArgs([]string{"repo", "add"})
+
+	err := cmd.Execute()
+
+	if err == nil {
+		t.Fatal("Execute() error = nil, want failure")
+	}
+	if !strings.Contains(errOut.String(), "DevWiki repo add 失败") {
+		t.Fatalf("stderr = %q", errOut.String())
+	}
+}
+
+func TestDevwikiRepoLinkPrintsReadableFailure(t *testing.T) {
+	cmd := NewCommand()
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
+	cmd.SetArgs([]string{"repo", "link", "huawei-zddi", "zddiv3", "/path/does/not/exist"})
+
+	err := cmd.Execute()
+
+	if err == nil {
+		t.Fatal("Execute() error = nil, want failure")
+	}
+	if !strings.Contains(errOut.String(), "DevWiki repo link 失败") ||
+		!strings.Contains(errOut.String(), "/path/does/not/exist") {
+		t.Fatalf("stderr = %q", errOut.String())
+	}
+}
+
+func TestDevwikiRepoLinkPrintsReadableArgFailure(t *testing.T) {
+	cmd := NewCommand()
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
+	cmd.SetArgs([]string{"repo", "link", "huawei-zddi"})
+
+	err := cmd.Execute()
+
+	if err == nil {
+		t.Fatal("Execute() error = nil, want failure")
+	}
+	if !strings.Contains(errOut.String(), "DevWiki repo link 失败") {
+		t.Fatalf("stderr = %q", errOut.String())
 	}
 }
