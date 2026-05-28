@@ -54,6 +54,43 @@ go vet ./...
 
 ---
 
+## 安装
+
+Linux / macOS 可通过 GitHub Release 中的安装脚本安装最新版本：
+
+```bash
+curl -fsSL https://github.com/JieWaZi/zatools/releases/latest/download/install.sh | bash
+```
+
+安装脚本会自动识别系统和架构，下载对应的 release 压缩包，校验 `checksums.txt` 后安装 `zatools`。默认安装到 `/usr/local/bin`；如果无写入权限且无法使用 `sudo`，会回退到 `~/.local/bin`。
+
+指定版本安装：
+
+```bash
+VERSION=v0.1.0 curl -fsSL https://github.com/JieWaZi/zatools/releases/latest/download/install.sh | bash
+```
+
+指定安装目录：
+
+```bash
+ZATOOLS_INSTALL_DIR="$HOME/.local/bin" curl -fsSL https://github.com/JieWaZi/zatools/releases/latest/download/install.sh | bash
+```
+
+Windows PowerShell：
+
+```powershell
+iwr https://github.com/JieWaZi/zatools/releases/latest/download/install.ps1 -UseBasicParsing | iex
+```
+
+发布新版本时，创建并推送 `vX.Y.Z` tag 即可触发 GitHub Actions 自动构建和更新 Release：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+---
+
 ## 命令总览
 
 ```text

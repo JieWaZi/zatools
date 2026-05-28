@@ -5,7 +5,7 @@ OWNER="${ZATOOLS_OWNER:-JieWaZi}"
 REPO="${ZATOOLS_REPO:-zatools}"
 BINARY_NAME="${ZATOOLS_BINARY:-zatools}"
 VERSION="${VERSION:-}"
-INSTALL_DIR="${INSTALL_DIR:-}"
+INSTALL_DIR="${ZATOOLS_INSTALL_DIR:-${INSTALL_DIR:-}}"
 
 log() {
 	printf '%s\n' "$*" >&2

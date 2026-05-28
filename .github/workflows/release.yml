@@ -29,6 +29,12 @@ jobs:
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2
         with:
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          generate_release_notes: true
+          make_latest: true
           files: |
             dist/release/*.tar.gz
             dist/release/checksums.txt
+            scripts/install.sh
+            scripts/install.ps1
