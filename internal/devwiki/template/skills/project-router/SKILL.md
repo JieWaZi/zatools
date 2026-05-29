@@ -8,9 +8,10 @@ argument-hint: "<问题、任务或文档范围>"
 
 > 先阅读通用约束：
 > - `references/evidence-grounding.md`
-> - `references/zatools-qmd.md`
+> - `references/zatools-devwiki.md`
 > - 涉及写入、重分类或破坏性操作时，再读 `references/mutation-safety.md`
 > - 涉及代码追踪、代码归因或实现核对时，再读 `references/code-tracing.md`
+> - 需要执行 qmd 命令时，再读 `references/zatools-qmd.md`
 
 > DevWiki 的总入口。它负责判断用户意图、证据来源、检索边界和下一步 Skill；不要把所有问题都直接回答掉。
 
@@ -217,7 +218,7 @@ internal_non_developer
 
 ### 需要项目知识时
 
-按 `references/zatools-qmd.md` 的“结构化入口优先，低置信升档”规则执行。Router 只判断是否需要项目知识、qmd 和代码搜索；具体分档、短词处理、fallback 和停止条件都由该 reference 统一维护。
+按 `references/zatools-devwiki.md` 的“结构化入口优先，低置信升档”规则执行。Router 只判断是否需要项目知识、qmd 和代码搜索；具体分档、短词处理、fallback 和停止条件都由该 reference 统一维护。
 
 ### 必须查询项目知识的场景
 

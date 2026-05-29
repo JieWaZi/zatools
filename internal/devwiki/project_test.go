@@ -436,7 +436,7 @@ func TestExtractBuiltinSkillsMaterializesSharedReferencesIntoEachSkill(t *testin
 			t.Fatal("extracted builtin skills should not include shared-references as an installable directory")
 		}
 		gotNames = append(gotNames, entry.Name())
-		for _, shared := range []string{"code-tracing.md", "common-file-format.md", "zatools-qmd.md"} {
+		for _, shared := range []string{"code-tracing.md", "common-file-format.md", "zatools-devwiki.md", "zatools-qmd.md"} {
 			target := filepath.Join(root, entry.Name(), "references", shared)
 			if _, err := os.Stat(target); err != nil {
 				t.Fatalf("missing shared reference %s for %s: %v", shared, entry.Name(), err)
@@ -473,23 +473,18 @@ func TestExtractBuiltinSkillsIncludesCodeGuidance(t *testing.T) {
 		"修改代码、开发功能、修复 bug、调整接口/配置/业务逻辑、重构实现、补测试或提交代码",
 		"Code 不是 Query，也不是 Code-to-Doc",
 		"理解用户问题 → 结构化搜索 → card 验证 → 读取正文 → 代码核对 → 测试 → 实现 → 验证",
-		"先从 DevWiki link block 读取 `DevWiki project`",
-		"该命令无参数时只输出已配置 project 名称 JSON 数组",
-		"`zatools devwiki repo info <project>` JSON",
-		"从 `repo info <project>` 的 `source` 获取文档库或远端 API 信息，从 `code_repos[].path` 获取已绑定代码仓路径",
-		`zatools devwiki search <kind> <query...>`,
-		"多个关键词应作为多个参数传入，不要合并成一个带空格的字符串",
-		`[{"file":"workflow-ha-brain-split-protection.md","slug":"workflow-ha-brain-split-protection","title":"HA 脑裂监控与防护实现定位","score":"83%"}]`,
-		"`read workflow/topic` 后面的参数必须使用 `slug` 字段值",
-		"top 5 不满足，再查结构化 `index`",
-		`zatools devwiki search index "<关键词1>" "<关键词2>"`,
-		"`glossary` 返回 `glossary`、`type`、`description`、`slug`",
-		"不要直接 grep `wiki/index.md` 或 `wiki/glossary.md`",
+		"`references/zatools-devwiki.md`",
+		"`references/code-tracing.md`",
+		"按 `references/zatools-devwiki.md` 串行定位候选",
+		"候选必须 card 验证后才能读取 core/explain",
+		"`slug` 必须使用 search 结果中的 `slug` 字段",
+		"`score` 只代表召回排序优先级",
+		"workflow core 无法支持代码定位时，第二轮可读取 workflow explain 或 topic core",
 		"Workflow core 是代码修改的主入口",
 		"`rg -n '<函数|字段|配置项>' <file>`",
 		"禁止已有文件锚点时直接 `rg ... .`",
 		"不要默认写入 DevWiki 文档",
-		"修改后导致 Wiki 过期时，只提示后续使用 `devwiki-code-to-doc`",
+		"修改后导致 Wiki 过期时，需要后续用 `devwiki-maintain` 更新",
 	) {
 		t.Fatalf("code/SKILL.md missing code guidance:\n%s", content)
 	}
@@ -545,6 +540,18 @@ func TestExtractBuiltinSkillsIncludesMaintainGuidance(t *testing.T) {
 		`name: "devwiki-maintain"`,
 		"证据一致性",
 		"知识健康",
+		"`references/zatools-devwiki.md`",
+		"明确文档修改",
+		"根据最新代码更新文档",
+		"用户没有指定文件时",
+		"zatools devwiki search index",
+		"zatools devwiki read <topic|workflow> <slug> --view card",
+		"读取目标本地 Markdown 文件",
+		"git status --short",
+		"git diff --stat",
+		"git diff",
+		"关键机制变化",
+		"提示文案",
 		"Query 污染风险",
 		"差异报告误落盘",
 		"exclude_from_query: true",
@@ -592,7 +599,8 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 		"默认只读本文件，不要在任务开始时一次性读取所有 references",
 		"只有触发条件满足时再读取对应 reference",
 		"写入、重命名、拆分、合并或改主关系前",
-		"本地 Wiki 命中低置信、噪声过大或需要 qmd 时",
+		"检查已有 Wiki、结构化搜索、读取关联 topic/workflow 时",
+		"需要直接执行 qmd query/search/update/status 时",
 		"需要结合当前代码、核对实现或写入代码定位时",
 		"判断内容应该放入 card、core、explain 还是保留 raw 时",
 		"确认要生成 Topic 页面正文时",
@@ -858,41 +866,24 @@ func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
 	content := string(data)
 	if !containsAll(content,
 		`name: "devwiki-query"`,
-		"## 核心约束（内联）",
+		"## 核心约束",
 		"**证据落地**",
 		"**文档优先**",
 		"**视图分层读取**",
 		"按需加载参考文档",
-		"先从当前代码仓 `AGENTS.md` / `CLAUDE.md` 的 DevWiki link block 读取 `DevWiki project`",
-		"该命令无参数时只输出已配置 project 名称 JSON 数组",
-		"`zatools devwiki repo info <project>` 确认统一项目配置",
+		"`references/zatools-devwiki.md`",
 		"explain_topic",
 		"locate_code",
 		"public_answer",
-		"wiki/glossary.md",
 		"代码定位线索",
-		"## 目录选择规则",
-		"## 去重与权威来源规则",
-		"能力/功能问题：`topics`",
 		"query 不自动核对真实代码",
-		"禁止并行搜多个源，禁止同时读多个候选的 card",
-		"`zatools devwiki search index <关键词...> --project <project>`",
-		"`zatools devwiki search glossary <关键词...> --project <project>`",
-		"`zatools devwiki read <topic|workflow> <slug> --view card --project <project>`",
-		"禁止用 Read 工具直接读 topic/workflow 文件",
-		"`zatools devwiki repo info <project-slug>` 默认输出 JSON，同时返回 DevWiki `source` 和已绑定代码仓 `code_repos`",
-		"### Step 2: 串行定位候选页面",
-		"### Step 3: 候选验证（view=card，逐个读）",
-		"### Step 4: 按语义深度阅读",
-		"index 命中后，禁止再跑当前 Step 的任何后续层",
-		"zatools devwiki search index",
-		"zatools devwiki search glossary",
-		"实现问题：`workflows → topics → workflow explain`",
+		"按 `references/zatools-devwiki.md` 的结构化定位规则",
+		"按语义深度阅读",
 		"locate_code 默认回答 Workflow 文档中的实现入口、模块职责、状态流/数据流、副作用和文档中已记录的代码线索",
-		"### Step 5: 显式代码核查升级",
+		"显式代码核查升级",
 		"只有用户明确要求查代码、核对当前实现、找文件函数或行号",
 		"本轮基于 DevWiki 文档总结，未展开当前代码核查。",
-		"### Step 7: 按需沉淀答案",
+		"按需沉淀答案",
 		"当前 Project Brain 没有足够信息支持该结论。",
 		"source.type=local",
 		"source.type=remote",
@@ -904,6 +895,10 @@ func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
 		"先阅读通用约束",
 		"`references/evidence-grounding.md`",
 		"`references/knowledge-placement.md`",
+		"## DevWiki Interaction",
+		"## Query Principles",
+		"## 目录选择规则",
+		"## 去重与权威来源规则",
 		"`config/search.yaml`",
 		"`config/project.yaml`",
 		"--root <真实文档库根目录>",
@@ -927,7 +922,58 @@ func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesLocalWikiFirstQmdFallbackGuidance(t *testing.T) {
+func TestExtractBuiltinSkillsIncludesZatoolsDevwikiSharedGuidance(t *testing.T) {
+	t.Parallel()
+
+	root, cleanup, err := ExtractBuiltinSkills("zh")
+	if err != nil {
+		t.Fatalf("ExtractBuiltinSkills error = %v", err)
+	}
+	defer cleanup()
+
+	data, err := os.ReadFile(filepath.Join(root, "query", "references", "zatools-devwiki.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(zatools-devwiki.md) error = %v", err)
+	}
+	content := string(data)
+	if !containsAll(content,
+		"# zatools devwiki 使用约束",
+		"统一项目配置",
+		"先从当前代码仓 `AGENTS.md` / `CLAUDE.md` 的 DevWiki link block 读取 `DevWiki project`",
+		"该命令无参数时只输出已配置 project 名称 JSON 数组",
+		"`zatools devwiki repo info <project>` 确认统一项目配置",
+		"这里的“结构化入口优先”指 DevWiki 的 index/glossary 表格，不是代码仓全局搜索",
+		"意图识别 → devwiki search index → devwiki search glossary → devwiki search topic/workflow → qmd query → raw/code 核对",
+		"`locate_exact`",
+		"`explain_topic`",
+		"`trace_implementation`",
+		"`troubleshoot`",
+		"`design_intent`",
+		"不要把所有关键词都当成精确锚点",
+		"`ssh`、`vip`、`auth`、`token`、`query`、`sync` 这类短词只是中锚点",
+		"默认先检索 DevWiki 结构化入口",
+		"zatools devwiki search index <query...> --project <project>",
+		"zatools devwiki search glossary <query...> --project <project>",
+		"在 `--project` 下由 CLI 根据统一配置选择本地文档库或远端 HTTP API",
+		"zatools devwiki read <topic|workflow> <slug> --view card --project <project>",
+		"写入类 skill 已确认需要修改本地 Wiki 文件时，可以读取目标本地 Markdown 文件",
+		"Query Principles",
+		"目录选择规则",
+		"去重与权威来源规则",
+		"low | 0 命中；超过 20 条散点命中",
+		"必须升到 `zatools devwiki search <topic|workflow> <query...> --project <project>`",
+		"zatools devwiki search workflow 防脑裂 网关 ha-group gateway --project <project>",
+		"多 query 结果使用 RRF",
+		"`devwiki search topic/workflow` 底层调用 `qmd search`",
+		"qmd 失败 fallback",
+		"本轮 qmd 不可用，已降级为 DevWiki 结构化入口搜索",
+		"raw/code 仍需本地核对",
+	) {
+		t.Fatalf("zatools-devwiki.md missing shared DevWiki guidance:\n%s", content)
+	}
+}
+
+func TestExtractBuiltinSkillsIncludesQmdCommandGuidance(t *testing.T) {
 	t.Parallel()
 
 	root, cleanup, err := ExtractBuiltinSkills("zh")
@@ -942,32 +988,27 @@ func TestExtractBuiltinSkillsIncludesLocalWikiFirstQmdFallbackGuidance(t *testin
 	}
 	content := string(data)
 	if !containsAll(content,
-		"结构化入口优先，低置信升档",
-		"这里的“结构化入口优先”指 DevWiki 的 index/glossary 表格，不是代码仓全局搜索",
-		"意图识别 → devwiki search index → devwiki search glossary → devwiki search topic/workflow → qmd query → raw/code 核对",
-		"`locate_exact`",
-		"`explain_topic`",
-		"`trace_implementation`",
-		"`troubleshoot`",
-		"`design_intent`",
-		"不要把所有关键词都当成精确锚点",
-		"`ssh`、`vip`、`auth`、`token`、`query`、`sync` 这类短词只是中锚点",
-		"默认先检索 DevWiki 结构化入口",
-		"zatools devwiki search index <query...> --project <project>",
-		"zatools devwiki search glossary <query...> --project <project>",
-		"在 `--project` 下由 CLI 根据统一配置选择本地文档库或远端 HTTP API",
-		"low | 0 命中；超过 20 条散点命中",
-		"必须升到 `zatools devwiki search <topic|workflow> <query...> --project <project>`",
-		"zatools devwiki search workflow 防脑裂 网关 ha-group gateway --project <project>",
-		"多 query 结果使用 RRF",
-		"`devwiki search topic/workflow` 底层调用 `qmd search`",
+		"# zatools qmd 使用约束",
+		"`zatools qmd` 只负责检索层、collection 和索引维护",
+		"zatools qmd sync",
+		"zatools qmd update",
+		"zatools qmd status",
+		"zatools qmd search",
+		"zatools qmd query",
+		"模型参数必须显式传",
+		"config/search.yaml",
 		"qmd 失败 fallback",
-		"本轮 qmd 不可用，已降级为 DevWiki 结构化入口搜索",
-		"raw/code 仍需本地核对",
+		"不要把 `zatools qmd` 的命中当成事实",
 	) {
-		t.Fatalf("zatools-qmd.md missing local-wiki-first qmd fallback guidance:\n%s", content)
+		t.Fatalf("zatools-qmd.md missing qmd command guidance:\n%s", content)
 	}
 	if containsAny(content,
+		"统一项目配置",
+		"目录选择规则",
+		"Query Principles",
+		"去重与权威来源规则",
+		"zatools devwiki read <topic|workflow>",
+		"zatools devwiki repo info <project>",
 		"当问题里已经包含具体锚点时，**优先本地搜索**，不走 `zatools qmd ...`",
 		"若未检测到 GPU / 加速器，或确认当前环境只能在 CPU 上跑 embed / rerank，直接报告",
 		"--root <真实文档库根目录>",
