@@ -261,7 +261,7 @@ func newGraphCmd(service *devwikiapp.Service) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&opts.Root, "root", ".", copy.FlagDevwikiRoot)
 	cmd.Flags().StringVar(&opts.Project, "project", "", copy.FlagDevwikiProject)
-	cmd.Flags().StringVar(&opts.Host, "host", "0.0.0.0", copy.FlagDevwikiGraphHost)
+	cmd.Flags().StringVar(&opts.Host, "host", "127.0.0.1", copy.FlagDevwikiGraphHost)
 	cmd.Flags().IntVar(&opts.Port, "port", 5696, copy.FlagDevwikiGraphPort)
 	cmd.Flags().BoolVar(&opts.NoOpen, "no-open", false, copy.FlagDevwikiGraphNoOpen)
 	cmd.Flags().BoolVar(&opts.Force, "force", false, copy.FlagDevwikiGraphForce)

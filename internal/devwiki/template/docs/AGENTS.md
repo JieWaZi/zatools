@@ -118,7 +118,7 @@ zatools devwiki search glossary <query...> --project <project>
 zatools devwiki search workflow <query...> --project <project>
 zatools devwiki read workflow <slug> --view core --project <project>
 zatools devwiki server --project <project> --host 0.0.0.0 --port 5697
-zatools devwiki graph --project <project> --host 0.0.0.0 --port 5696
+zatools devwiki graph --project <project> --host 127.0.0.1 --port 5696
 ```
 
 代码仓 `AGENTS.md` / `CLAUDE.md` 的 DevWiki link block 会写入 `DevWiki project`。如果无法从 link block 判断 project，可执行 `zatools devwiki repo info`；无参数时仅输出已配置 project 名称 JSON 数组。

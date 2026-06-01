@@ -38,7 +38,7 @@ type ServerOptions struct {
 func Serve(ctx context.Context, opts ServerOptions) (string, error) {
 	host := opts.Host
 	if host == "" {
-		host = "0.0.0.0"
+		host = "127.0.0.1"
 	}
 	return serveHTTP(ctx, host, opts.Port, graphHandler(opts))
 }
@@ -68,7 +68,11 @@ func serveHTTP(ctx context.Context, host string, port int, handler http.Handler)
 		<-ctx.Done()
 		_ = server.Shutdown(context.Background())
 	}()
-	url := "http://" + listener.Addr().String() + "/"
+	actualPort := port
+	if tcpAddr, ok := listener.Addr().(*net.TCPAddr); ok {
+		actualPort = tcpAddr.Port
+	}
+	url := "http://" + net.JoinHostPort(host, fmt.Sprintf("%d", actualPort)) + "/"
 	select {
 	case err := <-errCh:
 		return "", err

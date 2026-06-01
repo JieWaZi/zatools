@@ -47,6 +47,22 @@ func TestGraphHandlerDoesNotServeDevwikiAPI(t *testing.T) {
 	}
 }
 
+func TestServeReturnsRequestedHostInURL(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	url, err := serveHTTP(ctx, "localhost", 0, http.NewServeMux())
+	if err != nil {
+		t.Fatalf("serveHTTP() error = %v", err)
+	}
+	if !strings.HasPrefix(url, "http://localhost:") {
+		t.Fatalf("url = %q, want requested host", url)
+	}
+	if strings.Contains(url, "[::]") {
+		t.Fatalf("url should not expose wildcard listener address: %q", url)
+	}
+}
+
 func TestAPIHandlerRequiresBasicAuth(t *testing.T) {
 	root := t.TempDir()
 	writeGraphFile(t, root, "config/project.yaml", "project_name: Huawei ZDDI\nproject_slug: huawei-zddi\nlanguage: zh\n")

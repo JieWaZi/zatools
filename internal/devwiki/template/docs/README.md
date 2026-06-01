@@ -161,7 +161,7 @@ zatools devwiki search glossary <query...> --project <project>
 zatools devwiki search workflow <query...> --project <project>
 zatools devwiki read workflow <slug> --view core --project <project>
 zatools devwiki server --project <project> --host 0.0.0.0 --port 5697
-zatools devwiki graph --project <project> --host 0.0.0.0 --port 5696
+zatools devwiki graph --project <project> --host 127.0.0.1 --port 5696
 zatools devwiki check document
 zatools devwiki check graph
 zatools devwiki update
