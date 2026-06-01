@@ -3,13 +3,17 @@ package devwikiapp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	common "zatools/internal/app/common"
 	"zatools/internal/devwiki"
+	"zatools/internal/platform/agents"
 	"zatools/internal/skills"
 	"zatools/internal/ui"
 )
@@ -27,6 +31,20 @@ type RepoLinkOptions struct {
 	ProjectSlug string
 	RepoSlug    string
 	Path        string
+	Agents      []string
+	Stdout      io.Writer
+}
+
+// RepoInitOptions describes `zatools devwiki repo init` options.
+type RepoInitOptions struct{}
+
+// RepoInitSource contains collected source answers for repo init.
+type RepoInitSource struct {
+	ProjectSlug string
+	SourceType  string
+	LocalPath   string
+	RemoteURL   string
+	Agents      []string
 	Stdout      io.Writer
 }
 
@@ -64,9 +82,119 @@ func (s *Service) RepoLink(ctx context.Context, opts RepoLinkOptions) error {
 	return s.runRepoLink(ctx, opts)
 }
 
+// RepoInit interactively creates a DevWiki repo config and optional code links.
+func (s *Service) RepoInit(ctx context.Context, opts RepoInitOptions) error {
+	return s.runRepoInit(ctx, opts)
+}
+
 // RepoInfo prints the user-level DevWiki source configuration as JSON.
 func (s *Service) RepoInfo(ctx context.Context, opts RepoInfoOptions) error {
 	return s.runRepoInfo(ctx, opts)
+}
+
+func (s *Service) runRepoInit(ctx context.Context, opts RepoInitOptions) error {
+	_ = opts
+	copy := ui.Messages()
+	if !s.runtime.IsTTY {
+		return errors.New(copy.DevwikiRepoInitTTYRequired)
+	}
+
+	project, err := promptLine(copy.PromptDevwikiProjectName, "")
+	if err != nil {
+		return err
+	}
+	project = strings.TrimSpace(project)
+	if project == "" {
+		fmt.Printf("%s%s%s\n", ui.Dim, copy.Cancelled, ui.Reset)
+		return nil
+	}
+
+	selectedAgents, err := selectRepoInitAgents()
+	if err != nil {
+		return err
+	}
+	if len(selectedAgents) == 0 {
+		fmt.Printf("%s%s%s\n", ui.Dim, copy.Cancelled, ui.Reset)
+		return nil
+	}
+
+	sourceType, cancelled, err := ui.SelectOne(ui.SelectOneOptions{
+		Message: copy.PromptDevwikiRepoSource,
+		Items: []ui.Option{
+			{Value: devwiki.RepoSourceLocal, Label: copy.DevwikiRepoSourceLocalLabel},
+			{Value: devwiki.RepoSourceRemote, Label: copy.DevwikiRepoSourceRemoteLabel},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if cancelled {
+		fmt.Printf("%s%s%s\n", ui.Dim, copy.Cancelled, ui.Reset)
+		return nil
+	}
+
+	source := RepoInitSource{
+		ProjectSlug: project,
+		SourceType:  sourceType,
+		Agents:      selectedAgents,
+	}
+	switch sourceType {
+	case devwiki.RepoSourceLocal:
+		value, err := promptLine(copy.PromptDevwikiRepoLocalPath, s.runtime.Workspace.CWD)
+		if err != nil {
+			return err
+		}
+		source.LocalPath = value
+	case devwiki.RepoSourceRemote:
+		value, err := promptLine(copy.PromptDevwikiRepoRemoteURL, "")
+		if err != nil {
+			return err
+		}
+		source.RemoteURL = value
+	}
+	if _, err := s.applyRepoInitSource(ctx, source); err != nil {
+		return err
+	}
+
+	linkedAny := false
+	for {
+		prompt := copy.PromptDevwikiRepoLinkCode
+		items := []ui.Option{
+			{Value: "link", Label: copy.DevwikiRepoLinkCodeLabel},
+			{Value: "continue", Label: copy.DevwikiRepoContinueLabel},
+		}
+		if linkedAny {
+			prompt = copy.PromptDevwikiRepoLinkMore
+			items = []ui.Option{
+				{Value: "link", Label: copy.DevwikiRepoLinkAnotherLabel},
+				{Value: "finish", Label: copy.DevwikiRepoFinishLabel},
+			}
+		}
+		choice, cancelled, err := ui.SelectOne(ui.SelectOneOptions{Message: prompt, Items: items})
+		if err != nil {
+			return err
+		}
+		if cancelled || choice == "continue" || choice == "finish" {
+			return nil
+		}
+		repoSlug, err := promptLine(copy.PromptDevwikiRepoCodeName, "")
+		if err != nil {
+			return err
+		}
+		repoPath, err := promptLine(copy.PromptDevwikiRepoCodePath, s.runtime.Workspace.CWD)
+		if err != nil {
+			return err
+		}
+		if err := s.RepoLink(ctx, RepoLinkOptions{
+			ProjectSlug: project,
+			RepoSlug:    repoSlug,
+			Path:        repoPath,
+			Agents:      selectedAgents,
+		}); err != nil {
+			return err
+		}
+		linkedAny = true
+	}
 }
 
 func (s *Service) runRepoAdd(ctx context.Context, opts RepoAddOptions) error {
@@ -119,6 +247,38 @@ func (s *Service) runRepoAdd(ctx context.Context, opts RepoAddOptions) error {
 	}
 	_, err = fmt.Fprintf(stdout, ui.Messages().DevwikiRepoAddSuccessFmt, cfg.ProjectSlug, sourceText, configPath)
 	return err
+}
+
+func (s *Service) applyRepoInitSource(ctx context.Context, opts RepoInitSource) (devwiki.RepoConfig, error) {
+	addOpts := RepoAddOptions{
+		ProjectSlug: opts.ProjectSlug,
+		Stdout:      opts.Stdout,
+	}
+	switch opts.SourceType {
+	case devwiki.RepoSourceLocal:
+		addOpts.LocalPath = opts.LocalPath
+	case devwiki.RepoSourceRemote:
+		addOpts.RemoteURL = opts.RemoteURL
+	default:
+		return devwiki.RepoConfig{}, fmt.Errorf("unsupported devwiki source type %q", opts.SourceType)
+	}
+	if err := s.RepoAdd(ctx, addOpts); err != nil {
+		return devwiki.RepoConfig{}, err
+	}
+	cfg, err := devwiki.LoadRepoConfig(opts.ProjectSlug)
+	if err != nil {
+		return devwiki.RepoConfig{}, err
+	}
+	if cfg.Source.Type == devwiki.RepoSourceLocal {
+		agentKeys, err := normalizeRepoAgents(opts.Agents)
+		if err != nil {
+			return devwiki.RepoConfig{}, err
+		}
+		if err := s.installRepoInitDocSkills(cfg.Source.Path, agentKeys, cfg.Language); err != nil {
+			return devwiki.RepoConfig{}, err
+		}
+	}
+	return cfg, nil
 }
 
 func (s *Service) runRepoLink(ctx context.Context, opts RepoLinkOptions) error {
@@ -180,7 +340,11 @@ func (s *Service) runRepoLink(ctx context.Context, opts RepoLinkOptions) error {
 	if err := devwiki.EnsureCodeRepoDevwikiLink(absPath, devwikiRoot, cfg.ProjectSlug, "codex", cfg.Language); err != nil {
 		return err
 	}
-	if err := s.installCodeRepoDevwikiSkills(absPath, cfg.Language); err != nil {
+	agentKeys, err := normalizeRepoAgents(opts.Agents)
+	if err != nil {
+		return err
+	}
+	if err := s.installCodeRepoDevwikiSkills(absPath, agentKeys, cfg.Language); err != nil {
 		return err
 	}
 	configPath, err := devwiki.RepoConfigPath(cfg.ProjectSlug)
@@ -243,7 +407,19 @@ func hasDefaultCodeRepo(repos []devwiki.CodeRepo) bool {
 	return false
 }
 
-func (s *Service) installCodeRepoDevwikiSkills(codeRoot string, lang string) error {
+func (s *Service) installRepoInitDocSkills(docRoot string, agentKeys []string, lang string) error {
+	return s.installBuiltinDevwikiSkillsForAgents(docRoot, agentKeys, lang, nil)
+}
+
+func (s *Service) installCodeRepoDevwikiSkills(codeRoot string, agentKeys []string, lang string) error {
+	return s.installBuiltinDevwikiSkillsForAgents(codeRoot, agentKeys, lang, []string{
+		"devwiki-code",
+		"devwiki-code-to-doc",
+		"devwiki-query",
+	})
+}
+
+func (s *Service) installBuiltinDevwikiSkillsForAgents(projectRoot string, agentKeys []string, lang string, names []string) error {
 	skillsRoot, cleanup, err := devwiki.ExtractBuiltinSkills(lang)
 	if err != nil {
 		return err
@@ -254,14 +430,17 @@ func (s *Service) installCodeRepoDevwikiSkills(codeRoot string, lang string) err
 	if err != nil {
 		return err
 	}
-	selected := selectDevwikiSkillsByName(found, "devwiki-code", "devwiki-code-to-doc")
-	if len(selected) != 2 {
-		return fmt.Errorf("missing built-in code repo DevWiki skills")
+	selected := found
+	if len(names) > 0 {
+		selected = selectDevwikiSkillsByName(found, names...)
+		if len(selected) != len(names) {
+			return fmt.Errorf("missing built-in DevWiki skills: %s", strings.Join(names, ", "))
+		}
 	}
-	if err := s.installSelectedSkills(codeRoot, "codex", false, lang, selected); err != nil {
+	if err := s.installSelectedSkillsForAgents(projectRoot, agentKeys, false, lang, selected); err != nil {
 		return err
 	}
-	return ensureProjectInstallGitignore(codeRoot, "codex")
+	return ensureProjectInstallGitignoreForAgents(projectRoot, agentKeys)
 }
 
 func selectDevwikiSkillsByName(found []skills.Skill, names ...string) []skills.Skill {
@@ -276,6 +455,58 @@ func selectDevwikiSkillsByName(found []skills.Skill, names ...string) []skills.S
 		}
 	}
 	return selected
+}
+
+func normalizeRepoAgents(input []string) ([]string, error) {
+	if len(input) == 0 {
+		return []string{"codex"}, nil
+	}
+	return common.NormalizeAgentKeys(input, skills.SkillAsset, ui.Messages().UnsupportedAgentFmt)
+}
+
+func selectRepoInitAgents() ([]string, error) {
+	copy := ui.Messages()
+	items := make([]ui.Option, 0, len(agents.Supported()))
+	initial := make([]string, 0, len(agents.Supported()))
+	for _, agent := range agents.Supported() {
+		if _, ok := agent.ProjectDirs[skills.SkillAsset]; !ok {
+			continue
+		}
+		items = append(items, ui.Option{
+			Value: agent.Key,
+			Label: agent.DisplayName,
+		})
+		initial = append(initial, agent.Key)
+	}
+	selected, cancelled, err := ui.SearchMultiselect(ui.SearchMultiselectOptions{
+		Message:         ui.Bold + copy.PromptSelectAgents + " " + ui.Dim + "(" + copy.MultiSelectHelp + ")" + ui.Reset,
+		Items:           items,
+		Required:        true,
+		MaxVisible:      8,
+		InitialSelected: initial,
+	})
+	if err != nil || cancelled {
+		return nil, err
+	}
+	return common.NormalizeAgentKeys(selected, skills.SkillAsset, copy.UnsupportedAgentFmt)
+}
+
+func ensureProjectInstallGitignoreForAgents(projectRoot string, agentKeys []string) error {
+	var gitignorePaths []string
+	for _, agentKey := range agentKeys {
+		installDir, err := agents.ResolveSkillsDir(agentKey, false, projectRoot)
+		if err != nil {
+			return err
+		}
+		gitignorePaths = append(gitignorePaths, installDir)
+	}
+	lockPath, err := devwikiLockPath(projectRoot, false)
+	if err != nil {
+		return err
+	}
+	gitignorePaths = append(gitignorePaths, filepath.Join(projectRoot, ".cache"), lockPath)
+	sort.Strings(gitignorePaths)
+	return common.EnsureProjectGitignore(projectRoot, gitignorePaths...)
 }
 
 func requireJSONFormat(format string) error {

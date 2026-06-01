@@ -30,6 +30,7 @@ type Catalog struct {
 	DevwikiReadShort              string
 	DevwikiSearchShort            string
 	DevwikiRepoShort              string
+	DevwikiRepoInitShort          string
 	DevwikiRepoAddShort           string
 	DevwikiRepoLinkShort          string
 	DevwikiRepoInfoShort          string
@@ -112,6 +113,19 @@ type Catalog struct {
 	PromptSelectDevwikiSkills     string
 	PromptSelectDevwikiUpdates    string
 	PromptCreateDevwikiNow        string
+	PromptDevwikiRepoSource       string
+	PromptDevwikiRepoLocalPath    string
+	PromptDevwikiRepoRemoteURL    string
+	PromptDevwikiRepoLinkCode     string
+	PromptDevwikiRepoCodeName     string
+	PromptDevwikiRepoCodePath     string
+	PromptDevwikiRepoLinkMore     string
+	DevwikiRepoSourceLocalLabel   string
+	DevwikiRepoSourceRemoteLabel  string
+	DevwikiRepoLinkCodeLabel      string
+	DevwikiRepoContinueLabel      string
+	DevwikiRepoLinkAnotherLabel   string
+	DevwikiRepoFinishLabel        string
 	ProjectLabel                  string
 	GlobalLabel                   string
 	InstallLabel                  string
@@ -181,6 +195,7 @@ type Catalog struct {
 	AlreadyExistsFmt              string
 	UnsupportedAgentFmt           string
 	UnsupportedRuleAgentFmt       string
+	DevwikiRepoInitTTYRequired    string
 	DevwikiProjectNameRequired    string
 	DevwikiCodeDirRequired        string
 	DevwikiCodeDirNotDirectoryFmt string
@@ -216,6 +231,7 @@ var catalogs = map[string]Catalog{
 		DevwikiReadShort:              "按 view 读取 DevWiki 页面",
 		DevwikiSearchShort:            "搜索 DevWiki 索引、术语、Topic 或 Workflow",
 		DevwikiRepoShort:              "管理 DevWiki 项目配置",
+		DevwikiRepoInitShort:          "交互式添加 DevWiki 项目并关联代码库",
 		DevwikiRepoAddShort:           "添加 DevWiki 本地或远端项目",
 		DevwikiRepoLinkShort:          "绑定本地代码仓路径",
 		DevwikiRepoInfoShort:          "列出 DevWiki project 或输出项目配置",
@@ -298,6 +314,19 @@ var catalogs = map[string]Catalog{
 		PromptSelectDevwikiSkills:     "选择要安装的 DevWiki skills",
 		PromptSelectDevwikiUpdates:    "选择要更新的 DevWiki skills",
 		PromptCreateDevwikiNow:        "现在创建这个 DevWiki 工程？",
+		PromptDevwikiRepoSource:       "选择 DevWiki 文档库来源",
+		PromptDevwikiRepoLocalPath:    "DevWiki 本地文档库路径",
+		PromptDevwikiRepoRemoteURL:    "DevWiki 远程服务 URL",
+		PromptDevwikiRepoLinkCode:     "关联代码库？",
+		PromptDevwikiRepoCodeName:     "代码库名称",
+		PromptDevwikiRepoCodePath:     "代码库本地路径",
+		PromptDevwikiRepoLinkMore:     "继续关联代码库？",
+		DevwikiRepoSourceLocalLabel:   "本地文档库",
+		DevwikiRepoSourceRemoteLabel:  "远程文档库",
+		DevwikiRepoLinkCodeLabel:      "关联代码库",
+		DevwikiRepoContinueLabel:      "继续",
+		DevwikiRepoLinkAnotherLabel:   "继续关联",
+		DevwikiRepoFinishLabel:        "结束",
 		ProjectLabel:                  "项目级",
 		GlobalLabel:                   "全局",
 		InstallLabel:                  "安装",
@@ -313,7 +342,7 @@ var catalogs = map[string]Catalog{
 		DevwikiNoSkillsTracked:        "锁文件中没有记录任何 DevWiki skills。",
 		DevwikiQMDRefreshFailedFmt:    "%s 失败：%v",
 		DevwikiRepoAddSuccessFmt:      "已添加 DevWiki project `%s`\nsource: %s\nconfig: %s\n",
-		DevwikiRepoLinkSuccessFmt:     "已绑定代码仓 `%s` 到 DevWiki project `%s`\nrepo: %s\nconfig: %s\ninstalled skills: devwiki-code, devwiki-code-to-doc\n",
+		DevwikiRepoLinkSuccessFmt:     "已绑定代码仓 `%s` 到 DevWiki project `%s`\nrepo: %s\nconfig: %s\ninstalled skills: devwiki-code, devwiki-code-to-doc, devwiki-query\n",
 		DevwikiRepoFailureFmt:         "%s 失败：%v\n",
 		DevwikiGraphOpenFailedFmt:     "%s!%s 无法自动打开浏览器：%v；服务已继续运行，可手动打开 %s\n",
 		Cancelled:                     "已取消",
@@ -367,6 +396,7 @@ var catalogs = map[string]Catalog{
 		AlreadyExistsFmt:              "%s 已存在",
 		UnsupportedAgentFmt:           "不支持的 Agent %q",
 		UnsupportedRuleAgentFmt:       "规则目前仅支持安装到 cursor 或 claude，收到 agent: %q",
+		DevwikiRepoInitTTYRequired:    "devwiki repo init requires an interactive terminal",
 		DevwikiProjectNameRequired:    "项目名称不能为空",
 		DevwikiCodeDirRequired:        "至少需要一个代码目录",
 		DevwikiCodeDirNotDirectoryFmt: "代码目录不是有效目录：%s",
@@ -400,6 +430,7 @@ var catalogs = map[string]Catalog{
 		DevwikiReadShort:              "Read a DevWiki page view",
 		DevwikiSearchShort:            "Search DevWiki index, glossary, Topic, or Workflow entries",
 		DevwikiRepoShort:              "Manage DevWiki project configuration",
+		DevwikiRepoInitShort:          "Interactively add a DevWiki project and link code repositories",
 		DevwikiRepoAddShort:           "Add a local or remote DevWiki project",
 		DevwikiRepoLinkShort:          "Bind a local code repository path",
 		DevwikiRepoInfoShort:          "List DevWiki projects or print project configuration",
@@ -482,6 +513,19 @@ var catalogs = map[string]Catalog{
 		PromptSelectDevwikiSkills:     "Select DevWiki skills to install",
 		PromptSelectDevwikiUpdates:    "Select DevWiki skills to update",
 		PromptCreateDevwikiNow:        "Create this DevWiki project now?",
+		PromptDevwikiRepoSource:       "Select DevWiki document source",
+		PromptDevwikiRepoLocalPath:    "Local DevWiki document path",
+		PromptDevwikiRepoRemoteURL:    "Remote DevWiki service URL",
+		PromptDevwikiRepoLinkCode:     "Link a code repository?",
+		PromptDevwikiRepoCodeName:     "Code repository name",
+		PromptDevwikiRepoCodePath:     "Code repository local path",
+		PromptDevwikiRepoLinkMore:     "Link another code repository?",
+		DevwikiRepoSourceLocalLabel:   "Local documents",
+		DevwikiRepoSourceRemoteLabel:  "Remote documents",
+		DevwikiRepoLinkCodeLabel:      "Link code repository",
+		DevwikiRepoContinueLabel:      "Continue",
+		DevwikiRepoLinkAnotherLabel:   "Link another",
+		DevwikiRepoFinishLabel:        "Finish",
 		ProjectLabel:                  "Project",
 		GlobalLabel:                   "Global",
 		InstallLabel:                  "Install",
@@ -497,7 +541,7 @@ var catalogs = map[string]Catalog{
 		DevwikiNoSkillsTracked:        "No DevWiki skills are tracked in the lock file.",
 		DevwikiQMDRefreshFailedFmt:    "%s failed: %v",
 		DevwikiRepoAddSuccessFmt:      "Added DevWiki project `%s`\nsource: %s\nconfig: %s\n",
-		DevwikiRepoLinkSuccessFmt:     "Linked code repo `%s` to DevWiki project `%s`\nrepo: %s\nconfig: %s\ninstalled skills: devwiki-code, devwiki-code-to-doc\n",
+		DevwikiRepoLinkSuccessFmt:     "Linked code repo `%s` to DevWiki project `%s`\nrepo: %s\nconfig: %s\ninstalled skills: devwiki-code, devwiki-code-to-doc, devwiki-query\n",
 		DevwikiRepoFailureFmt:         "%s failed: %v\n",
 		DevwikiGraphOpenFailedFmt:     "%s!%s unable to open browser automatically: %v; the server is still running, open %s manually\n",
 		Cancelled:                     "Cancelled",
@@ -551,6 +595,7 @@ var catalogs = map[string]Catalog{
 		AlreadyExistsFmt:              "%s already exists",
 		UnsupportedAgentFmt:           "unsupported agent %q",
 		UnsupportedRuleAgentFmt:       "rules currently support only the cursor and claude agents, got: %q",
+		DevwikiRepoInitTTYRequired:    "devwiki repo init requires an interactive terminal",
 		DevwikiProjectNameRequired:    "project name is required",
 		DevwikiCodeDirRequired:        "at least one code directory is required",
 		DevwikiCodeDirNotDirectoryFmt: "code directory is not a directory: %s",

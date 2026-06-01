@@ -228,6 +228,7 @@ func TestDevwikiRepoCommandSurface(t *testing.T) {
 
 	cmd := NewCommand()
 	for _, path := range [][]string{
+		{"repo", "init"},
 		{"repo", "add"},
 		{"repo", "link"},
 		{"repo", "info"},
@@ -268,6 +269,9 @@ func TestDevwikiRepoCommandSurface(t *testing.T) {
 		t.Fatalf("Find(repo) error = %v", err)
 	}
 	for _, sub := range repoCmd.Commands() {
+		if sub.Name() == "init" && strings.TrimSpace(sub.Short) == "" {
+			t.Fatal("repo init command should have short description")
+		}
 		if sub.Name() == "path" {
 			t.Fatal("repo command should not expose path subcommand; use repo info")
 		}
@@ -302,6 +306,25 @@ func TestDevwikiSearchAcceptsIndexAndGlossaryKinds(t *testing.T) {
 		if err := searchCmd.Args(searchCmd, []string{kind, "脑裂"}); err != nil {
 			t.Fatalf("search Args(%s) error = %v", kind, err)
 		}
+	}
+}
+
+func TestDevwikiRepoInitPrintsReadableFailure(t *testing.T) {
+	cmd := NewCommand()
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
+	cmd.SetArgs([]string{"repo", "init"})
+
+	err := cmd.Execute()
+
+	if err == nil {
+		t.Fatal("Execute() error = nil, want failure")
+	}
+	if !strings.Contains(errOut.String(), "DevWiki repo init 失败") ||
+		!strings.Contains(errOut.String(), "requires an interactive terminal") {
+		t.Fatalf("stderr = %q", errOut.String())
 	}
 }
 

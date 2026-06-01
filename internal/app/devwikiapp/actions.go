@@ -304,14 +304,10 @@ func ensureProjectInstallGitignore(projectRoot, agent string) error {
 }
 
 func (s *Service) installSelectedSkills(projectRoot, agent string, global bool, lang string, selected []skills.Skill) error {
-	installDir, err := agents.ResolveSkillsDir(agent, global, projectRoot)
-	if err != nil {
-		return err
-	}
-	if err := skills.EnsureDir(installDir); err != nil {
-		return err
-	}
+	return s.installSelectedSkillsForAgents(projectRoot, []string{agent}, global, lang, selected)
+}
 
+func (s *Service) installSelectedSkillsForAgents(projectRoot string, agentKeys []string, global bool, lang string, selected []skills.Skill) error {
 	lockPath, err := devwikiLockPath(projectRoot, global)
 	if err != nil {
 		return err
@@ -322,14 +318,30 @@ func (s *Service) installSelectedSkills(projectRoot, agent string, global bool, 
 	}
 
 	source := skills.NewBuiltinSource("devwiki", lang)
+	entries := lock.Entries(skills.SkillAsset)
 	for _, skill := range selected {
-		entry, err := skills.InstallSkill(installDir, source, skill)
-		if err != nil {
-			return err
+		var merged skills.InstalledAsset
+		for index, agentKey := range agentKeys {
+			installDir, err := agents.ResolveSkillsDir(agentKey, global, projectRoot)
+			if err != nil {
+				return err
+			}
+			if err := skills.EnsureDir(installDir); err != nil {
+				return err
+			}
+			entry, err := skills.InstallSkill(installDir, source, skill)
+			if err != nil {
+				return err
+			}
+			if index == 0 {
+				merged = entry
+				merged.Agents = []string{}
+				merged.AgentPaths = map[string]string{}
+			}
+			merged.Agents = append(merged.Agents, agentKey)
+			merged.AgentPaths[agentKey] = entry.Path
 		}
-		entry.Agents = []string{agent}
-		entry.AgentPaths = map[string]string{agent: entry.Path}
-		lock.Entries(skills.SkillAsset)[entry.Name] = entry
+		entries[merged.Name] = merged
 	}
 	return skills.SaveLock(lockPath, lock)
 }

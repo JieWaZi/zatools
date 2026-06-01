@@ -195,6 +195,7 @@ zatools rule add ./examples/rules --yes
 ```bash
 zatools devwiki init [project-name] [--agent <codex|cursor|claude>] [--code-dir <dir>]... [--global] [--yes]
 zatools devwiki update
+zatools devwiki repo init
 zatools devwiki repo add <project> [path] [--remote <url>]
 zatools devwiki repo link <project> <repo-slug> <path>
 zatools devwiki repo info [project]
@@ -211,7 +212,7 @@ zatools devwiki tool log --wiki-root <dir> --message "<text>"
 
 - `devwiki init`：初始化 DevWiki 文档库，并安装运行时所需 skills
 - `devwiki update`：更新当前作用域内的 DevWiki 内置 skills，并尽力执行 qmd 注册、索引和向量刷新；qmd 失败只提示告警
-- `devwiki repo`：维护用户级 DevWiki 项目配置，支持本地文档库或远端 HTTP API；输出默认 JSON，`repo info` 无参数时只列出 project 名称，有 project 时同时包含已绑定代码仓路径
+- `devwiki repo`：维护用户级 DevWiki 项目配置，支持交互式 `repo init` 引导注册本地/远程文档库、选择 Agent、安装 DevWiki skills 并关联代码仓；输出默认 JSON，`repo info` 无参数时只列出 project 名称，有 project 时同时包含已绑定代码仓路径
 - `devwiki read`：按 topic / workflow 的 `card`、`core`、`explain` 视图读取结构化页面内容
 - `devwiki search`：`index` / `glossary` 本地解析结构化表格并输出最小 JSON；`topic` / `workflow` 调用 `qmd search` 后过滤并输出 `file`、`slug`、`title` 和 `score` JSON
 - `devwiki check`：校验 index/glossary/log 格式、Topic/Workflow 文档分块和图谱关系；未指定类型时检查 document 和 graph，未指定路径时检查 `wiki/`

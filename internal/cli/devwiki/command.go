@@ -132,10 +132,26 @@ func newRepoCmd(service *devwikiapp.Service) *cobra.Command {
 			_ = cmd.Help()
 		},
 	}
+	cmd.AddCommand(newRepoInitCmd(service))
 	cmd.AddCommand(newRepoAddCmd(service))
 	cmd.AddCommand(newRepoLinkCmd(service))
 	cmd.AddCommand(newRepoInfoCmd(service))
 	return cmd
+}
+
+func newRepoInitCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	var opts devwikiapp.RepoInitOptions
+	return &cobra.Command{
+		Use:   "init",
+		Short: copy.DevwikiRepoInitShort,
+		Args:  repoArgs("DevWiki repo init", cobra.NoArgs),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runRepoCommand(cmd, "DevWiki repo init", func() error {
+				return service.RepoInit(cmd.Context(), opts)
+			})
+		},
+	}
 }
 
 func newRepoAddCmd(service *devwikiapp.Service) *cobra.Command {

@@ -9,6 +9,10 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	common "zatools/internal/app/common"
+	"zatools/internal/devwiki"
+	"zatools/internal/skills"
 )
 
 func TestRepoAddInfoIncludesCodeReposAsJSON(t *testing.T) {
@@ -145,13 +149,13 @@ func TestRepoLinkInstallsCodeRepoSkills(t *testing.T) {
 	for _, rel := range []string{
 		".agents/skills/devwiki-code/SKILL.md",
 		".agents/skills/devwiki-code-to-doc/SKILL.md",
+		".agents/skills/devwiki-query/SKILL.md",
 	} {
 		if _, err := os.Stat(filepath.Join(codeRoot, rel)); err != nil {
 			t.Fatalf("missing installed code repo skill %s: %v", rel, err)
 		}
 	}
 	for _, rel := range []string{
-		".agents/skills/devwiki-query/SKILL.md",
 		".agents/skills/devwiki-ingest/SKILL.md",
 		".agents/skills/devwiki-maintain/SKILL.md",
 	} {
@@ -240,10 +244,129 @@ func TestRepoLinkWritesReadableSuccess(t *testing.T) {
 	for _, want := range []string{
 		"已绑定代码仓 `zddiv3` 到 DevWiki project `huawei-zddi`",
 		"repo: " + codeRoot,
-		"installed skills: devwiki-code, devwiki-code-to-doc",
+		"installed skills: devwiki-code, devwiki-code-to-doc, devwiki-query",
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("RepoLink() output missing %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestRepoInitRequiresTTY(t *testing.T) {
+	service := NewServiceWithRuntime(common.Runtime{
+		Workspace: skills.NewWorkspace(t.TempDir()),
+		IsTTY:     false,
+	})
+
+	err := service.RepoInit(context.Background(), RepoInitOptions{})
+
+	if err == nil || !strings.Contains(err.Error(), "requires an interactive terminal") {
+		t.Fatalf("RepoInit() error = %v, want interactive terminal error", err)
+	}
+}
+
+func TestInstallRepoInitDocSkillsInstallsAllDevwikiSkillsForAgents(t *testing.T) {
+	docRoot := t.TempDir()
+	service := NewServiceWithRuntime(common.Runtime{
+		Workspace: skills.NewWorkspace(docRoot),
+		IsTTY:     false,
+	})
+
+	if err := service.installRepoInitDocSkills(docRoot, []string{"codex", "cursor"}, "zh"); err != nil {
+		t.Fatalf("installRepoInitDocSkills() error = %v", err)
+	}
+
+	for _, rel := range []string{
+		".agents/skills/devwiki-project-router/SKILL.md",
+		".agents/skills/devwiki-ingest/SKILL.md",
+		".agents/skills/devwiki-topic/SKILL.md",
+		".agents/skills/devwiki-workflow/SKILL.md",
+		".agents/skills/devwiki-maintain/SKILL.md",
+		".agents/skills/devwiki-code/SKILL.md",
+		".agents/skills/devwiki-code-to-doc/SKILL.md",
+		".agents/skills/devwiki-query/SKILL.md",
+		".cursor/skills/devwiki-project-router/SKILL.md",
+		".cursor/skills/devwiki-query/SKILL.md",
+	} {
+		if _, err := os.Stat(filepath.Join(docRoot, rel)); err != nil {
+			t.Fatalf("missing doc skill %s: %v", rel, err)
+		}
+	}
+}
+
+func TestRepoAddAndDocSkillInstallSkipsRemoteDocRoot(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	docRoot := t.TempDir()
+	service := NewServiceWithRuntime(common.Runtime{
+		Workspace: skills.NewWorkspace(docRoot),
+		IsTTY:     false,
+	})
+
+	cfg, err := service.applyRepoInitSource(context.Background(), RepoInitSource{
+		ProjectSlug: "remote-project",
+		SourceType:  devwiki.RepoSourceRemote,
+		RemoteURL:   "http://devwiki.example.com:5697",
+		Agents:      []string{"codex", "cursor"},
+	})
+	if err != nil {
+		t.Fatalf("applyRepoInitSource(remote) error = %v", err)
+	}
+
+	if cfg.Source.Type != devwiki.RepoSourceRemote || cfg.Source.URL != "http://devwiki.example.com:5697" {
+		t.Fatalf("source = %#v, want remote source", cfg.Source)
+	}
+	for _, rel := range []string{
+		".agents/skills/devwiki-query/SKILL.md",
+		".cursor/skills/devwiki-query/SKILL.md",
+	} {
+		if _, err := os.Stat(filepath.Join(docRoot, rel)); err == nil {
+			t.Fatalf("remote source should not install doc skill %s", rel)
+		}
+	}
+}
+
+func TestRepoLinkInstallsCodeRepoSkillsForAgentsOnly(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	docRoot := t.TempDir()
+	codeRoot := filepath.Join(t.TempDir(), "zddiv3")
+	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
+	service := NewService()
+
+	if err := service.RepoAdd(context.Background(), RepoAddOptions{
+		ProjectSlug: "huawei-zddi",
+		LocalPath:   docRoot,
+	}); err != nil {
+		t.Fatalf("RepoAdd(local) error = %v", err)
+	}
+	if err := service.RepoLink(context.Background(), RepoLinkOptions{
+		ProjectSlug: "huawei-zddi",
+		RepoSlug:    "zddiv3",
+		Path:        codeRoot,
+		Agents:      []string{"codex", "cursor"},
+	}); err != nil {
+		t.Fatalf("RepoLink() error = %v", err)
+	}
+
+	for _, rel := range []string{
+		".agents/skills/devwiki-code/SKILL.md",
+		".agents/skills/devwiki-code-to-doc/SKILL.md",
+		".agents/skills/devwiki-query/SKILL.md",
+		".cursor/skills/devwiki-code/SKILL.md",
+		".cursor/skills/devwiki-code-to-doc/SKILL.md",
+		".cursor/skills/devwiki-query/SKILL.md",
+	} {
+		if _, err := os.Stat(filepath.Join(codeRoot, rel)); err != nil {
+			t.Fatalf("missing code repo skill %s: %v", rel, err)
+		}
+	}
+	for _, rel := range []string{
+		".agents/skills/devwiki-ingest/SKILL.md",
+		".agents/skills/devwiki-maintain/SKILL.md",
+		".cursor/skills/devwiki-ingest/SKILL.md",
+		".cursor/skills/devwiki-maintain/SKILL.md",
+	} {
+		if _, err := os.Stat(filepath.Join(codeRoot, rel)); err == nil {
+			t.Fatalf("code repo should not install doc-root skill %s", rel)
 		}
 	}
 }
