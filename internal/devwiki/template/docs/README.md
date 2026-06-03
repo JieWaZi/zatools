@@ -15,7 +15,7 @@ DevWiki 是一个单产品知识底座。文档库可以独立存在，并通过
 - 用 `workflows` 说明工程入口、调用链、关键逻辑、修改影响和验证方式
 - 用 `troubleshooting` 沉淀故障现象、诊断路径、证据和修复建议
 - 用 `zatools qmd ...` 加速 `wiki` 结构化知识召回
-- 用 `devwiki-project-router` 统一判断用户意图，再分流到摄入、查询、维护、代码反向成文或 qmd 检索层维护命令
+- 按目标产物直接使用摄入、查询、维护、代码反向成文或 qmd 检索层维护命令
 
 ## 快速开始
 
@@ -62,7 +62,6 @@ zatools qmd download --root .
 
 完成初始化后，就可以进入 Agent 运行时执行：
 
-- `devwiki-project-router`
 - `devwiki-ingest`
 - `devwiki-maintain`
 - `devwiki-code`
@@ -74,42 +73,40 @@ zatools qmd download --root .
 ### 从原始资料启动第一版 Wiki
 
 1. 把需求、设计、功能说明、测试资料放入 `raw/`
-2. 执行 `devwiki-project-router`，由它路由到 `devwiki-ingest`
+2. 执行 `devwiki-ingest`
 3. Agent 先输出 proposal，说明准备创建或更新哪些 topic、workflow、troubleshooting
 4. 对拆分边界、命名冲突和中高风险写入做确认后落盘
 
 ### 查询功能、设计或代码位置
 
-1. 用 `devwiki-project-router` 提出问题
-2. Router 路由到 `devwiki-query`
-3. Agent 用 `zatools devwiki search/read` 在 `topics / workflows` 中按意图召回证据；排障知识可作为页面内容和导航入口，但 v1 CLI 读取类型只使用 `topic|workflow`
-4. 只有问题涉及当前实现、代码位置、修改影响或排障时，才继续核对代码
+1. 用 `devwiki-query` 提出问题
+2. Agent 用 `zatools devwiki search/read` 在 `topics / workflows` 中按意图召回证据；排障知识可作为页面内容和导航入口，但 v1 CLI 读取类型只使用 `topic|workflow`
+3. 只有问题涉及当前实现、代码位置、修改影响或排障时，才继续核对代码
 
 ### 修改代码或开发功能
 
-1. 在关联代码库中用 `devwiki-project-router` 或 `devwiki-code` 描述要修改的目标
-2. Router 路由到 `devwiki-code`
-3. Agent 先从 DevWiki workflow 定位代码入口和规则边界，再核对当前代码
-4. 按测试、实现、验证的顺序修改当前代码仓；不默认写入 DevWiki 文档
+1. 在关联代码库中先判断目标产物和定位锚点
+2. 如果用户只给出领域知识、功能名、特性名、业务规则、配置语义或接口行为，Agent 可建议显式使用 `$devwiki-code`
+3. 显式使用 `$devwiki-code` 后，Agent 先从 DevWiki workflow 定位代码入口和规则边界，再核对当前代码
+4. 如果用户已经给出具体文件、函数、代码块、当前 diff、完整 patch 或明确替换方式，按普通编辑任务处理，不自动进入 `devwiki-code`
+5. 按测试、实现、验证的顺序修改当前代码仓；不默认写入 DevWiki 文档
 
 ### 从代码反向生成 Wiki 文档
 
-1. 用 `devwiki-project-router` 提供接口、文件、函数、路由、配置项或日志锚点
-2. Router 路由到 `devwiki-code-to-doc`
-3. Agent 从真实代码追踪入口和关键边界，默认生成或更新 `workflows`
-4. 只有需要补功能知识时，才同步更新 `topics`
+1. 用 `devwiki-code-to-doc` 提供接口、文件、函数、路由、配置项或日志锚点
+2. Agent 从真实代码追踪入口和关键边界，默认生成或更新 `workflows`
+3. 只有需要补功能知识时，才同步更新 `topics`
 
 ## 核心能力
 
 | 技能 | 作用 |
 |------|------|
-| `devwiki-project-router` | 总入口，先判断意图、身份、证据需求、qmd / 代码检索边界，再路由到具体 Skill |
 | `devwiki-ingest` | 增量消化需求、设计、测试或会议资料，生成 TopicTask / WorkflowTask、术语和入口导航 |
 | `devwiki-topic` | 创建或维护 `wiki/topics/`，只写主题边界、功能规则、关键状态和关联 Workflow |
 | `devwiki-workflow` | 创建或维护 `wiki/workflows/`，只写工程入口、代码定位、调用链、修改影响和验证方式 |
 | `devwiki-maintain` | 维护已有 Wiki 的证据一致性、过期内容、引用缺失、入口错误和 query 污染 |
-| `devwiki-code` | 基于 DevWiki workflow 定位并修改当前代码仓，开发功能、修 bug、重构、补测试或提交代码 |
-| `devwiki-query` | 只读查询已有 Wiki、raw 和文档内代码线索，回答功能、设计、流程、代码定位和排障问题；真实代码核查交给 `devwiki-code` |
+| `devwiki-code` | 显式 `$devwiki-code` 入口，处理缺少代码锚点的领域/功能/特性修改，基于 DevWiki workflow 定位并修改当前代码仓 |
+| `devwiki-query` | 只读查询已有 Wiki、raw 和文档内代码线索，回答功能、设计、流程、代码定位和排障问题；缺少代码锚点的真实代码核查只建议显式 `$devwiki-code` |
 | `devwiki-code-to-doc` | 从代码、接口、配置项、日志或路由反向生成或更新 workflow / 代码定位页面 |
 
 ## 目录结构
@@ -156,6 +153,7 @@ zatools devwiki search topic <query...> --project <project>
 zatools devwiki search workflow <query...> --project <project>
 zatools devwiki repo info
 zatools devwiki repo info <project>
+zatools devwiki repo use <project> <local|remote>
 zatools devwiki search index <query...> --project <project>
 zatools devwiki search glossary <query...> --project <project>
 zatools devwiki search workflow <query...> --project <project>
@@ -171,18 +169,17 @@ zatools devwiki tool log --wiki-root wiki --message "init | note"
 
 代码仓 `AGENTS.md` / `CLAUDE.md` 的 DevWiki link block 会写入 `DevWiki project`。如果无法从 link block 判断 project，可执行 `zatools devwiki repo info`；无参数时仅输出已配置 project 名称 JSON 数组。
 
-`zatools devwiki repo info <project>` 默认输出 JSON，包含 DevWiki `source` 和所有关联代码仓 `code_repos[].path`。
+`zatools devwiki repo info <project>` 默认输出 JSON，包含当前激活来源类型 `active_source`、已保存的本地/远端 `sources` 和所有关联代码仓 `code_repos[].path`。同一 project 同时配置本地与远端时，用 `zatools devwiki repo use <project> <local|remote>` 切换当前来源，不要通过重复 `repo add` 覆盖配置。
 
 ## 当前边界
 
 当前版本优先保证单产品文档库与一个或多个代码库的关联场景可演示、可闭环。重点覆盖：
 
 - 原始文档进入 `raw/`
-- `devwiki-project-router` 作为总入口
 - `devwiki-ingest` 从原始资料生成和更新结构化 Wiki
 - `devwiki-topic` / `devwiki-workflow` 新建页面后必须检查并按需补充 `wiki/glossary.md`
 - `devwiki-maintain` 维护已有 Wiki 的证据一致性、过期内容、引用缺失和 query 污染
-- `devwiki-code` 覆盖基于 DevWiki workflow 的代码修改、功能开发、修复和测试验证
-- `devwiki-query` 覆盖只读知识查询、设计理解、文档内代码定位和排障检索；真实代码核查交给 `devwiki-code`
+- 显式 `$devwiki-code` 覆盖缺少代码锚点、需要 DevWiki workflow 定位入口和规则边界的代码修改、功能开发、修复和测试验证
+- `devwiki-query` 覆盖只读知识查询、设计理解、文档内代码定位和排障检索；缺少代码锚点的真实代码核查只建议显式 `$devwiki-code`
 - `devwiki-code-to-doc` 从代码反向补 workflow，必要时补 topic
 - `zatools qmd sync/update/status` 维护 qmd collection 注册、索引和状态

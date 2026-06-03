@@ -35,6 +35,13 @@ type RepoLinkOptions struct {
 	Stdout      io.Writer
 }
 
+// RepoUseOptions describes `zatools devwiki repo use` options.
+type RepoUseOptions struct {
+	ProjectSlug string
+	SourceType  string
+	Stdout      io.Writer
+}
+
 // RepoInitOptions describes `zatools devwiki repo init` options.
 type RepoInitOptions struct{}
 
@@ -57,11 +64,12 @@ type RepoInfoOptions struct {
 
 // RepoInfo is the JSON shape emitted by `devwiki repo info`.
 type RepoInfo struct {
-	ProjectSlug string             `json:"project_slug"`
-	ProjectName string             `json:"project_name"`
-	Language    string             `json:"language"`
-	Source      devwiki.RepoSource `json:"source"`
-	CodeRepos   []CodeRepoInfo     `json:"code_repos"`
+	ProjectSlug  string              `json:"project_slug"`
+	ProjectName  string              `json:"project_name"`
+	Language     string              `json:"language"`
+	ActiveSource string              `json:"active_source"`
+	Sources      devwiki.RepoSources `json:"sources,omitempty"`
+	CodeRepos    []CodeRepoInfo      `json:"code_repos"`
 }
 
 // CodeRepoInfo is the JSON shape emitted for bound code repositories.
@@ -80,6 +88,11 @@ func (s *Service) RepoAdd(ctx context.Context, opts RepoAddOptions) error {
 // RepoLink binds a local code repository path to a DevWiki project.
 func (s *Service) RepoLink(ctx context.Context, opts RepoLinkOptions) error {
 	return s.runRepoLink(ctx, opts)
+}
+
+// RepoUse switches the active source for a configured DevWiki project.
+func (s *Service) RepoUse(ctx context.Context, opts RepoUseOptions) error {
+	return s.runRepoUse(ctx, opts)
 }
 
 // RepoInit interactively creates a DevWiki repo config and optional code links.
@@ -228,14 +241,18 @@ func (s *Service) runRepoAdd(ctx context.Context, opts RepoAddOptions) error {
 	}
 	sourceText := ""
 	if remoteURL != "" {
-		cfg.Source = devwiki.RepoSource{Type: devwiki.RepoSourceRemote, URL: remoteURL}
+		source := devwiki.RepoSource{Type: devwiki.RepoSourceRemote, URL: remoteURL}
+		cfg.ActiveSource = devwiki.RepoSourceRemote
+		cfg.Sources.Remote = &source
 		sourceText = "remote: " + remoteURL
 	} else {
 		absPath, err := filepath.Abs(localPath)
 		if err != nil {
 			return err
 		}
-		cfg.Source = devwiki.RepoSource{Type: devwiki.RepoSourceLocal, Path: absPath}
+		source := devwiki.RepoSource{Type: devwiki.RepoSourceLocal, Path: absPath}
+		cfg.ActiveSource = devwiki.RepoSourceLocal
+		cfg.Sources.Local = &source
 		sourceText = "local: " + absPath
 	}
 	if err := devwiki.SaveRepoConfig(cfg); err != nil {
@@ -246,6 +263,45 @@ func (s *Service) runRepoAdd(ctx context.Context, opts RepoAddOptions) error {
 		return err
 	}
 	_, err = fmt.Fprintf(stdout, ui.Messages().DevwikiRepoAddSuccessFmt, cfg.ProjectSlug, sourceText, configPath)
+	return err
+}
+
+func (s *Service) runRepoUse(ctx context.Context, opts RepoUseOptions) error {
+	_ = ctx
+	stdout := opts.Stdout
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+	project := strings.TrimSpace(opts.ProjectSlug)
+	sourceType := strings.TrimSpace(opts.SourceType)
+	if project == "" || sourceType == "" {
+		return fmt.Errorf("devwiki repo use requires project and source type")
+	}
+	cfg, err := devwiki.LoadRepoConfig(project)
+	if err != nil {
+		return err
+	}
+	switch sourceType {
+	case devwiki.RepoSourceLocal:
+		if cfg.Sources.Local == nil {
+			return fmt.Errorf("local devwiki source is not configured for project %q", project)
+		}
+	case devwiki.RepoSourceRemote:
+		if cfg.Sources.Remote == nil {
+			return fmt.Errorf("remote devwiki source is not configured for project %q", project)
+		}
+	default:
+		return fmt.Errorf("unsupported devwiki source type %q", sourceType)
+	}
+	cfg.ActiveSource = sourceType
+	if err := devwiki.SaveRepoConfig(cfg); err != nil {
+		return err
+	}
+	configPath, err := devwiki.RepoConfigPath(cfg.ProjectSlug)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, ui.Messages().DevwikiRepoUseSuccessFmt, cfg.ProjectSlug, sourceType, configPath)
 	return err
 }
 
@@ -269,12 +325,16 @@ func (s *Service) applyRepoInitSource(ctx context.Context, opts RepoInitSource) 
 	if err != nil {
 		return devwiki.RepoConfig{}, err
 	}
-	if cfg.Source.Type == devwiki.RepoSourceLocal {
+	activeSource, err := devwiki.ActiveRepoSource(cfg)
+	if err != nil {
+		return devwiki.RepoConfig{}, err
+	}
+	if activeSource.Type == devwiki.RepoSourceLocal {
 		agentKeys, err := normalizeRepoAgents(opts.Agents)
 		if err != nil {
 			return devwiki.RepoConfig{}, err
 		}
-		if err := s.installRepoInitDocSkills(cfg.Source.Path, agentKeys, cfg.Language); err != nil {
+		if err := s.installRepoInitDocSkills(activeSource.Path, agentKeys, cfg.Language); err != nil {
 			return devwiki.RepoConfig{}, err
 		}
 	}
@@ -334,8 +394,12 @@ func (s *Service) runRepoLink(ctx context.Context, opts RepoLinkOptions) error {
 		return err
 	}
 	devwikiRoot := ""
-	if cfg.Source.Type == devwiki.RepoSourceLocal {
-		devwikiRoot = cfg.Source.Path
+	activeSource, err := devwiki.ActiveRepoSource(cfg)
+	if err != nil {
+		return err
+	}
+	if activeSource.Type == devwiki.RepoSourceLocal {
+		devwikiRoot = activeSource.Path
 	}
 	if err := devwiki.EnsureCodeRepoDevwikiLink(absPath, devwikiRoot, cfg.ProjectSlug, "codex", cfg.Language); err != nil {
 		return err
@@ -377,11 +441,12 @@ func (s *Service) runRepoInfo(ctx context.Context, opts RepoInfoOptions) error {
 	}
 	repos := codeRepoInfos(cfg.CodeRepos)
 	return encodeIndentedJSON(stdout, RepoInfo{
-		ProjectSlug: cfg.ProjectSlug,
-		ProjectName: cfg.ProjectName,
-		Language:    cfg.Language,
-		Source:      cfg.Source,
-		CodeRepos:   repos,
+		ProjectSlug:  cfg.ProjectSlug,
+		ProjectName:  cfg.ProjectName,
+		Language:     cfg.Language,
+		ActiveSource: cfg.ActiveSource,
+		Sources:      cfg.Sources,
+		CodeRepos:    repos,
 	})
 }
 

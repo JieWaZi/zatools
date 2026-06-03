@@ -135,6 +135,7 @@ func newRepoCmd(service *devwikiapp.Service) *cobra.Command {
 	cmd.AddCommand(newRepoInitCmd(service))
 	cmd.AddCommand(newRepoAddCmd(service))
 	cmd.AddCommand(newRepoLinkCmd(service))
+	cmd.AddCommand(newRepoUseCmd(service))
 	cmd.AddCommand(newRepoInfoCmd(service))
 	return cmd
 }
@@ -190,6 +191,24 @@ func newRepoLinkCmd(service *devwikiapp.Service) *cobra.Command {
 			opts.Stdout = cmd.OutOrStdout()
 			return runRepoCommand(cmd, "DevWiki repo link", func() error {
 				return service.RepoLink(cmd.Context(), opts)
+			})
+		},
+	}
+}
+
+func newRepoUseCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	var opts devwikiapp.RepoUseOptions
+	return &cobra.Command{
+		Use:   "use <project> <local|remote>",
+		Short: copy.DevwikiRepoUseShort,
+		Args:  repoArgs("DevWiki repo use", cobra.ExactArgs(2)),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.ProjectSlug = args[0]
+			opts.SourceType = args[1]
+			opts.Stdout = cmd.OutOrStdout()
+			return runRepoCommand(cmd, "DevWiki repo use", func() error {
+				return service.RepoUse(cmd.Context(), opts)
 			})
 		},
 	}

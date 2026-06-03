@@ -10,6 +10,8 @@ argument-hint: "<待维护范围，例如 wiki 全量、某个 topic/workflow、
 
 Maintain 的目标不是“整理格式”，而是保证 query 后续使用的是当前正确知识。
 
+普通代码编辑、当前 diff 调整或用户已给出明确 patch 时，不接管；这类请求按普通编辑任务处理。
+
 ```text
 raw/source/code = 证据层，只读，不直接改
 wiki 当前页       = 当前理解层，可以维护和重写
@@ -60,7 +62,7 @@ index/glossary   = query 入口控制层
 3. index 无有效命中时执行 `zatools devwiki search glossary <query...> --project <project>`。
 4. glossary 仍无有效入口时，按语义执行 `zatools devwiki search topic <query...> --project <project>` 或 `zatools devwiki search workflow <query...> --project <project>`。
 5. 对候选执行 `zatools devwiki read <topic|workflow> <slug> --view card --project <project>` 验证。
-6. card 匹配后读取 core/explain 判断修改面；若 `source.type=local` 且任务是写入类，读取目标本地 Markdown 文件并修改。
+6. card 匹配后读取 core/explain 判断修改面；若 `active_source=local` 且任务是写入类，读取目标本地 Markdown 文件并修改。
 
 `zatools devwiki search` 返回的是候选排序，不是真相源；结论必须回到真实 Wiki、raw 或已核对代码。
 

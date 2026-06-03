@@ -193,7 +193,6 @@ func TestGenerateProjectRendersReadmeAndRuntimeTemplates(t *testing.T) {
 		"zatools qmd status",
 		"zatools devwiki tool reset --scope wiki --project-root .",
 		"直接把当前工作目录作为 DevWiki 文档库根目录",
-		"devwiki-project-router",
 		"devwiki-maintain",
 		"devwiki-code",
 		"devwiki-query",
@@ -266,9 +265,10 @@ func TestGenerateProjectRendersLatestRuntimeTemplates(t *testing.T) {
 				"本目录就是 DevWiki 文档库根目录",
 				"代码库通过 AGENTS/CLAUDE 中的托管关联块指向本目录",
 				"查询以本目录的 `wiki/`、`raw/`、`config/search.yaml` 为知识来源",
+				"使用 `devwiki-query` 或 `devwiki-code` 时，必须严格遵循对应 Skill.md 的查询和定位步骤",
+				"禁止绕过 skill 流程自行做全仓广泛搜索或自由发挥式检索",
 				"使用 `zatools devwiki init` 在当前目录初始化 DevWiki 文档库",
 				"使用 `zatools devwiki repo link <project> <repo-slug> <path>`",
-				"devwiki-project-router",
 				"devwiki-maintain",
 				"devwiki-code",
 				"devwiki-query",
@@ -284,6 +284,8 @@ func TestGenerateProjectRendersLatestRuntimeTemplates(t *testing.T) {
 				"├── config/",
 				"└── wiki/",
 				"具体页面模板、字段结构、页面边界和证据写入规则由对应 DevWiki skill 和 `references/` 维护",
+				"按目标产物直接选择",
+				"显式使用 `$devwiki-code`",
 			) {
 				t.Fatalf("%s content missing expected latest runtime guidance:\n%s", tc.runtimeFile, content)
 			}
@@ -448,7 +450,7 @@ func TestExtractBuiltinSkillsMaterializesSharedReferencesIntoEachSkill(t *testin
 		t.Fatal("qmd-sync should not be extracted as an installable builtin skill")
 	}
 
-	wantNames := []string{"code", "code-to-doc", "ingest", "maintain", "project-router", "query", "topic", "workflow"}
+	wantNames := []string{"code", "code-to-doc", "ingest", "maintain", "query", "topic", "workflow"}
 	if strings.Join(gotNames, ",") != strings.Join(wantNames, ",") {
 		t.Fatalf("builtin skill dirs = %#v, want %#v", gotNames, wantNames)
 	}
@@ -470,8 +472,11 @@ func TestExtractBuiltinSkillsIncludesCodeGuidance(t *testing.T) {
 	content := string(data)
 	if !containsAll(content,
 		`name: "devwiki-code"`,
-		"修改代码、开发功能、修复 bug、调整接口/配置/业务逻辑、重构实现、补测试或提交代码",
+		"用户显式调用 `$devwiki-code`",
+		"只给出领域知识、功能名、特性名、业务规则、配置语义或接口行为",
+		"需要 DevWiki Workflow 辅助定位代码入口和规则边界",
 		"Code 不是 Query，也不是 Code-to-Doc",
+		"显式代码开发能力",
 		"理解用户问题 → 结构化搜索 → card 验证 → 读取正文 → 代码核对 → 测试 → 实现 → 验证",
 		"`references/zatools-devwiki.md`",
 		"`references/code-tracing.md`",
@@ -481,44 +486,14 @@ func TestExtractBuiltinSkillsIncludesCodeGuidance(t *testing.T) {
 		"`score` 只代表召回排序优先级",
 		"workflow core 无法支持代码定位时，第二轮可读取 workflow explain 或 topic core",
 		"Workflow core 是代码修改的主入口",
+		"具体文件、函数、代码块、行号、当前 diff",
+		"这类请求按普通代码编辑任务处理",
 		"`rg -n '<函数|字段|配置项>' <file>`",
 		"禁止已有文件锚点时直接 `rg ... .`",
 		"不要默认写入 DevWiki 文档",
 		"修改后导致 Wiki 过期时，需要后续用 `devwiki-maintain` 更新",
 	) {
 		t.Fatalf("code/SKILL.md missing code guidance:\n%s", content)
-	}
-}
-
-func TestExtractBuiltinSkillsIncludesProjectRouterNewWorkflow(t *testing.T) {
-	t.Parallel()
-
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
-
-	data, err := os.ReadFile(filepath.Join(root, "project-router", "SKILL.md"))
-	if err != nil {
-		t.Fatalf("ReadFile(project-router/SKILL.md) error = %v", err)
-	}
-	content := string(data)
-	if !containsAll(content,
-		`name: "devwiki-project-router"`,
-		"判断：这是 [意图类型]，命中 [目标 Skill]，需要/不需要 qmd，需要/不需要代码搜索。",
-		"devwiki-ingest",
-		"devwiki-topic",
-		"devwiki-workflow",
-		"devwiki-maintain",
-		"devwiki-code",
-		"devwiki-query",
-		"devwiki-code-to-doc",
-		"qmd maintenance commands",
-		"zatools qmd sync/update/status",
-		"DevWiki 的总入口",
-	) {
-		t.Fatalf("project-router/SKILL.md missing new DevWiki workflow guidance:\n%s", content)
 	}
 }
 
@@ -541,6 +516,7 @@ func TestExtractBuiltinSkillsIncludesMaintainGuidance(t *testing.T) {
 		"证据一致性",
 		"知识健康",
 		"`references/zatools-devwiki.md`",
+		"普通代码编辑、当前 diff 调整或用户已给出明确 patch 时，不接管",
 		"明确文档修改",
 		"根据最新代码更新文档",
 		"用户没有指定文件时",
@@ -877,16 +853,20 @@ func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
 		"public_answer",
 		"代码定位线索",
 		"query 不自动核对真实代码",
+		"需要 DevWiki 定位入口时，建议显式使用 `$devwiki-code`",
 		"按 `references/zatools-devwiki.md` 的结构化定位规则",
 		"按语义深度阅读",
 		"locate_code 默认回答 Workflow 文档中的实现入口、模块职责、状态流/数据流、副作用和文档中已记录的代码线索",
-		"显式代码核查升级",
+		"显式代码核查建议",
 		"只有用户明确要求查代码、核对当前实现、找文件函数或行号",
 		"本轮基于 DevWiki 文档总结，未展开当前代码核查。",
+		"没有可靠候选、没有独立 Topic/Workflow 或用户未确认候选时，只能回答“当前 Project Brain 没有足够信息支持该结论。”",
+		"不得把多个分散页面里的零散命中综合成一个新的能力定义、边界说明或推荐口径",
+		"不要输出“它更像是”“可以先按这个口径理解”“如果要作为新能力来描述”这类推断性补全",
 		"按需沉淀答案",
 		"当前 Project Brain 没有足够信息支持该结论。",
-		"source.type=local",
-		"source.type=remote",
+		"active_source=local",
+		"active_source=remote",
 		"只输出报告正文",
 	) {
 		t.Fatalf("query/SKILL.md missing query guidance:\n%s", content)
@@ -947,6 +927,7 @@ func TestExtractBuiltinSkillsIncludesZatoolsDevwikiSharedGuidance(t *testing.T) 
 		"`locate_exact`",
 		"`explain_topic`",
 		"`trace_implementation`",
+		"缺少代码锚点且明确要求当前代码核查时，建议显式使用 `$devwiki-code`",
 		"`troubleshoot`",
 		"`design_intent`",
 		"不要把所有关键词都当成精确锚点",
@@ -955,13 +936,27 @@ func TestExtractBuiltinSkillsIncludesZatoolsDevwikiSharedGuidance(t *testing.T) 
 		"zatools devwiki search index <query...> --project <project>",
 		"zatools devwiki search glossary <query...> --project <project>",
 		"在 `--project` 下由 CLI 根据统一配置选择本地文档库或远端 HTTP API",
+		"用户确认门与自我反思",
+		"是否对当前查询结果满意",
+		"不要直接读取 core/explain",
+		"Codex 使用 askuserquestion / request_user_input",
+		"Cursor 使用 AskQuestion / ask questions tool",
+		"Claude 使用 AskUserQuestion",
+		"不得继续执行后续流程",
+		"候选摘要必须合并 search 结果和 card 信息",
+		"不要只问“这个对吗”",
+		"用户未确认",
+		"本轮没有找到可靠匹配文档",
+		"没有可靠候选时，不要把分散命中综合成新主题、新能力或推荐口径",
+		"只允许说明未找到依据、列出检索过的入口和请求用户补充锚点",
 		"zatools devwiki read <topic|workflow> <slug> --view card --project <project>",
 		"写入类 skill 已确认需要修改本地 Wiki 文件时，可以读取目标本地 Markdown 文件",
 		"Query Principles",
 		"目录选择规则",
 		"去重与权威来源规则",
 		"low | 0 命中；超过 20 条散点命中",
-		"必须升到 `zatools devwiki search <topic|workflow> <query...> --project <project>`",
+		"先升档到 `zatools devwiki search <topic|workflow> <query...> --project <project>`",
+		"升档后找到候选再进入用户确认门",
 		"zatools devwiki search workflow 防脑裂 网关 ha-group gateway --project <project>",
 		"多 query 结果使用 RRF",
 		"`devwiki search topic/workflow` 底层调用 `qmd search`",
@@ -1165,7 +1160,10 @@ func TestGenerateProjectRuntimeDocsStayProjectLevel(t *testing.T) {
 			"## 检索顺序",
 			"## Workflow 约束",
 			"## 操作说明",
-			"项目知识任务先由 `devwiki-project-router` 判断意图",
+			"按目标产物直接选择",
+			"使用 `devwiki-query` 或 `devwiki-code` 时，必须严格遵循对应 Skill.md 的查询和定位步骤",
+			"禁止绕过 skill 流程自行做全仓广泛搜索或自由发挥式检索",
+			"显式使用 `$devwiki-code`",
 			"具体页面模板、字段结构、页面边界和证据写入规则由对应 DevWiki skill 和 `references/` 维护",
 			"新建 Topic 或 Workflow 后必须同步检查 `wiki/glossary.md`",
 			"先查是否已有关键术语或等价别名，不存在才添加",
@@ -1224,6 +1222,7 @@ func TestExtractBuiltinSkillsIncludesCodeToDocGuidance(t *testing.T) {
 		"加载 `devwiki-topic`",
 		"加载 `devwiki-workflow`",
 		"内容放置必须遵守 `references/knowledge-placement.md`",
+		"普通文档改写或用户已贴出完整文档片段和明确改法时，不自动转交 `devwiki-code`",
 		"默认写入 `wiki/workflows/<slug>.md`",
 		"wiki/topics/",
 		"wiki/workflows/",
@@ -1348,7 +1347,12 @@ func TestEnsureCodeRepoDevwikiLinkCreatesAgentsWhenMissing(t *testing.T) {
 		"devwiki-query",
 		"devwiki-code",
 		"devwiki-code-to-doc",
-		"`devwiki-code` 修改当前代码库",
+		"先判定目标产物和定位锚点",
+		"使用 `devwiki-query` 或 `devwiki-code` 时，必须严格遵循对应 Skill.md 的查询和定位步骤",
+		"禁止绕过 skill 流程自行做全仓广泛搜索或自由发挥式检索",
+		"显式使用 `$devwiki-code`",
+		"具体文件、函数、代码块、当前 diff、完整 patch 或明确替换方式",
+		"不自动进入 `devwiki-code`",
 		"必须写入关联 DevWiki 文档库",
 	) {
 		t.Fatalf("code AGENTS.md missing DevWiki link block:\n%s", agents)

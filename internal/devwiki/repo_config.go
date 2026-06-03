@@ -25,10 +25,20 @@ type RepoConfig struct {
 	ProjectSlug string `yaml:"project_slug"`
 	// Language is the default project language.
 	Language string `yaml:"language"`
-	// Source describes where project knowledge is read from.
-	Source RepoSource `yaml:"source"`
+	// ActiveSource is the source type selected for read/search operations.
+	ActiveSource string `yaml:"active_source,omitempty"`
+	// Sources stores every configured project knowledge source.
+	Sources RepoSources `yaml:"sources,omitempty"`
 	// CodeRepos contains local-only code repository bindings.
 	CodeRepos []CodeRepo `yaml:"code_repos,omitempty"`
+}
+
+// RepoSources stores the switchable local and remote DevWiki sources.
+type RepoSources struct {
+	// Local is the local DevWiki document root source.
+	Local *RepoSource `yaml:"local,omitempty" json:"local,omitempty"`
+	// Remote is the remote DevWiki HTTP API source.
+	Remote *RepoSource `yaml:"remote,omitempty" json:"remote,omitempty"`
 }
 
 // RepoSource describes a local or remote DevWiki knowledge source.
@@ -113,6 +123,7 @@ func LoadRepoConfig(projectSlug string) (RepoConfig, error) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return RepoConfig{}, err
 	}
+	normalizeRepoConfig(&cfg)
 	if err := ValidateRepoConfig(cfg); err != nil {
 		return RepoConfig{}, err
 	}
@@ -121,6 +132,7 @@ func LoadRepoConfig(projectSlug string) (RepoConfig, error) {
 
 // SaveRepoConfig validates and writes a per-user DevWiki project config.
 func SaveRepoConfig(cfg RepoConfig) error {
+	normalizeRepoConfig(&cfg)
 	if err := ValidateRepoConfig(cfg); err != nil {
 		return err
 	}
@@ -138,6 +150,24 @@ func SaveRepoConfig(cfg RepoConfig) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
+// ActiveRepoSource returns the configured source selected by ActiveSource.
+func ActiveRepoSource(cfg RepoConfig) (RepoSource, error) {
+	switch strings.TrimSpace(cfg.ActiveSource) {
+	case RepoSourceLocal:
+		if cfg.Sources.Local == nil {
+			return RepoSource{}, fmt.Errorf("active local devwiki source is not configured")
+		}
+		return *cfg.Sources.Local, nil
+	case RepoSourceRemote:
+		if cfg.Sources.Remote == nil {
+			return RepoSource{}, fmt.Errorf("active remote devwiki source is not configured")
+		}
+		return *cfg.Sources.Remote, nil
+	default:
+		return RepoSource{}, fmt.Errorf("unsupported active devwiki source %q", cfg.ActiveSource)
+	}
+}
+
 // ValidateRepoConfig validates the stable v1 repo config contract.
 func ValidateRepoConfig(cfg RepoConfig) error {
 	if strings.TrimSpace(cfg.ProjectSlug) == "" {
@@ -149,23 +179,43 @@ func ValidateRepoConfig(cfg RepoConfig) error {
 	if strings.TrimSpace(cfg.Language) == "" {
 		return fmt.Errorf("devwiki project language is required")
 	}
-	switch cfg.Source.Type {
+	active := strings.TrimSpace(cfg.ActiveSource)
+	if active == "" {
+		return fmt.Errorf("active devwiki source is required")
+	}
+	switch active {
 	case RepoSourceLocal:
-		if strings.TrimSpace(cfg.Source.Path) == "" {
-			return fmt.Errorf("local devwiki source requires path")
-		}
-		if strings.TrimSpace(cfg.Source.URL) != "" {
-			return fmt.Errorf("local devwiki source must not set url")
+		if cfg.Sources.Local == nil {
+			return fmt.Errorf("active local devwiki source is not configured")
 		}
 	case RepoSourceRemote:
-		if strings.TrimSpace(cfg.Source.URL) == "" {
-			return fmt.Errorf("remote devwiki source requires url")
-		}
-		if strings.TrimSpace(cfg.Source.Path) != "" {
-			return fmt.Errorf("remote devwiki source must not set path")
+		if cfg.Sources.Remote == nil {
+			return fmt.Errorf("active remote devwiki source is not configured")
 		}
 	default:
-		return fmt.Errorf("unsupported devwiki source type %q", cfg.Source.Type)
+		return fmt.Errorf("unsupported active devwiki source %q", active)
+	}
+	if cfg.Sources.Local != nil {
+		if cfg.Sources.Local.Type != RepoSourceLocal {
+			return fmt.Errorf("local devwiki source must have type %q", RepoSourceLocal)
+		}
+		if strings.TrimSpace(cfg.Sources.Local.Path) == "" {
+			return fmt.Errorf("local devwiki source requires path")
+		}
+		if strings.TrimSpace(cfg.Sources.Local.URL) != "" {
+			return fmt.Errorf("local devwiki source must not set url")
+		}
+	}
+	if cfg.Sources.Remote != nil {
+		if cfg.Sources.Remote.Type != RepoSourceRemote {
+			return fmt.Errorf("remote devwiki source must have type %q", RepoSourceRemote)
+		}
+		if strings.TrimSpace(cfg.Sources.Remote.URL) == "" {
+			return fmt.Errorf("remote devwiki source requires url")
+		}
+		if strings.TrimSpace(cfg.Sources.Remote.Path) != "" {
+			return fmt.Errorf("remote devwiki source must not set path")
+		}
 	}
 	for _, repo := range cfg.CodeRepos {
 		if strings.TrimSpace(repo.Slug) == "" {
@@ -176,4 +226,8 @@ func ValidateRepoConfig(cfg RepoConfig) error {
 		}
 	}
 	return nil
+}
+
+func normalizeRepoConfig(cfg *RepoConfig) {
+	cfg.ActiveSource = strings.TrimSpace(cfg.ActiveSource)
 }

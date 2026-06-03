@@ -32,10 +32,14 @@ func (s *Service) runServer(ctx context.Context, opts ServerOptions) error {
 		if err != nil {
 			return err
 		}
-		if cfg.Source.Type != devwiki.RepoSourceLocal {
+		source, err := devwiki.ActiveRepoSource(cfg)
+		if err != nil {
+			return err
+		}
+		if source.Type != devwiki.RepoSourceLocal {
 			return fmt.Errorf("devwiki server can only serve local project sources")
 		}
-		root = cfg.Source.Path
+		root = source.Path
 	}
 	if root == "" {
 		root = s.runtime.Workspace.CWD

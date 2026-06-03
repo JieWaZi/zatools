@@ -103,7 +103,7 @@ summary: "Gateway workflow"
 	}
 }
 
-func TestSearchRunsQueryTermsConcurrently(t *testing.T) {
+func TestSearchRunsQueryTermsSerially(t *testing.T) {
 	root := t.TempDir()
 	writeDevwikiReadFixture(t, root, "wiki/workflows/workflow-ha-brain-split-protection.md", `---
 title: "HA 脑裂监控与防护实现定位"
@@ -123,28 +123,29 @@ summary: "Gateway workflow"
 `)
 	service := NewServiceWithRuntime(common.Runtime{Workspace: skills.NewWorkspace(root)})
 	var (
-		mu       sync.Mutex
-		started  int
-		release  = make(chan struct{})
-		timedOut bool
+		mu        sync.Mutex
+		started   int
+		active    int
+		maxActive int
+		queries   []string
 	)
 	runner := devwikiSearchQMDHelperRunner(t, root)
 	ctx := qmd.WithCommandRunner(context.Background(), func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		mu.Lock()
 		started++
-		if started == 2 {
-			close(release)
+		active++
+		if active > maxActive {
+			maxActive = active
+		}
+		if len(args) >= 2 && args[0] == "search" {
+			queries = append(queries, args[1])
 		}
 		mu.Unlock()
 
-		select {
-		case <-release:
-		case <-time.After(2 * time.Second):
-			mu.Lock()
-			timedOut = true
-			mu.Unlock()
-		case <-ctx.Done():
-		}
+		time.Sleep(50 * time.Millisecond)
+		mu.Lock()
+		active--
+		mu.Unlock()
 		return runner(ctx, name, args...)
 	})
 	var out bytes.Buffer
@@ -161,13 +162,26 @@ summary: "Gateway workflow"
 
 	mu.Lock()
 	gotStarted := started
-	gotTimedOut := timedOut
+	gotMaxActive := maxActive
+	gotQueries := append([]string(nil), queries...)
 	mu.Unlock()
 	if gotStarted != 2 {
 		t.Fatalf("started qmd searches = %d, want 2", gotStarted)
 	}
-	if gotTimedOut {
-		t.Fatal("qmd searches did not overlap before timeout")
+	if gotMaxActive != 1 {
+		t.Fatalf("qmd searches ran concurrently, max active = %d, want 1", gotMaxActive)
+	}
+	wantQueries := []string{"防脑裂", "网关"}
+	if !reflect.DeepEqual(gotQueries, wantQueries) {
+		t.Fatalf("qmd search queries = %#v, want %#v", gotQueries, wantQueries)
+	}
+
+	var got []SearchResult
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("Unmarshal output error = %v, output=%q", err, out.String())
+	}
+	if len(got) != 2 {
+		t.Fatalf("fused result count = %d, want 2; results=%#v", len(got), got)
 	}
 }
 

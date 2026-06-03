@@ -12,7 +12,6 @@ import (
 	"zatools/internal/devwiki/page"
 	"zatools/internal/qmd"
 
-	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 )
 
@@ -127,20 +126,12 @@ func SearchPages(ctx context.Context, root string, kind string, queries []string
 		return nil, fmt.Errorf("unsupported devwiki search kind %q", kind)
 	}
 	resultSets := make([][]SearchResult, len(queries))
-	group, groupCtx := errgroup.WithContext(ctx)
 	for i, query := range queries {
-		i, query := i, query
-		group.Go(func() error {
-			var searchOut bytes.Buffer
-			if err := qmd.RunCommandInDir(groupCtx, root, []string{"search", query}, qmd.Models{}, &searchOut, os.Stderr); err != nil {
-				return err
-			}
-			resultSets[i] = ParseQMDSearchOutput(searchOut.String(), kind)
-			return nil
-		})
-	}
-	if err := group.Wait(); err != nil {
-		return nil, err
+		var searchOut bytes.Buffer
+		if err := qmd.RunCommandInDir(ctx, root, []string{"search", query}, qmd.Models{}, &searchOut, os.Stderr); err != nil {
+			return nil, err
+		}
+		resultSets[i] = ParseQMDSearchOutput(searchOut.String(), kind)
 	}
 	results := FuseSearchResults(resultSets)
 	if results == nil {

@@ -45,10 +45,14 @@ func (s *Service) runSearch(ctx context.Context, opts SearchOptions) error {
 		if err != nil {
 			return err
 		}
-		if cfg.Source.Type == devwiki.RepoSourceRemote {
-			return s.searchRemote(ctx, cfg, opts)
+		source, err := devwiki.ActiveRepoSource(cfg)
+		if err != nil {
+			return err
 		}
-		root = cfg.Source.Path
+		if source.Type == devwiki.RepoSourceRemote {
+			return s.searchRemote(ctx, source, opts)
+		}
+		root = source.Path
 	}
 	if root == "" {
 		root = s.runtime.Workspace.CWD

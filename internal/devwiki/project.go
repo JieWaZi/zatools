@@ -393,7 +393,9 @@ func renderCodeRepoDevwikiLinkBlock(devwikiRoot string, runtimePath string, proj
 		)
 	}
 	lines = append(lines,
-		"`devwiki-code` 修改当前代码库；修改前应优先使用关联 DevWiki 的 workflow 定位代码入口和规则边界。",
+		"使用 DevWiki skills 前先判定目标产物和定位锚点：领域/功能/特性描述且缺少代码锚点时，可显式使用 `$devwiki-code` 定位代码入口和规则边界。",
+		"使用 `devwiki-query` 或 `devwiki-code` 时，必须严格遵循对应 Skill.md 的查询和定位步骤；禁止绕过 skill 流程自行做全仓广泛搜索或自由发挥式检索。",
+		"用户已经给出具体文件、函数、代码块、当前 diff、完整 patch 或明确替换方式时，不自动进入 `devwiki-code`，按普通编辑任务处理。",
 		codeLinkEndMarker,
 		"",
 	)

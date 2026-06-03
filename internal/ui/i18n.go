@@ -33,6 +33,7 @@ type Catalog struct {
 	DevwikiRepoInitShort          string
 	DevwikiRepoAddShort           string
 	DevwikiRepoLinkShort          string
+	DevwikiRepoUseShort           string
 	DevwikiRepoInfoShort          string
 	RemoveShort                   string
 	CheckShort                    string
@@ -142,6 +143,7 @@ type Catalog struct {
 	DevwikiQMDRefreshFailedFmt    string
 	DevwikiRepoAddSuccessFmt      string
 	DevwikiRepoLinkSuccessFmt     string
+	DevwikiRepoUseSuccessFmt      string
 	DevwikiRepoFailureFmt         string
 	DevwikiGraphOpenFailedFmt     string
 	Cancelled                     string
@@ -234,6 +236,7 @@ var catalogs = map[string]Catalog{
 		DevwikiRepoInitShort:          "交互式添加 DevWiki 项目并关联代码库",
 		DevwikiRepoAddShort:           "添加 DevWiki 本地或远端项目",
 		DevwikiRepoLinkShort:          "绑定本地代码仓路径",
+		DevwikiRepoUseShort:           "切换 DevWiki 项目的当前文档库来源",
 		DevwikiRepoInfoShort:          "列出 DevWiki project 或输出项目配置",
 		RemoveShort:                   "删除已安装技能",
 		CheckShort:                    "检查技能是否有可用更新",
@@ -343,6 +346,7 @@ var catalogs = map[string]Catalog{
 		DevwikiQMDRefreshFailedFmt:    "%s 失败：%v",
 		DevwikiRepoAddSuccessFmt:      "已添加 DevWiki project `%s`\nsource: %s\nconfig: %s\n",
 		DevwikiRepoLinkSuccessFmt:     "已绑定代码仓 `%s` 到 DevWiki project `%s`\nrepo: %s\nconfig: %s\ninstalled skills: devwiki-code, devwiki-code-to-doc, devwiki-query\n",
+		DevwikiRepoUseSuccessFmt:      "已切换 DevWiki project `%s` 当前来源为 `%s`\nconfig: %s\n",
 		DevwikiRepoFailureFmt:         "%s 失败：%v\n",
 		DevwikiGraphOpenFailedFmt:     "%s!%s 无法自动打开浏览器：%v；服务已继续运行，可手动打开 %s\n",
 		Cancelled:                     "已取消",
@@ -433,6 +437,7 @@ var catalogs = map[string]Catalog{
 		DevwikiRepoInitShort:          "Interactively add a DevWiki project and link code repositories",
 		DevwikiRepoAddShort:           "Add a local or remote DevWiki project",
 		DevwikiRepoLinkShort:          "Bind a local code repository path",
+		DevwikiRepoUseShort:           "Switch the active source for a DevWiki project",
 		DevwikiRepoInfoShort:          "List DevWiki projects or print project configuration",
 		RemoveShort:                   "Remove installed skills",
 		CheckShort:                    "Check for available skill updates",
@@ -542,6 +547,7 @@ var catalogs = map[string]Catalog{
 		DevwikiQMDRefreshFailedFmt:    "%s failed: %v",
 		DevwikiRepoAddSuccessFmt:      "Added DevWiki project `%s`\nsource: %s\nconfig: %s\n",
 		DevwikiRepoLinkSuccessFmt:     "Linked code repo `%s` to DevWiki project `%s`\nrepo: %s\nconfig: %s\ninstalled skills: devwiki-code, devwiki-code-to-doc, devwiki-query\n",
+		DevwikiRepoUseSuccessFmt:      "Switched DevWiki project `%s` active source to `%s`\nconfig: %s\n",
 		DevwikiRepoFailureFmt:         "%s failed: %v\n",
 		DevwikiGraphOpenFailedFmt:     "%s!%s unable to open browser automatically: %v; the server is still running, open %s manually\n",
 		Cancelled:                     "Cancelled",

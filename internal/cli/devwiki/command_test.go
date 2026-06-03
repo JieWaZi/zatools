@@ -73,6 +73,22 @@ func TestDevwikiDoesNotExposeTopLevelLinkCommand(t *testing.T) {
 	}
 }
 
+func TestDevwikiRepoIncludesUseSubcommand(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	useCmd, _, err := cmd.Find([]string{"repo", "use"})
+	if err != nil {
+		t.Fatalf("Find(repo use) error = %v", err)
+	}
+	if useCmd == nil {
+		t.Fatal("repo use command is nil")
+	}
+	if useCmd.Use != "use <project> <local|remote>" {
+		t.Fatalf("repo use Use = %q", useCmd.Use)
+	}
+}
+
 func TestDevwikiToolCommands(t *testing.T) {
 	t.Parallel()
 

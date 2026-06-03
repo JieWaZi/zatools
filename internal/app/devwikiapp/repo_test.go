@@ -48,7 +48,7 @@ func TestRepoAddInfoIncludesCodeReposAsJSON(t *testing.T) {
 	if err := json.Unmarshal(infoOut.Bytes(), &info); err != nil {
 		t.Fatalf("Unmarshal repo info error = %v, output=%q", err, infoOut.String())
 	}
-	if info.ProjectSlug != "huawei-zddi" || info.Source.Type != "local" || info.Source.Path != root {
+	if info.ProjectSlug != "huawei-zddi" || info.ActiveSource != "local" || info.Sources.Local == nil || info.Sources.Local.Path != root {
 		t.Fatalf("repo info = %#v", info)
 	}
 	want := []CodeRepoInfo{{Name: "zddiv3", Slug: "zddiv3", Path: codeRoot, Default: true}}
@@ -193,8 +193,77 @@ func TestRepoAddRemoteWritesRemoteSource(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &info); err != nil {
 		t.Fatalf("Unmarshal repo info error = %v, output=%q", err, out.String())
 	}
-	if info.Source.Type != "remote" || info.Source.URL != "http://devwiki.example.com:5697" {
-		t.Fatalf("repo info source = %#v", info.Source)
+	if info.ActiveSource != "remote" || info.Sources.Remote == nil || info.Sources.Remote.URL != "http://devwiki.example.com:5697" {
+		t.Fatalf("repo info = %#v", info)
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(out.Bytes(), &raw); err != nil {
+		t.Fatalf("Unmarshal raw repo info error = %v", err)
+	}
+	if _, ok := raw["source"]; ok {
+		t.Fatalf("repo info should not contain duplicate source field: %s", out.String())
+	}
+}
+
+func TestRepoAddStoresLocalAndRemoteSourcesAndRepoUseSwitchesActiveSource(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	root := t.TempDir()
+	service := NewService()
+
+	if err := service.RepoAdd(context.Background(), RepoAddOptions{
+		ProjectSlug: "huawei-zddi",
+		LocalPath:   root,
+	}); err != nil {
+		t.Fatalf("RepoAdd(local) error = %v", err)
+	}
+	if err := service.RepoAdd(context.Background(), RepoAddOptions{
+		ProjectSlug: "huawei-zddi",
+		RemoteURL:   "http://devwiki.example.com:5697",
+	}); err != nil {
+		t.Fatalf("RepoAdd(remote) error = %v", err)
+	}
+
+	var remoteOut bytes.Buffer
+	if err := service.RepoInfo(context.Background(), RepoInfoOptions{
+		ProjectSlug: "huawei-zddi",
+		Stdout:      &remoteOut,
+	}); err != nil {
+		t.Fatalf("RepoInfo(remote active) error = %v", err)
+	}
+	var remoteInfo RepoInfo
+	if err := json.Unmarshal(remoteOut.Bytes(), &remoteInfo); err != nil {
+		t.Fatalf("Unmarshal repo info error = %v, output=%q", err, remoteOut.String())
+	}
+	if remoteInfo.ActiveSource != devwiki.RepoSourceRemote || remoteInfo.Sources.Local == nil || remoteInfo.Sources.Remote == nil {
+		t.Fatalf("remote active info = %#v", remoteInfo)
+	}
+	if remoteInfo.Sources.Local.Path != root || remoteInfo.Sources.Remote.URL != "http://devwiki.example.com:5697" {
+		t.Fatalf("sources = %#v", remoteInfo.Sources)
+	}
+
+	if err := service.RepoUse(context.Background(), RepoUseOptions{
+		ProjectSlug: "huawei-zddi",
+		SourceType:  devwiki.RepoSourceLocal,
+	}); err != nil {
+		t.Fatalf("RepoUse(local) error = %v", err)
+	}
+
+	var localOut bytes.Buffer
+	if err := service.RepoInfo(context.Background(), RepoInfoOptions{
+		ProjectSlug: "huawei-zddi",
+		Stdout:      &localOut,
+	}); err != nil {
+		t.Fatalf("RepoInfo(local active) error = %v", err)
+	}
+	var localInfo RepoInfo
+	if err := json.Unmarshal(localOut.Bytes(), &localInfo); err != nil {
+		t.Fatalf("Unmarshal repo info error = %v, output=%q", err, localOut.String())
+	}
+	if localInfo.ActiveSource != devwiki.RepoSourceLocal || localInfo.Sources.Local == nil || localInfo.Sources.Local.Path != root {
+		t.Fatalf("local active info = %#v", localInfo)
+	}
+	if localInfo.Sources.Remote == nil || localInfo.Sources.Remote.URL != "http://devwiki.example.com:5697" {
+		t.Fatalf("remote source was not preserved: %#v", localInfo.Sources.Remote)
 	}
 }
 
@@ -277,7 +346,6 @@ func TestInstallRepoInitDocSkillsInstallsAllDevwikiSkillsForAgents(t *testing.T)
 	}
 
 	for _, rel := range []string{
-		".agents/skills/devwiki-project-router/SKILL.md",
 		".agents/skills/devwiki-ingest/SKILL.md",
 		".agents/skills/devwiki-topic/SKILL.md",
 		".agents/skills/devwiki-workflow/SKILL.md",
@@ -285,7 +353,6 @@ func TestInstallRepoInitDocSkillsInstallsAllDevwikiSkillsForAgents(t *testing.T)
 		".agents/skills/devwiki-code/SKILL.md",
 		".agents/skills/devwiki-code-to-doc/SKILL.md",
 		".agents/skills/devwiki-query/SKILL.md",
-		".cursor/skills/devwiki-project-router/SKILL.md",
 		".cursor/skills/devwiki-query/SKILL.md",
 	} {
 		if _, err := os.Stat(filepath.Join(docRoot, rel)); err != nil {
@@ -312,8 +379,8 @@ func TestRepoAddAndDocSkillInstallSkipsRemoteDocRoot(t *testing.T) {
 		t.Fatalf("applyRepoInitSource(remote) error = %v", err)
 	}
 
-	if cfg.Source.Type != devwiki.RepoSourceRemote || cfg.Source.URL != "http://devwiki.example.com:5697" {
-		t.Fatalf("source = %#v, want remote source", cfg.Source)
+	if cfg.ActiveSource != devwiki.RepoSourceRemote || cfg.Sources.Remote == nil || cfg.Sources.Remote.URL != "http://devwiki.example.com:5697" {
+		t.Fatalf("config = %#v, want remote source", cfg)
 	}
 	for _, rel := range []string{
 		".agents/skills/devwiki-query/SKILL.md",

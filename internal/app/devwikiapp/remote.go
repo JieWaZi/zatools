@@ -27,12 +27,12 @@ type remoteTextResponse struct {
 	Text string `json:"text"`
 }
 
-func (s *Service) readRemote(ctx context.Context, cfg devwiki.RepoConfig, opts ReadOptions) error {
+func (s *Service) readRemote(ctx context.Context, source devwiki.RepoSource, opts ReadOptions) error {
 	if strings.TrimSpace(opts.Format) != "" && opts.Format != "text" {
 		return fmt.Errorf("unsupported devwiki read format %q; only text is supported", opts.Format)
 	}
 	var response remoteTextResponse
-	if err := postRemoteJSON(ctx, cfg.Source.URL, "/api/devwiki/read", remoteReadRequest{
+	if err := postRemoteJSON(ctx, source.URL, "/api/devwiki/read", remoteReadRequest{
 		Kind: opts.Kind,
 		Slug: opts.Slug,
 		View: opts.View,
@@ -43,9 +43,9 @@ func (s *Service) readRemote(ctx context.Context, cfg devwiki.RepoConfig, opts R
 	return err
 }
 
-func (s *Service) searchRemote(ctx context.Context, cfg devwiki.RepoConfig, opts SearchOptions) error {
+func (s *Service) searchRemote(ctx context.Context, source devwiki.RepoSource, opts SearchOptions) error {
 	var raw json.RawMessage
-	if err := postRemoteJSON(ctx, cfg.Source.URL, "/api/devwiki/search", remoteSearchRequest{
+	if err := postRemoteJSON(ctx, source.URL, "/api/devwiki/search", remoteSearchRequest{
 		Kind:  opts.Kind,
 		Query: normalizeSearchQueries(opts),
 	}, &raw); err != nil {

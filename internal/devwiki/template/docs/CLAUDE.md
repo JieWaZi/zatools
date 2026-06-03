@@ -29,6 +29,8 @@
 
 本目录就是 DevWiki 文档库根目录。代码库通过 AGENTS/CLAUDE 中的托管关联块指向本目录。Agent 在代码库内使用 `devwiki-query`、`devwiki-code` 或 `devwiki-code-to-doc` 前，必须先阅读本文件；查询以本目录的 `wiki/`、`raw/`、`config/search.yaml` 为知识来源，生成的新 Wiki 文件也必须写回本目录。
 
+使用 `devwiki-query` 或 `devwiki-code` 时，必须严格遵循对应 Skill.md 的查询和定位步骤；禁止绕过 skill 流程自行做全仓广泛搜索或自由发挥式检索。
+
 `raw/` 是事实来源层，`wiki/` 是结构化知识层。`config/search.yaml` 只保存检索配置，不替代事实内容。
 
 ## Wiki 目录
@@ -113,6 +115,7 @@ zatools devwiki search topic <query...> --project <project>
 zatools devwiki search workflow <query...> --project <project>
 zatools devwiki repo info
 zatools devwiki repo info <project>
+zatools devwiki repo use <project> <local|remote>
 zatools devwiki search index <query...> --project <project>
 zatools devwiki search glossary <query...> --project <project>
 zatools devwiki search workflow <query...> --project <project>
@@ -123,7 +126,7 @@ zatools devwiki graph --project <project> --host 127.0.0.1 --port 5696
 
 代码仓 `AGENTS.md` / `CLAUDE.md` 的 DevWiki link block 会写入 `DevWiki project`。如果无法从 link block 判断 project，可执行 `zatools devwiki repo info`；无参数时仅输出已配置 project 名称 JSON 数组。
 
-`zatools devwiki repo info <project>` 默认输出 JSON，包含 DevWiki `source` 和所有关联代码仓 `code_repos[].path`。
+`zatools devwiki repo info <project>` 默认输出 JSON，包含当前激活来源类型 `active_source`、已保存的本地/远端 `sources` 和所有关联代码仓 `code_repos[].path`。同一 project 同时配置本地与远端时，用 `zatools devwiki repo use <project> <local|remote>` 切换当前来源，不要通过重复 `repo add` 覆盖配置。
 
 ## 检索顺序
 
@@ -145,7 +148,9 @@ zatools devwiki graph --project <project> --host 127.0.0.1 --port 5696
 - Workflow 只写工程实现知识，代码路径、函数、类、配置文件必须有证据
 - 页面写入和证据字段更新必须遵守对应 DevWiki skill 的模板和引用规则
 - 新建 Topic 或 Workflow 后必须同步检查 `wiki/glossary.md`；先查是否已有关键术语或等价别名，不存在才添加
-- 项目知识任务先由 `devwiki-project-router` 判断意图、身份、证据需求和检索边界，再路由到 `devwiki-ingest`、`devwiki-topic`、`devwiki-workflow`、`devwiki-maintain`、`devwiki-code`、`devwiki-query`、`devwiki-code-to-doc` 或 qmd 维护命令
+- 项目知识任务按目标产物直接选择 `devwiki-ingest`、`devwiki-topic`、`devwiki-workflow`、`devwiki-maintain`、`devwiki-code`、`devwiki-query`、`devwiki-code-to-doc` 或 qmd 维护命令
+- 用户缺少代码锚点且需要 DevWiki 定位入口时，建议显式使用 `$devwiki-code`
+- 用户已经给出具体文件、函数、代码块、当前 diff、完整 patch 或明确替换方式时，按普通编辑任务处理，不自动进入 `devwiki-code`
 - 中高风险写入必须先给 proposal，再落盘
 
 ## 操作说明
@@ -154,12 +159,11 @@ zatools devwiki graph --project <project> --host 127.0.0.1 --port 5696
 - 使用 `zatools devwiki repo link <project> <repo-slug> <path>` 将代码库路径写入用户级 DevWiki 项目配置
 - 如需下载 qmd models，初始化完成后可在 DevWiki 工作区内手动执行 `zatools qmd download --root .`
 - 对已有工作区补做或修复 qmd collection 注册、索引刷新与状态检查时，直接执行 `zatools qmd sync/update/status`
-- 使用 `devwiki-project-router` 作为项目知识任务的默认总入口
 - 使用 `devwiki-ingest` 吸收 raw 文档并生成 TopicTask / WorkflowTask；TopicTask 需要带 module 建议，Topic 正文交给 `devwiki-topic`，Workflow 正文交给 `devwiki-workflow`
 - 使用 `devwiki-topic` 或 `devwiki-workflow` 新建页面后，必须先查 `wiki/glossary.md`，缺少关键术语时按通用格式补充
 - 使用 `devwiki-maintain` 维护已有 Wiki 的证据一致性、过期内容、引用缺失、关系错误和 query 污染
-- 使用 `devwiki-code` 基于关联 DevWiki workflow 定位并修改当前代码仓
-- 使用 `devwiki-query` 只读查询 Wiki、raw、文档内代码线索、设计意图和排障知识；真实代码核查交给 `devwiki-code`
+- 显式使用 `$devwiki-code` 处理缺少代码锚点的领域/功能/特性修改，基于关联 DevWiki workflow 定位并修改当前代码仓
+- 使用 `devwiki-query` 只读查询 Wiki、raw、文档内代码线索、设计意图和排障知识；缺少代码锚点的真实代码核查只建议显式 `$devwiki-code`
 - 使用 `devwiki-code-to-doc` 从代码、接口、配置项、日志或路由反向生成或更新 workflow 页面
 
 这份运行时规则应保持稳定，只在 DevWiki 的项目目录、链接规范或工作流约束发生真实变化时修改。

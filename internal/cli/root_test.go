@@ -115,6 +115,8 @@ card body
 }
 
 func TestDevwikiInitDoesNotPrintLogo(t *testing.T) {
+	t.Chdir(t.TempDir())
+
 	cmd := NewRootCmd()
 	cmd.SetArgs([]string{"devwiki", "init", "sample", "--code-dir", t.TempDir(), "--yes"})
 	var commandOut bytes.Buffer

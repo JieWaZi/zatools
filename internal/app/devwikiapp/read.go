@@ -37,10 +37,14 @@ func (s *Service) runRead(ctx context.Context, opts ReadOptions) error {
 		if err != nil {
 			return err
 		}
-		if cfg.Source.Type == devwiki.RepoSourceRemote {
-			return s.readRemote(ctx, cfg, opts)
+		source, err := devwiki.ActiveRepoSource(cfg)
+		if err != nil {
+			return err
 		}
-		root = cfg.Source.Path
+		if source.Type == devwiki.RepoSourceRemote {
+			return s.readRemote(ctx, source, opts)
+		}
+		root = source.Path
 	}
 	if root == "" {
 		root = s.runtime.Workspace.CWD
