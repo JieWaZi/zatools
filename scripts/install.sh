@@ -32,21 +32,6 @@ download_file() {
 	fail "curl or wget is required"
 }
 
-fetch_text() {
-	url="$1"
-
-	if command -v curl >/dev/null 2>&1; then
-		curl -fsSL "$url"
-		return
-	fi
-	if command -v wget >/dev/null 2>&1; then
-		wget -qO- "$url"
-		return
-	fi
-
-	fail "curl or wget is required"
-}
-
 detect_os() {
 	case "$(uname -s)" in
 		Darwin) printf 'darwin' ;;
@@ -61,20 +46,6 @@ detect_arch() {
 		arm64|aarch64) printf 'arm64' ;;
 		*) fail "unsupported architecture: $(uname -m)" ;;
 	esac
-}
-
-resolve_version() {
-	if [ -n "$VERSION" ]; then
-		printf '%s' "$VERSION"
-		return
-	fi
-
-	api_url="https://api.github.com/repos/${OWNER}/${REPO}/releases/latest"
-	version="$(fetch_text "$api_url" | tr -d '\n' | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-	if [ -z "$version" ]; then
-		fail "unable to resolve latest release version from ${api_url}"
-	fi
-	printf '%s' "$version"
 }
 
 sha256_file() {
@@ -105,23 +76,71 @@ resolve_install_dir() {
 	printf '/usr/local/bin'
 }
 
+resolve_asset_from_checksums() {
+	checksums_path="$1"
+	preferred_asset="$2"
+	os="$3"
+	arch="$4"
+
+	if [ -n "$preferred_asset" ]; then
+		asset="$(awk -v asset="${preferred_asset}" '{name=$2; sub(/^\.\//, "", name); if (name == asset) {print name; exit}}' "${checksums_path}")"
+		[ -n "$asset" ] || fail "unable to find checksum for ${preferred_asset}"
+		printf '%s' "$asset"
+		return
+	fi
+
+	status=0
+	asset="$(awk -v prefix="${BINARY_NAME}_" -v suffix="_${os}_${arch}.tar.gz" '
+		{
+			name=$2
+			sub(/^\.\//, "", name)
+			if (index(name, prefix) == 1 && substr(name, length(name) - length(suffix) + 1) == suffix) {
+				count++
+				found=name
+			}
+		}
+		END {
+			if (count == 1) {
+				print found
+			} else if (count > 1) {
+				exit 2
+			} else {
+				exit 1
+			}
+		}
+	' "${checksums_path}")" || status=$?
+
+	case "$status" in
+		0) printf '%s' "$asset" ;;
+		1) fail "unable to find a matching release asset in checksums.txt" ;;
+		2) fail "multiple matching release assets found in checksums.txt" ;;
+		*) fail "unable to read checksums.txt" ;;
+	esac
+}
+
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT INT TERM
 
 os="$(detect_os)"
 arch="$(detect_arch)"
-version="$(resolve_version)"
 install_dir="$(resolve_install_dir)"
-asset="${BINARY_NAME}_${version}_${os}_${arch}.tar.gz"
-base_url="https://github.com/${OWNER}/${REPO}/releases/download/${version}"
-archive_path="${tmp_dir}/${asset}"
+if [ -n "$VERSION" ]; then
+	base_url="https://github.com/${OWNER}/${REPO}/releases/download/${VERSION}"
+	preferred_asset="${BINARY_NAME}_${VERSION}_${os}_${arch}.tar.gz"
+else
+	base_url="https://github.com/${OWNER}/${REPO}/releases/latest/download"
+	preferred_asset=""
+fi
 checksums_path="${tmp_dir}/checksums.txt"
 binary_path="${tmp_dir}/${BINARY_NAME}"
 use_sudo=0
 
+download_file "${base_url}/checksums.txt" "${checksums_path}"
+asset="$(resolve_asset_from_checksums "${checksums_path}" "${preferred_asset}" "${os}" "${arch}")"
+archive_path="${tmp_dir}/${asset}"
+
 log "downloading ${asset}"
 download_file "${base_url}/${asset}" "${archive_path}"
-download_file "${base_url}/checksums.txt" "${checksums_path}"
 
 expected_hash="$(awk -v asset="./${asset}" '$2 == asset {print $1}' "${checksums_path}")"
 if [ -z "$expected_hash" ]; then

@@ -10,16 +10,12 @@ $InstallDir = if ($env:ZATOOLS_INSTALL_DIR) {
     Join-Path $env:LOCALAPPDATA "Programs\zatools\bin"
 }
 
-function Resolve-Version {
+function Resolve-BaseUrl {
     if ($Version) {
-        return $Version
+        return "https://github.com/$Owner/$Repo/releases/download/$Version"
     }
 
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Owner/$Repo/releases/latest"
-    if (-not $release.tag_name) {
-        throw "Unable to resolve latest release version."
-    }
-    return $release.tag_name
+    return "https://github.com/$Owner/$Repo/releases/latest/download"
 }
 
 function Resolve-Arch {
@@ -31,26 +27,64 @@ function Resolve-Arch {
     }
 }
 
-$ResolvedVersion = Resolve-Version
+function Resolve-AssetFromChecksums {
+    param(
+        [string]$ChecksumsPath,
+        [string]$AssetPattern,
+        [string]$PreferredAsset
+    )
+
+    $matchingAssets = @()
+    foreach ($line in Get-Content $ChecksumsPath) {
+        $parts = $line -split '\s+'
+        if ($parts.Length -lt 2) {
+            continue
+        }
+
+        $candidate = $parts[1] -replace '^\./', ''
+        if ($PreferredAsset -and $candidate -eq $PreferredAsset) {
+            return $candidate
+        }
+        if ($candidate -match $AssetPattern) {
+            $matchingAssets += $candidate
+        }
+    }
+
+    if ($PreferredAsset) {
+        throw "Unable to find checksum for $PreferredAsset"
+    }
+    if ($matchingAssets.Length -eq 0) {
+        throw "Unable to find a matching release asset in checksums.txt"
+    }
+    if ($matchingAssets.Length -gt 1) {
+        throw "Multiple matching release assets found: $($matchingAssets -join ', ')"
+    }
+
+    return $matchingAssets[0]
+}
+
 $ResolvedArch = Resolve-Arch
-$Asset = "${BinaryName}_${ResolvedVersion}_windows_${ResolvedArch}.tar.gz"
-$BaseUrl = "https://github.com/$Owner/$Repo/releases/download/$ResolvedVersion"
+$BaseUrl = Resolve-BaseUrl
+$PreferredAsset = if ($Version) { "${BinaryName}_${Version}_windows_${ResolvedArch}.tar.gz" } else { "" }
+$AssetPattern = "^$([regex]::Escape($BinaryName))_.+_windows_$([regex]::Escape($ResolvedArch))\.tar\.gz$"
 $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
-$ArchivePath = Join-Path $TempDir $Asset
 $ChecksumsPath = Join-Path $TempDir "checksums.txt"
 
 New-Item -ItemType Directory -Force -Path $TempDir | Out-Null
 
 try {
+    Invoke-WebRequest -Uri "$BaseUrl/checksums.txt" -OutFile $ChecksumsPath
+    $Asset = Resolve-AssetFromChecksums -ChecksumsPath $ChecksumsPath -AssetPattern $AssetPattern -PreferredAsset $PreferredAsset
+    $ArchivePath = Join-Path $TempDir $Asset
+
     Write-Host "Downloading $Asset"
     Invoke-WebRequest -Uri "$BaseUrl/$Asset" -OutFile $ArchivePath
-    Invoke-WebRequest -Uri "$BaseUrl/checksums.txt" -OutFile $ChecksumsPath
 
     $expectedHash = $null
     foreach ($line in Get-Content $ChecksumsPath) {
         $parts = $line -split '\s+'
         if ($parts.Length -ge 2) {
-            $candidate = $parts[1].TrimStart("./")
+            $candidate = $parts[1] -replace '^\./', ''
             if ($candidate -eq $Asset) {
                 $expectedHash = $parts[0].ToLowerInvariant()
                 break
