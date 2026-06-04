@@ -57,10 +57,12 @@ argument-hint: "<问题>"
 按 `references/zatools-devwiki.md` 的结构化定位规则串行搜索：
 
 ```text
-index → glossary → topic/workflow → qmd query
+glossary keywords → index → glossary → topic/workflow → qmd query
 ```
 
-- 命中候选后先读 card，确认匹配后再按语义深度阅读 core/explain。
+- 定位和读取必须服从 `references/zatools-devwiki.md` 的 Glossary Alignment、Competitor Check、Card Scoring、Evidence Path 和 Confirmation Actions。
+- 命中候选后先读 card。“确认匹配”不是 agent 自行判断通过；当 reference 判定为 medium / low 时必须停止在 card 阶段，并请求用户确认问题意图和业务范围，不得继续读取 core/explain。
+- 只有 Evidence Path 为 high，或用户确认 medium 路径后，才按语义深度阅读 core/explain。
 - locate_code 默认回答 Workflow 文档中的实现入口、模块职责、状态流/数据流、副作用和文档中已记录的代码线索。
 - 没有可靠候选、没有独立 Topic/Workflow 或用户未确认候选时，不进入 raw/qmd/其他页面综合推断新主题；只说明未找到可靠依据、列出检索过的入口和建议用户补充锚点。
 - 如果 `wiki/index.md`、`wiki/glossary.md` 或目标目录缺失，或者真实页面仍不足以支撑结论，输出：

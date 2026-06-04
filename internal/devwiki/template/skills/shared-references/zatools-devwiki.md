@@ -64,6 +64,23 @@ zatools devwiki glossary keywords --project <project>
 
 该命令只逐行返回 `wiki/glossary.md` 的 `glossary` 列，用作项目术语先验和语义纠偏，不是真相源，也不能直接作为事实依据。agent 应从关键词列表中选出 0-5 个可能正式术语或别名，和用户原始问题一起作为后续 `search index/glossary/topic/workflow` 的查询词。
 
+#### Glossary Alignment Gate
+
+执行 `glossary keywords` 后，必须先形成术语对齐结论：
+
+- `exact_term` / `candidate_terms` / `generic_terms` / `ambiguity`
+- `exact_term`：用户原词是否命中 glossary 中的正式术语、slug、页面标题、接口、配置项或错误码
+- `candidate_terms`：从 glossary 中选出的 0-5 个正式候选或常用别名
+- `generic_terms`：用户词中只表示领域动作、不表示稳定主题的泛词，例如“探测、监控、同步、管理、配置、策略、查询”
+- `ambiguity`：是否存在多个候选主题都能合理解释用户原词
+
+搜索词构造规则：
+
+- 如果有 `exact_term`，优先使用用户原词 + exact term 搜索。
+- 如果没有 `exact_term`，但只有 1 个 `candidate_terms`，可使用用户原词 + candidate term 搜索，后续仍需 card 验证。
+- 如果没有 `exact_term`，且有 2 个以上 `candidate_terms`，不得用 `generic_terms` 直接扩大搜索后组织事实答案；只能用 `candidate_terms` 做候选定位，读 card 后进入确认门。
+- generic_terms 只能辅助召回，不能作为 primary subject；搜索结果如果主要由 generic_terms 命中，置信等级最高只能是 medium。
+
 不要无脑每轮调用 `glossary keywords`。以下情况可以跳过：
 
 - 用户已经给出明确 slug、页面标题、配置项、接口或错误码；
@@ -90,7 +107,25 @@ zatools devwiki glossary keywords --project <project>
 - `medium`：有关联，但角色、边界或主次关系不清，只能进入语义纠偏，不能直接当主依据回答
 - `low`：只是关键词命中、card 不支持、类型不权威或状态有风险，不读取 core/explain，不组织事实答案
 
-### Step 4: Hard Veto
+### Step 4: Competitor Check
+
+候选 card 为 high 只说明该页面内部质量高，不代表用户语义已确认。Card Scoring 后必须检查外部竞争候选。
+
+以下情况 Evidence Path 不得判为 high，最高只能为 medium，并必须进入确认门：
+
+- 用户原词不是 glossary 正式术语、slug、页面标题、接口、配置项或错误码
+- 存在 2 个以上 active 候选，且这些候选都能解释用户原词
+- 用户词包含泛化动作词，例如“探测、监控、同步、管理、策略、配置”，但没有明确业务限定
+- primary 候选只是“最像”，而不是和用户 `subject` 精确匹配
+- 候选之间属于不同业务族，例如拨测工具、Root Hint 监控、请求源地址监控、转发监控同时出现
+
+只有满足以下条件时，才能跳过确认继续读 core/explain：
+
+- 用户 `subject` 精确命中正式术语、slug、标题、接口、配置项或错误码；
+- 或者只有一个 active 候选，且没有合理竞争候选；
+- 或者同一轮对话已经确认过同一个 `type + slug`，且用户追问没有改变 `subject` / `scope`。
+
+### Step 5: Hard Veto
 
 命中 Hard Veto 的候选不得作为 `primary`：
 
@@ -101,7 +136,7 @@ zatools devwiki glossary keywords --project <project>
 - 候选只是短词、宽泛词、同名配置项或同名接口路径命中，summary 没有覆盖用户核心对象
 - deprecated / proposal / report 页面不能作为 active 事实主依据，除非用户明确问历史、提案或报告
 
-### Step 5: Evidence Path
+### Step 6: Evidence Path
 
 评分后必须构造 Evidence Path，而不是让用户选择文档：
 
@@ -115,13 +150,24 @@ zatools devwiki glossary keywords --project <project>
 
 单主题问题通常选择 1 个 `primary` 和 0-2 个 `supporting`。关系、联动、比较、排障和跨流程问题允许多个 Topic / Workflow / Troubleshooting 联合回答，但每个页面必须有明确角色，禁止把无角色的零散命中拼成新主题、新能力或推荐口径。
 
-### Step 6: Confirmation Actions
+### Step 7: Confirmation Actions
 
 根据证据路径置信等级分流：
 
 - `high`：直接继续，简要说明证据路径。同一轮对话中，已确认或已说明的同一个 `type + slug` 可在后续追问复用，直到用户切换主题、指出方向不对、出现新的竞争候选或准备执行写入/实现等高风险动作。
 - `medium`：只确认问题意图和业务范围，不让用户选择文档。说明 agent 的语义理解、主依据、相关依据和不确定点，询问“这个问题范围是否正确？”。
 - `low`：停止事实回答，请用户补充业务锚点。明确反馈“本轮没有找到可靠匹配文档”，列出检索过的入口和可补充的功能名、配置项、接口、错误码、现象或页面标题。
+
+medium / low 必须在读取 core/explain 前停止，不得先读取 core/explain 后再输出“可能是某能力”的事实答案。Medium confidence 确认模板：
+
+```text
+我理解你说的“<用户原词>”可能对应：
+1. <候选 A>：<一句 card 摘要>
+2. <候选 B>：<一句 card 摘要>
+3. <候选 C>：<一句 card 摘要>
+
+我倾向先按“<主候选>”理解，但这个词在当前 Project Brain 里不是稳定术语。你这里问的是“<主候选>”吗？
+```
 
 进入确认动作时，使用当前 Agent 环境的结构化用户确认工具：
 
@@ -187,7 +233,7 @@ raw/code 仍需本地核对；qmd 不是真相源。
 
 ## 视图分层读取
 
-读取 Topic / Workflow 时先用 card 判断，再按需读取 core/explain：
+读取 Topic / Workflow 时先用 card 判断，再按 Evidence Path 置信等级读取 core/explain：
 
 ```bash
 zatools devwiki read <topic|workflow> <slug> --view card --project <project>
@@ -196,7 +242,7 @@ zatools devwiki read <topic|workflow> <slug> --view explain --project <project>
 ```
 
 - `slug` 必须使用 search 结果中的 `slug` 字段，不要用文件名。
-- 候选逐个 card 验证，确认匹配才读取 core/explain；不要并行读多个候选的 card。
+- 候选逐个 card 验证；只有 Evidence Path 为 high，或用户确认 medium 路径后，才读取 core/explain；不要并行读多个候选的 card。
 - 只读 query 类 skill 必须用 `zatools devwiki read`，禁止直接读取 topic/workflow 文件。
 - 写入类 skill 已确认需要修改本地 Wiki 文件时，可以读取目标本地 Markdown 文件；因为目标就是修改该文件。remote source 不执行本地写入。
 
@@ -210,7 +256,7 @@ zatools devwiki read <topic|workflow> <slug> --view explain --project <project>
 6. 如果文档不足以支撑当前代码事实，不要静默查代码；说明知识缺口。缺少代码锚点且需要 DevWiki 定位入口时，建议显式使用 `$devwiki-code` 做代码核查；已有明确锚点时，按普通代码查看处理。
 7. `zatools qmd` 只是召回工具，不是真相源。
 8. 读取 view 时遵守知识经济学放置规则：先用 card 判断命中，再用 core 回答主问题，只有 core 不够时读取 explain。
-9. 搜索和读取串行降级，不并行：`devwiki search index` → `devwiki search glossary` → `devwiki search topic/workflow`，候选逐个 card 验证，确认匹配才往下走。
+9. 搜索和读取串行降级，不并行：`devwiki search index` → `devwiki search glossary` → `devwiki search topic/workflow`，候选逐个 card 验证，只有 Evidence Path 为 high 或用户确认 medium 路径后才往下走。
 10. 没有可靠候选、没有独立 Topic/Workflow 或用户未确认候选时，不组织推断性答案；只输出“当前 Project Brain 没有足够信息支持该结论。”、检索过的入口和可补充的锚点。
 
 ## 目录选择规则
