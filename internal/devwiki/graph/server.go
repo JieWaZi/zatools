@@ -163,6 +163,8 @@ func handleAPI(ctx context.Context, w http.ResponseWriter, r *http.Request, root
 		handleAPIRead(w, r, root)
 	case "/api/devwiki/search":
 		handleAPISearch(ctx, w, r, root)
+	case "/api/devwiki/glossary/keywords":
+		handleAPIGlossaryKeywords(w, root)
 	default:
 		http.NotFound(w, r)
 	}
@@ -262,6 +264,19 @@ func handleAPISearch(ctx context.Context, w http.ResponseWriter, r *http.Request
 	default:
 		http.Error(w, "unsupported devwiki search kind", http.StatusBadRequest)
 	}
+}
+
+func handleAPIGlossaryKeywords(w http.ResponseWriter, root string) {
+	keywords, err := retrieval.GlossaryKeywords(root)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	text := ""
+	if len(keywords) > 0 {
+		text = strings.Join(keywords, "\n") + "\n"
+	}
+	writeAPIJSON(w, apiTextResponse{Text: text})
 }
 
 func writeAPIJSON(w http.ResponseWriter, value any) {

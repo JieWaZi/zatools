@@ -29,6 +29,8 @@ type Catalog struct {
 	DevwikiCheckShort             string
 	DevwikiReadShort              string
 	DevwikiSearchShort            string
+	DevwikiGlossaryShort          string
+	DevwikiGlossaryKeywordsShort  string
 	DevwikiRepoShort              string
 	DevwikiRepoInitShort          string
 	DevwikiRepoAddShort           string
@@ -232,6 +234,8 @@ var catalogs = map[string]Catalog{
 		DevwikiCheckShort:             "校验 DevWiki 文档格式和图谱关系",
 		DevwikiReadShort:              "按 view 读取 DevWiki 页面",
 		DevwikiSearchShort:            "搜索 DevWiki 索引、术语、Topic 或 Workflow",
+		DevwikiGlossaryShort:          "查看 DevWiki glossary 术语",
+		DevwikiGlossaryKeywordsShort:  "逐行列出 DevWiki glossary 关键词",
 		DevwikiRepoShort:              "管理 DevWiki 项目配置",
 		DevwikiRepoInitShort:          "交互式添加 DevWiki 项目并关联代码库",
 		DevwikiRepoAddShort:           "添加 DevWiki 本地或远端项目",
@@ -433,6 +437,8 @@ var catalogs = map[string]Catalog{
 		DevwikiCheckShort:             "Validate DevWiki document format and graph relations",
 		DevwikiReadShort:              "Read a DevWiki page view",
 		DevwikiSearchShort:            "Search DevWiki index, glossary, Topic, or Workflow entries",
+		DevwikiGlossaryShort:          "Inspect DevWiki glossary terms",
+		DevwikiGlossaryKeywordsShort:  "List DevWiki glossary keywords line by line",
 		DevwikiRepoShort:              "Manage DevWiki project configuration",
 		DevwikiRepoInitShort:          "Interactively add a DevWiki project and link code repositories",
 		DevwikiRepoAddShort:           "Add a local or remote DevWiki project",

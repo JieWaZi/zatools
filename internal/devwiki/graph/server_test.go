@@ -171,6 +171,36 @@ func TestAPIHandlerServesDevwikiSearchIndexEndpointWithBasicAuth(t *testing.T) {
 	}
 }
 
+func TestAPIHandlerServesDevwikiGlossaryKeywordsWithBasicAuth(t *testing.T) {
+	root := t.TempDir()
+	writeGraphFile(t, root, "wiki/glossary.md", `# Glossary
+
+| glossary | type | description | slug |
+|---|---|---|---|
+| VIP | topic | VIP 业务规则入口 | vip |
+| 网关配置 | workflow | HA 网关配置实现入口 | workflow-ha-gateway |
+| VIP | workflow | 重复别名 | workflow-vip |
+`)
+
+	handler := APIHandler(root)
+	req := httptest.NewRequest(http.MethodPost, "/api/devwiki/glossary/keywords", bytes.NewBufferString(`{}`))
+	req.SetBasicAuth(DefaultAPIUsername, DefaultAPIPassword)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("Unmarshal response error = %v, body=%q", err, rec.Body.String())
+	}
+	if got.Text != "VIP\n网关配置\n" {
+		t.Fatalf("glossary keywords response = %q", got.Text)
+	}
+}
+
 func TestAPIHandlerServesDevwikiSearchWorkflowWithSharedQMDSearch(t *testing.T) {
 	root := t.TempDir()
 	writeGraphFile(t, root, "wiki/workflows/workflow-ha-brain-split-protection.md", `---

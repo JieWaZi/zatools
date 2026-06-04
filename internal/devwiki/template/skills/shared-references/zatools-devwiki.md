@@ -18,7 +18,7 @@
 基础顺序：
 
 ```text
-意图识别 → devwiki search index → devwiki search glossary → devwiki search topic/workflow → qmd query → raw/code 核对
+意图识别 → 必要时 glossary keywords 术语对齐 → devwiki search index → devwiki search glossary → devwiki search topic/workflow → qmd query → raw/code 核对
 ```
 
 任一阶段拿到足够强的 top-K 且置信足够即停；不要为了“保险”无边界扩大搜索。
@@ -36,36 +36,102 @@
 
 不要把所有关键词都当成精确锚点。`ssh`、`vip`、`auth`、`token`、`query`、`sync` 这类短词只是中锚点；如果用户问“怎么实现 / 怎么设计 / 怎么排障”，不能因为本地命中这些短词就停止。
 
-## 用户确认门与自我反思
+## 语义纠偏、候选评分与证据路径选择
 
-只要通过 index/glossary/topic/workflow/qmd search 找到候选文档，且准备把其中某个候选作为后续读取、代码定位、实现或维护方向，必须先停在用户确认门。不要直接读取 core/explain，不要进入 code-tracing，不要开始修改代码或文档。
+用户确认门不是文档选择器，而是语义纠偏器。agent 必须基于 search 结果和 card 信息自主判断候选与用户意图的匹配程度，并选择最合适的单文档或多文档证据路径。用户只确认问题意图和业务范围，不负责选择文档。
 
-确认前先做一次自我反思：
+在读取 core/explain、进入 code-tracing、回答事实结论、实现或维护前，必须完成以下流程。
 
-- 用户问题是否只是短词或宽泛领域词，导致关键词命中但语义不一定匹配；
-- 候选的 `type`、标题、`description` 或 card 是否真的覆盖用户意图；
-- active / deprecated / report / proposal / troubleshooting 是否混杂，是否可能把过程报告当事实页；
-- 候选是否只因为同名词、配置项或接口路径命中，但业务场景、模块边界或时间状态不一致；
-- 是否没有可靠候选，或命中结果显示文档可能不存在、过期、冲突。
+### Step 1: Intent Profile
 
-确认问题必须直接、具体，使用当前 Agent 环境的结构化用户确认工具询问用户是否对当前查询结果满意，
+先生成用户语义画像，不要直接按搜索分数选文档。画像至少包含：
+
+- `intent_type` / `subject` / `focus` / `scope` / `anchors` / `negative_scope`
+- `intent_type`：`explain_topic` / `locate_code` / `troubleshoot` / `compare` / `relationship` / `public_answer` / `wiki_maintenance`
+- `subject`：用户问题里的核心对象，例如功能名、配置项、接口、错误码、现象、页面标题或 slug
+- `focus`：用户关注功能、配置、边界、状态、联动、实现入口、排障、差异还是对外口径
+- `scope`：单主题、多主题关系、比较、跨流程、排障链路或维护审计
+- `anchors`：用户提供的明确锚点
+- `negative_scope`：用户没有要求的内容，例如未要求当前代码核查、未要求实现细节、未要求修改
+
+### Step 2: Glossary Keywords 术语对齐
+
+当 Intent Profile 的 `subject` / `anchors` 不稳定，或用户问题包含短词、简称、口语词、宽泛领域词、多个相邻主题时，先调用：
+
+```bash
+zatools devwiki glossary keywords --project <project>
+```
+
+该命令只逐行返回 `wiki/glossary.md` 的 `glossary` 列，用作项目术语先验和语义纠偏，不是真相源，也不能直接作为事实依据。agent 应从关键词列表中选出 0-5 个可能正式术语或别名，和用户原始问题一起作为后续 `search index/glossary/topic/workflow` 的查询词。
+
+不要无脑每轮调用 `glossary keywords`。以下情况可以跳过：
+
+- 用户已经给出明确 slug、页面标题、配置项、接口或错误码；
+- 同一轮对话已有稳定 Evidence Path，追问没有改变 `subject` 和 `scope`；
+- 当前任务是明确代码锚点或普通代码编辑，不需要 DevWiki 语义纠偏。
+
+### Step 3: Card Scoring
+
+候选摘要必须合并 search 结果和 card 信息：`type/slug/title/score/description` 来自搜索结果，`status/summary/confidence/适合回答/不适合回答` 来自 card。card 信息不足时不得把候选视为 high confidence。
+
+对每个准备采用的候选执行 Card Scoring，并记录以下维度：
+
+- `intent_match` / `subject_match` / `authority_match` / `card_fit` / `status_quality` / `ambiguity_penalty`
+- `intent_match`：card 的“适合回答”是否覆盖当前 `intent_type`
+- `subject_match`：标题、description、summary 是否覆盖用户核心对象，而不是只命中同名词
+- `authority_match`：Topic 是否用于功能边界，Workflow 是否用于实现入口，Troubleshooting 是否用于排障路径
+- `card_fit`：summary、适合回答、不适合回答是否支持或排斥当前问题
+- `status_quality`：active / deprecated / report / proposal / troubleshooting 是否适合作为事实依据
+- `ambiguity_penalty`：短词、宽泛词、同名配置项、同名接口路径、多候选相似、关系/比较问题被单点候选覆盖不全等风险
+
+评分结果分为：
+
+- `high`：语义、主题、权威类型和 card 均匹配，没有 Hard Veto，可作为 `primary` 或明确的 `supporting`
+- `medium`：有关联，但角色、边界或主次关系不清，只能进入语义纠偏，不能直接当主依据回答
+- `low`：只是关键词命中、card 不支持、类型不权威或状态有风险，不读取 core/explain，不组织事实答案
+
+### Step 4: Hard Veto
+
+命中 Hard Veto 的候选不得作为 `primary`：
+
+- card 的“不适合回答”明确包含当前 `intent_type` 或 `focus`
+- 用户问 `explain_topic`，候选只是 Workflow、report 或 proposal，且没有独立 Topic 支撑
+- 用户问 `troubleshoot`，候选没有 troubleshooting 或诊断信息，只是功能说明
+- 用户问 `compare` / `relationship`，候选只能回答单点，且没有 supporting 集合
+- 候选只是短词、宽泛词、同名配置项或同名接口路径命中，summary 没有覆盖用户核心对象
+- deprecated / proposal / report 页面不能作为 active 事实主依据，除非用户明确问历史、提案或报告
+
+### Step 5: Evidence Path
+
+评分后必须构造 Evidence Path，而不是让用户选择文档：
+
+- `primary` / `supporting` / `implementation` / `troubleshooting` / `excluded`
+- 每个被采用页面必须说明 `role` 和 `why`
+- `primary`：直接回答核心问题
+- `supporting`：回答关联配置、边界、状态或联动点
+- `implementation`：只提供文档记录的实现入口、模块职责或状态流线索
+- `troubleshooting`：只提供排障现象、诊断路径、可能原因或恢复步骤
+- `excluded`：命中但不采用，并说明排除原因，避免跑偏
+
+单主题问题通常选择 1 个 `primary` 和 0-2 个 `supporting`。关系、联动、比较、排障和跨流程问题允许多个 Topic / Workflow / Troubleshooting 联合回答，但每个页面必须有明确角色，禁止把无角色的零散命中拼成新主题、新能力或推荐口径。
+
+### Step 6: Confirmation Actions
+
+根据证据路径置信等级分流：
+
+- `high`：直接继续，简要说明证据路径。同一轮对话中，已确认或已说明的同一个 `type + slug` 可在后续追问复用，直到用户切换主题、指出方向不对、出现新的竞争候选或准备执行写入/实现等高风险动作。
+- `medium`：只确认问题意图和业务范围，不让用户选择文档。说明 agent 的语义理解、主依据、相关依据和不确定点，询问“这个问题范围是否正确？”。
+- `low`：停止事实回答，请用户补充业务锚点。明确反馈“本轮没有找到可靠匹配文档”，列出检索过的入口和可补充的功能名、配置项、接口、错误码、现象或页面标题。
+
+进入确认动作时，使用当前 Agent 环境的结构化用户确认工具：
+
 - Codex 使用 askuserquestion / request_user_input
 - Cursor 使用 AskQuestion / ask questions tool
 - Claude 使用 AskUserQuestion
-如果当前环境没有结构化提问工具，必须以普通聊天问题停止并等待用户回复，不得继续执行后续流程。提问时列出最多 3 个候选，并说明每个候选的：
 
-- `type`、`slug` / 标题；
-- 为什么看起来匹配；
-- 支撑证据来自 search description 还是 card；
-- 当前不确定点。
+如果当前环境没有结构化提问工具，必须以普通聊天问题停止并等待用户回复，不得继续执行后续流程。用户未确认、否定问题范围、表示不确定、指出方向不对，或证据路径不足时，必须停止沿当前路径推进，改为请用户补充锚点、调整关键词或重新搜索。
 
-候选摘要必须合并 search 结果和 card 信息：`type/slug/title/score/description` 来自搜索结果，`status/summary/confidence/适合回答/不适合回答` 来自 card。card 信息不足以说明“为什么匹配”或“哪里不确定”时，不得把候选视为 high confidence，只能以 medium/low confidence 向用户确认。
-
-提问不能空泛，不要只问“这个对吗”。应明确询问：“我准备沿候选 A 继续，是否对当前查询结果满意？如果不是，请指出更接近的功能名、接口、模块或页面。”
-
-用户明确确认满意后，才能继续读取已确认候选的 core/explain，并进入后续回答、代码核对、实现或维护流程。用户未确认、用户不满意、表示不确定、指出方向不对，或候选证据不足时，必须停止沿当前候选推进，改为请用户补充锚点、调整关键词或重新搜索。没有可靠候选时，不要编造页面或静默继续；明确反馈“本轮没有找到可靠匹配文档”，再向用户确认下一步。
-
-没有可靠候选时，不要把分散命中综合成新主题、新能力或推荐口径；只允许说明未找到依据、列出检索过的入口和请求用户补充锚点。尤其是 explain_topic 场景，缺少独立 Topic 或用户确认的候选时，不能用多个页面里的同词命中拼出能力边界。
+没有可靠候选时，不要把分散命中综合成新主题、新能力或推荐口径；只允许说明未找到依据、列出检索过的入口和请求用户补充锚点。尤其是 explain_topic 场景，缺少独立 Topic 或高置信 Evidence Path 时，不能用多个页面里的同词命中拼出能力边界。
 
 
 ### 第 1 档：Index / Glossary
@@ -73,19 +139,20 @@
 默认先检索 DevWiki 结构化入口：
 
 ```bash
+zatools devwiki glossary keywords --project <project>
 zatools devwiki search index <query...> --project <project>
 zatools devwiki search glossary <query...> --project <project>
 ```
 
-`index` 返回 `type`、`description`、`slug`；`glossary` 返回 `glossary`、`type`、`description`、`slug`。这两个命令是结构化表格检索；在 `--project` 下由 CLI 根据统一配置选择本地文档库或远端 HTTP API，不依赖 qmd，也不输出 `score`。agent 必须根据 `description` 和用户问题做语义打分。
+`glossary keywords` 逐行返回 glossary 关键词，只用于术语对齐。`search index` 默认输出 `|type|description|slug|` pipe table；`search glossary` 默认输出 `|glossary|type|description|slug|` pipe table；在 `--project` 下由 CLI 根据统一配置选择本地文档库或远端 HTTP API，不依赖 qmd，也不输出 `score`。agent 必须根据 `description`、card 和用户问题做语义打分。
 
 结构化搜索置信判断：
 
 | 置信等级 | 判断标准 | 后续动作 |
 |---|---|---|
-| high | index/glossary 命中 1-5 个入口；`type` 与意图一致；`description` 明确覆盖用户问题 | 进入用户确认门；用户确认满意后才读命中页 |
+| high | index/glossary 命中 1-5 个入口；`type` 与意图一致；`description` 明确覆盖用户问题 | 唯一 high 且无竞争候选时可说明依据后读取命中页；多个 high 或边界不清时进入用户确认门 |
 | medium | 命中 6-20 条；有 2-4 个候选入口；需要读 card 后判断主页面 | 必要时只读 card 帮助排序，然后进入用户确认门；仍无法排序则升档 |
-| low | 0 命中；超过 20 条散点命中；短词命中过泛；active/deprecated/report 混杂；页面冲突；无法判断权威页 | 先升档到 `zatools devwiki search <topic|workflow> <query...> --project <project>`；升档后找到候选再进入用户确认门；仍无可靠候选时再向用户反馈并请求补充锚点 |
+| low | 0 命中；超过 20 条散点命中；短词命中过泛；active/deprecated/report 混杂；页面冲突；无法判断权威页 | 必要时先用 `glossary keywords` 做术语对齐，再升档到 `zatools devwiki search <topic|workflow> <query...> --project <project>`；升档后找到候选再进入 Evidence Path；仍无可靠候选时再向用户反馈并请求补充锚点 |
 
 
 ### 第 2 档：Topic / Workflow Search
@@ -101,6 +168,7 @@ zatools devwiki search workflow 防脑裂 网关 ha-group gateway --project <pro
 - 多个关键词应作为多个参数传入，不要合并成一个带空格的字符串。
 - 多 query 结果使用 RRF（Reciprocal Rank Fusion）按各关键词下的排名融合排序，`score` 为融合后的相对百分比。
 - `devwiki search topic/workflow` 底层调用 `qmd search`，不依赖向量，CPU 友好，适合作为结构化入口搜索的升档。
+- `devwiki search topic/workflow` 默认输出 `|file|slug|title|score|` pipe table。
 - `devwiki search` 命中只是候选排序，最终结论必须回到真实 `wiki/`、`raw/` 或已核对代码文件。
 
 ### 第 3 档：qmd Query

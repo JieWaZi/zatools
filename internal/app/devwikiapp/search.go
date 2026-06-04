@@ -2,7 +2,6 @@ package devwikiapp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -24,6 +23,13 @@ type SearchOptions struct {
 	Stdout     io.Writer
 }
 
+// GlossaryKeywordsOptions describes `zatools devwiki glossary keywords`.
+type GlossaryKeywordsOptions struct {
+	Root    string
+	Project string
+	Stdout  io.Writer
+}
+
 // SearchResult is one compact DevWiki search hit.
 type SearchResult = retrieval.SearchResult
 
@@ -39,27 +45,12 @@ func (s *Service) runSearch(ctx context.Context, opts SearchOptions) error {
 		stdout = os.Stdout
 	}
 	opts.Stdout = stdout
-	root := opts.Root
-	if strings.TrimSpace(opts.Project) != "" {
-		cfg, err := devwiki.LoadRepoConfig(opts.Project)
-		if err != nil {
-			return err
-		}
-		source, err := devwiki.ActiveRepoSource(cfg)
-		if err != nil {
-			return err
-		}
-		if source.Type == devwiki.RepoSourceRemote {
-			return s.searchRemote(ctx, source, opts)
-		}
-		root = source.Path
-	}
-	if root == "" {
-		root = s.runtime.Workspace.CWD
-	}
-	absRoot, err := filepath.Abs(root)
+	absRoot, remote, err := s.resolveDevwikiSource(opts.Root, opts.Project)
 	if err != nil {
 		return err
+	}
+	if remote != nil {
+		return s.searchRemote(ctx, *remote, opts)
 	}
 	kind := strings.TrimSpace(opts.Kind)
 	queries := normalizeSearchQueries(opts)
@@ -72,13 +63,13 @@ func (s *Service) runSearch(ctx context.Context, opts SearchOptions) error {
 		if err != nil {
 			return err
 		}
-		return encodeSearchJSON(stdout, results)
+		return writeIndexSearchTable(stdout, results)
 	case "glossary":
 		results, err := retrieval.SearchGlossaryTable(absRoot, queries)
 		if err != nil {
 			return err
 		}
-		return encodeSearchJSON(stdout, results)
+		return writeGlossarySearchTable(stdout, results)
 	case page.KindTopic, page.KindWorkflow:
 	default:
 		return fmt.Errorf("unsupported devwiki search kind %q", kind)
@@ -88,13 +79,115 @@ func (s *Service) runSearch(ctx context.Context, opts SearchOptions) error {
 	if err != nil {
 		return err
 	}
-	return encodeSearchJSON(stdout, results)
+	return writePageSearchTable(stdout, results)
 }
 
-func encodeSearchJSON(stdout io.Writer, value any) error {
-	encoder := json.NewEncoder(stdout)
-	encoder.SetEscapeHTML(false)
-	return encoder.Encode(value)
+// GlossaryKeywords writes unique glossary terms, one per line.
+func (s *Service) GlossaryKeywords(ctx context.Context, opts GlossaryKeywordsOptions) error {
+	stdout := opts.Stdout
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+	opts.Stdout = stdout
+	absRoot, remote, err := s.resolveDevwikiSource(opts.Root, opts.Project)
+	if err != nil {
+		return err
+	}
+	if remote != nil {
+		return s.glossaryKeywordsRemote(ctx, *remote, opts)
+	}
+	keywords, err := retrieval.GlossaryKeywords(absRoot)
+	if err != nil {
+		return err
+	}
+	for _, keyword := range keywords {
+		if _, err := fmt.Fprintln(stdout, keyword); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) resolveDevwikiSource(root string, project string) (string, *devwiki.RepoSource, error) {
+	if strings.TrimSpace(project) != "" {
+		cfg, err := devwiki.LoadRepoConfig(project)
+		if err != nil {
+			return "", nil, err
+		}
+		source, err := devwiki.ActiveRepoSource(cfg)
+		if err != nil {
+			return "", nil, err
+		}
+		if source.Type == devwiki.RepoSourceRemote {
+			return "", &source, nil
+		}
+		root = source.Path
+	}
+	if root == "" {
+		root = s.runtime.Workspace.CWD
+	}
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", nil, err
+	}
+	return absRoot, nil, nil
+}
+
+func writeIndexSearchTable(stdout io.Writer, results []IndexSearchResult) error {
+	if _, err := fmt.Fprintln(stdout, "|type|description|slug|"); err != nil {
+		return err
+	}
+	for _, result := range results {
+		if _, err := fmt.Fprintf(stdout, "|%s|%s|%s|\n",
+			pipeCell(result.Type),
+			pipeCell(result.Description),
+			pipeCell(result.Slug),
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeGlossarySearchTable(stdout io.Writer, results []GlossarySearchResult) error {
+	if _, err := fmt.Fprintln(stdout, "|glossary|type|description|slug|"); err != nil {
+		return err
+	}
+	for _, result := range results {
+		if _, err := fmt.Fprintf(stdout, "|%s|%s|%s|%s|\n",
+			pipeCell(result.Glossary),
+			pipeCell(result.Type),
+			pipeCell(result.Description),
+			pipeCell(result.Slug),
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writePageSearchTable(stdout io.Writer, results []SearchResult) error {
+	if _, err := fmt.Fprintln(stdout, "|file|slug|title|score|"); err != nil {
+		return err
+	}
+	for _, result := range results {
+		if _, err := fmt.Fprintf(stdout, "|%s|%s|%s|%s|\n",
+			pipeCell(result.File),
+			pipeCell(result.Slug),
+			pipeCell(result.Title),
+			pipeCell(result.Score),
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func pipeCell(value string) string {
+	value = strings.ReplaceAll(value, "\r\n", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	value = strings.ReplaceAll(value, "|", "\\|")
+	return strings.TrimSpace(value)
 }
 
 func normalizeSearchQueries(opts SearchOptions) []string {

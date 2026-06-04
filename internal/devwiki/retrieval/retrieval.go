@@ -374,6 +374,32 @@ func SearchGlossaryTable(root string, queries []string) ([]GlossarySearchResult,
 	return results, nil
 }
 
+// GlossaryKeywords returns unique glossary terms in table order.
+func GlossaryKeywords(root string) ([]string, error) {
+	data, err := os.ReadFile(filepath.Join(root, "wiki", "glossary.md"))
+	if err != nil {
+		return nil, err
+	}
+	rows := ParseMarkdownTableRows(string(data))
+	keywords := make([]string, 0, len(rows))
+	seen := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		keyword := row["glossary"]
+		if keyword == "" || row["type"] == "" || row["description"] == "" || row["slug"] == "" {
+			continue
+		}
+		if _, ok := seen[keyword]; ok {
+			continue
+		}
+		seen[keyword] = struct{}{}
+		keywords = append(keywords, keyword)
+	}
+	if keywords == nil {
+		keywords = []string{}
+	}
+	return keywords, nil
+}
+
 // ParseMarkdownTableRows parses pipe table rows into lowercase-header maps.
 func ParseMarkdownTableRows(text string) []map[string]string {
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")

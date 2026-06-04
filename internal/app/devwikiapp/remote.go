@@ -51,7 +51,36 @@ func (s *Service) searchRemote(ctx context.Context, source devwiki.RepoSource, o
 	}, &raw); err != nil {
 		return err
 	}
-	_, err := opts.Stdout.Write(append(raw, '\n'))
+	switch strings.TrimSpace(opts.Kind) {
+	case "index":
+		var results []IndexSearchResult
+		if err := json.Unmarshal(raw, &results); err != nil {
+			return err
+		}
+		return writeIndexSearchTable(opts.Stdout, results)
+	case "glossary":
+		var results []GlossarySearchResult
+		if err := json.Unmarshal(raw, &results); err != nil {
+			return err
+		}
+		return writeGlossarySearchTable(opts.Stdout, results)
+	case "topic", "workflow":
+		var results []SearchResult
+		if err := json.Unmarshal(raw, &results); err != nil {
+			return err
+		}
+		return writePageSearchTable(opts.Stdout, results)
+	default:
+		return fmt.Errorf("unsupported devwiki search kind %q", opts.Kind)
+	}
+}
+
+func (s *Service) glossaryKeywordsRemote(ctx context.Context, source devwiki.RepoSource, opts GlossaryKeywordsOptions) error {
+	var response remoteTextResponse
+	if err := postRemoteJSON(ctx, source.URL, "/api/devwiki/glossary/keywords", struct{}{}, &response); err != nil {
+		return err
+	}
+	_, err := fmt.Fprint(opts.Stdout, response.Text)
 	return err
 }
 

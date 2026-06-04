@@ -201,6 +201,7 @@ zatools devwiki repo link <project> <repo-slug> <path>
 zatools devwiki repo use <project> <local|remote>
 zatools devwiki repo info [project]
 zatools devwiki read <topic|workflow> <slug> [--view <card|core|explain>] [--format text] [--root <dir>] [--project <project>]
+zatools devwiki glossary keywords [--root <dir>] [--project <project>]
 zatools devwiki search <index|glossary|topic|workflow> <query...> [--root <dir>] [--project <project>]
 zatools devwiki check [document|graph] [path...] [--root <dir>]
 zatools devwiki graph [--root <dir>] [--project <project>] [--host 127.0.0.1] [--port 5696] [--no-open] [--force]
@@ -215,7 +216,8 @@ zatools devwiki tool log --wiki-root <dir> --message "<text>"
 - `devwiki update`：更新当前作用域内的 DevWiki 内置 skills，并尽力执行 qmd 注册、索引和向量刷新；qmd 失败只提示告警
 - `devwiki repo`：维护用户级 DevWiki 项目配置，支持交互式 `repo init` 引导注册本地/远程文档库、选择 Agent、安装 DevWiki skills 并关联代码仓；同一 project 可同时保存本地和远端来源，`repo add` 更新对应来源并设为当前来源，`repo use <project> <local|remote>` 在两者之间切换；输出默认 JSON，`repo info` 无参数时只列出 project 名称，有 project 时包含 `active_source`、全部 `sources` 和已绑定代码仓路径
 - `devwiki read`：按 topic / workflow 的 `card`、`core`、`explain` 视图读取结构化页面内容
-- `devwiki search`：`index` / `glossary` 本地解析结构化表格并输出最小 JSON；`topic` / `workflow` 调用 `qmd search` 后过滤并输出 `file`、`slug`、`title` 和 `score` JSON
+- `devwiki glossary keywords`：逐行输出 `wiki/glossary.md` 的 `glossary` 列，供 Agent 做项目术语对齐和语义纠偏
+- `devwiki search`：`index` / `glossary` 本地解析结构化表格并输出 pipe table；`topic` / `workflow` 调用 `qmd search` 后过滤并输出 `file`、`slug`、`title` 和 `score` pipe table，减少重复 JSON key 带来的 token 消耗
 - `devwiki check`：校验 index/glossary/log 格式、Topic/Workflow 文档分块和图谱关系；未指定类型时检查 document 和 graph，未指定路径时检查 `wiki/`
 - `devwiki graph`：从 topic / workflow 页面生成图谱数据并启动本地图谱页面，默认监听 `127.0.0.1:5696`，可通过 `--host` / `--port` 指定；自动打开浏览器失败时只提示，不影响服务运行
 - `devwiki server`：启动只读 HTTP API，默认 `0.0.0.0:5697`，接口使用内置 Basic Auth

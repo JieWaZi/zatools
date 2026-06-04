@@ -297,6 +297,28 @@ func TestDevwikiRepoCommandSurface(t *testing.T) {
 	}
 }
 
+func TestDevwikiGlossaryKeywordsCommandFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	keywordsCmd, _, err := cmd.Find([]string{"glossary", "keywords"})
+	if err != nil {
+		t.Fatalf("Find(glossary keywords) error = %v", err)
+	}
+	if keywordsCmd == nil {
+		t.Fatal("glossary keywords command is nil")
+	}
+	if keywordsCmd.Flags().Lookup("root") == nil {
+		t.Fatal("glossary keywords command missing flag root")
+	}
+	if keywordsCmd.Flags().Lookup("project") == nil {
+		t.Fatal("glossary keywords command missing flag project")
+	}
+	if keywordsCmd.Annotations[SuppressLogoAnnotation] != "true" {
+		t.Fatalf("glossary keywords command should suppress logo annotation")
+	}
+}
+
 func TestDevwikiSearchAcceptsMultipleQueryTerms(t *testing.T) {
 	t.Parallel()
 

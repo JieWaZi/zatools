@@ -64,7 +64,7 @@ func (s *Service) Read(ctx context.Context, opts ReadOptions) error {
 	return s.runRead(ctx, opts)
 }
 
-// Search searches DevWiki pages through qmd and returns compact JSON hits.
+// Search searches DevWiki entries and prints compact pipe-table hits.
 func (s *Service) Search(ctx context.Context, opts SearchOptions) error {
 	return s.runSearch(ctx, opts)
 }

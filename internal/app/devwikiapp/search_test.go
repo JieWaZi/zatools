@@ -3,7 +3,6 @@ package devwikiapp
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -22,7 +21,7 @@ import (
 	"zatools/internal/skills"
 )
 
-func TestSearchTopicFiltersQMDOutputAndWritesJSON(t *testing.T) {
+func TestSearchTopicFiltersQMDOutputAndWritesTable(t *testing.T) {
 	root := t.TempDir()
 	writeDevwikiReadFixture(t, root, "wiki/topics/ha-brain-split-protection.md", `---
 title: "HA 脑裂监控与防护"
@@ -46,15 +45,9 @@ summary: "HA brain split"
 		t.Fatalf("Search() error = %v", err)
 	}
 
-	var got []SearchResult
-	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatalf("Unmarshal output error = %v, output=%q", err, out.String())
-	}
-	want := []SearchResult{
-		{File: "ha-brain-split-protection.md", Slug: "ha-brain-split-protection", Title: "HA 脑裂监控与防护", Score: "84%"},
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("results = %#v, want %#v", got, want)
+	want := "|file|slug|title|score|\n|ha-brain-split-protection.md|ha-brain-split-protection|HA 脑裂监控与防护|84%|\n"
+	if out.String() != want {
+		t.Fatalf("Search() output = %q, want %q", out.String(), want)
 	}
 }
 
@@ -90,16 +83,11 @@ summary: "Gateway workflow"
 		t.Fatalf("Search() error = %v", err)
 	}
 
-	var got []SearchResult
-	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatalf("Unmarshal output error = %v, output=%q", err, out.String())
-	}
-	want := []SearchResult{
-		{File: "workflow-ha-brain-split-protection.md", Slug: "workflow-ha-brain-split-protection", Title: "HA 脑裂监控与防护实现定位", Score: "100%"},
-		{File: "workflow-ha-gateway-config.md", Slug: "workflow-ha-gateway-config", Title: "HA 网关配置实现定位", Score: "49%"},
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("results = %#v, want %#v", got, want)
+	want := "|file|slug|title|score|\n" +
+		"|workflow-ha-brain-split-protection.md|workflow-ha-brain-split-protection|HA 脑裂监控与防护实现定位|100%|\n" +
+		"|workflow-ha-gateway-config.md|workflow-ha-gateway-config|HA 网关配置实现定位|49%|\n"
+	if out.String() != want {
+		t.Fatalf("Search() output = %q, want %q", out.String(), want)
 	}
 }
 
@@ -176,16 +164,12 @@ summary: "Gateway workflow"
 		t.Fatalf("qmd search queries = %#v, want %#v", gotQueries, wantQueries)
 	}
 
-	var got []SearchResult
-	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatalf("Unmarshal output error = %v, output=%q", err, out.String())
-	}
-	if len(got) != 2 {
-		t.Fatalf("fused result count = %d, want 2; results=%#v", len(got), got)
+	if gotRows := strings.Count(strings.TrimSpace(out.String()), "\n"); gotRows != 2 {
+		t.Fatalf("fused output row count = %d, want 2 data rows plus header; output=%q", gotRows, out.String())
 	}
 }
 
-func TestSearchIndexParsesTableAndWritesJSON(t *testing.T) {
+func TestSearchIndexParsesTableAndWritesPipeTable(t *testing.T) {
 	root := t.TempDir()
 	writeDevwikiReadFixture(t, root, "wiki/index.md", `# Wiki Index
 
@@ -208,22 +192,16 @@ func TestSearchIndexParsesTableAndWritesJSON(t *testing.T) {
 		t.Fatalf("Search() error = %v", err)
 	}
 
-	var got []IndexSearchResult
-	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatalf("Unmarshal output error = %v, output=%q", err, out.String())
-	}
-	want := []IndexSearchResult{
-		{Type: "topic", Description: "HA 脑裂监控与防护的业务规则入口", Slug: "ha-brain-split-protection"},
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("results = %#v, want %#v", got, want)
+	want := "|type|description|slug|\n|topic|HA 脑裂监控与防护的业务规则入口|ha-brain-split-protection|\n"
+	if out.String() != want {
+		t.Fatalf("Search() output = %q, want %q", out.String(), want)
 	}
 	if strings.Contains(out.String(), "score") {
 		t.Fatalf("index search output should not include score: %s", out.String())
 	}
 }
 
-func TestSearchGlossaryParsesTableAndWritesJSON(t *testing.T) {
+func TestSearchGlossaryParsesTableAndWritesPipeTable(t *testing.T) {
 	root := t.TempDir()
 	writeDevwikiReadFixture(t, root, "wiki/glossary.md", `# Glossary
 
@@ -246,22 +224,16 @@ func TestSearchGlossaryParsesTableAndWritesJSON(t *testing.T) {
 		t.Fatalf("Search() error = %v", err)
 	}
 
-	var got []GlossarySearchResult
-	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatalf("Unmarshal output error = %v, output=%q", err, out.String())
-	}
-	want := []GlossarySearchResult{
-		{Glossary: "网关配置", Type: "workflow", Description: "HA 网关配置下发和持久化实现链路", Slug: "workflow-ha-gateway-config"},
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("results = %#v, want %#v", got, want)
+	want := "|glossary|type|description|slug|\n|网关配置|workflow|HA 网关配置下发和持久化实现链路|workflow-ha-gateway-config|\n"
+	if out.String() != want {
+		t.Fatalf("Search() output = %q, want %q", out.String(), want)
 	}
 	if strings.Contains(out.String(), "score") {
 		t.Fatalf("glossary search output should not include score: %s", out.String())
 	}
 }
 
-func TestSearchIndexWritesEmptyJSONArrayWhenNoRowsMatch(t *testing.T) {
+func TestSearchIndexWritesHeaderOnlyTableWhenNoRowsMatch(t *testing.T) {
 	root := t.TempDir()
 	writeDevwikiReadFixture(t, root, "wiki/index.md", `# Wiki Index
 
@@ -281,8 +253,36 @@ func TestSearchIndexWritesEmptyJSONArrayWhenNoRowsMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Search() error = %v", err)
 	}
-	if strings.TrimSpace(out.String()) != "[]" {
-		t.Fatalf("Search() output = %q, want []", out.String())
+	want := "|type|description|slug|\n"
+	if out.String() != want {
+		t.Fatalf("Search() output = %q, want %q", out.String(), want)
+	}
+}
+
+func TestGlossaryKeywordsWritesUniqueTermsAsLines(t *testing.T) {
+	root := t.TempDir()
+	writeDevwikiReadFixture(t, root, "wiki/glossary.md", `# Glossary
+
+| glossary | type | description | slug |
+|---|---|---|---|
+| 脑裂 | topic | HA 集群节点互相误判时的隔离与恢复规则 | ha-brain-split-protection |
+| 网关配置 | workflow | HA 网关配置下发和持久化实现链路 | workflow-ha-gateway-config |
+| 脑裂 | workflow | 重复别名应去重 | workflow-ha-brain-split-protection |
+| 无效术语 | topic | missing slug | |
+`)
+	service := NewServiceWithRuntime(common.Runtime{Workspace: skills.NewWorkspace(root)})
+	var out bytes.Buffer
+
+	err := service.GlossaryKeywords(context.Background(), GlossaryKeywordsOptions{
+		Root:   root,
+		Stdout: &out,
+	})
+	if err != nil {
+		t.Fatalf("GlossaryKeywords() error = %v", err)
+	}
+	want := "脑裂\n网关配置\n"
+	if out.String() != want {
+		t.Fatalf("GlossaryKeywords() output = %q, want %q", out.String(), want)
 	}
 }
 
@@ -316,7 +316,7 @@ func TestParseQMDSearchFileLineAcceptsQMDURICollectionPaths(t *testing.T) {
 	}
 }
 
-func TestSearchWritesEmptyJSONArrayWhenNoHitsMatchKind(t *testing.T) {
+func TestSearchWritesHeaderOnlyTableWhenNoHitsMatchKind(t *testing.T) {
 	root := t.TempDir()
 	service := NewServiceWithRuntime(common.Runtime{Workspace: skills.NewWorkspace(root)})
 	ctx := qmd.WithCommandRunner(context.Background(), devwikiSearchQMDHelperRunner(t, root))
@@ -331,8 +331,9 @@ func TestSearchWritesEmptyJSONArrayWhenNoHitsMatchKind(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Search() error = %v", err)
 	}
-	if strings.TrimSpace(out.String()) != "[]" {
-		t.Fatalf("Search() output = %q, want []", out.String())
+	want := "|file|slug|title|score|\n"
+	if out.String() != want {
+		t.Fatalf("Search() output = %q, want %q", out.String(), want)
 	}
 }
 
@@ -379,13 +380,9 @@ func TestSearchUsesLocalProjectConfigWhenProjectProvided(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Search(project) error = %v", err)
 	}
-	var got []IndexSearchResult
-	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatalf("Unmarshal output error = %v, output=%q", err, out.String())
-	}
-	want := []IndexSearchResult{{Type: "topic", Description: "VIP 业务规则入口", Slug: "vip"}}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("results = %#v, want %#v", got, want)
+	want := "|type|description|slug|\n|topic|VIP 业务规则入口|vip|\n"
+	if out.String() != want {
+		t.Fatalf("Search(project) output = %q, want %q", out.String(), want)
 	}
 }
 
@@ -424,13 +421,9 @@ func TestSearchUsesRemoteProjectConfigWhenProjectProvided(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Search(remote project) error = %v", err)
 	}
-	var got []SearchResult
-	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatalf("Unmarshal output error = %v, output=%q", err, out.String())
-	}
-	want := []SearchResult{{File: "workflow-ha.md", Slug: "workflow-ha", Title: "HA", Score: "100%"}}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("results = %#v, want %#v", got, want)
+	want := "|file|slug|title|score|\n|workflow-ha.md|workflow-ha|HA|100%|\n"
+	if out.String() != want {
+		t.Fatalf("Search(remote project) output = %q, want %q", out.String(), want)
 	}
 }
 
@@ -473,12 +466,9 @@ func TestSearchUsesRemoteProjectConfigForIndexAndGlossary(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Search(remote index) error = %v", err)
 	}
-	var indexGot []IndexSearchResult
-	if err := json.Unmarshal(indexOut.Bytes(), &indexGot); err != nil {
-		t.Fatalf("Unmarshal index output error = %v, output=%q", err, indexOut.String())
-	}
-	if len(indexGot) != 1 || indexGot[0].Slug != "vip" || indexGot[0].Type != "topic" {
-		t.Fatalf("remote index results = %#v", indexGot)
+	indexWant := "|type|description|slug|\n|topic|VIP 业务规则入口|vip|\n"
+	if indexOut.String() != indexWant {
+		t.Fatalf("Search(remote index) output = %q, want %q", indexOut.String(), indexWant)
 	}
 
 	var glossaryOut bytes.Buffer
@@ -490,15 +480,43 @@ func TestSearchUsesRemoteProjectConfigForIndexAndGlossary(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Search(remote glossary) error = %v", err)
 	}
-	var glossaryGot []GlossarySearchResult
-	if err := json.Unmarshal(glossaryOut.Bytes(), &glossaryGot); err != nil {
-		t.Fatalf("Unmarshal glossary output error = %v, output=%q", err, glossaryOut.String())
-	}
-	if len(glossaryGot) != 1 || glossaryGot[0].Slug != "vip" || glossaryGot[0].Glossary != "VIP" {
-		t.Fatalf("remote glossary results = %#v", glossaryGot)
+	glossaryWant := "|glossary|type|description|slug|\n|VIP|topic|VIP 业务规则入口|vip|\n"
+	if glossaryOut.String() != glossaryWant {
+		t.Fatalf("Search(remote glossary) output = %q, want %q", glossaryOut.String(), glossaryWant)
 	}
 	if len(requests) != 2 {
 		t.Fatalf("remote request count = %d, want 2", len(requests))
+	}
+}
+
+func TestGlossaryKeywordsUsesRemoteProjectConfig(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/devwiki/glossary/keywords" || r.Method != http.MethodPost {
+			t.Fatalf("unexpected remote request %s %s", r.Method, r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"text":"权威记录管理\n授权区管理\n"}`))
+	}))
+	defer server.Close()
+
+	service := NewService()
+	if err := service.RepoAdd(context.Background(), RepoAddOptions{
+		ProjectSlug: "sample",
+		RemoteURL:   server.URL,
+	}); err != nil {
+		t.Fatalf("RepoAdd(remote) error = %v", err)
+	}
+	var out bytes.Buffer
+	if err := service.GlossaryKeywords(context.Background(), GlossaryKeywordsOptions{
+		Project: "sample",
+		Stdout:  &out,
+	}); err != nil {
+		t.Fatalf("GlossaryKeywords(remote project) error = %v", err)
+	}
+	want := "权威记录管理\n授权区管理\n"
+	if out.String() != want {
+		t.Fatalf("GlossaryKeywords(remote project) output = %q, want %q", out.String(), want)
 	}
 }
 

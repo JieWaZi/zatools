@@ -35,6 +35,7 @@ func NewCommand() *cobra.Command {
 	devwikiCmd.AddCommand(newUpdateCmd(service))
 	devwikiCmd.AddCommand(newReadCmd(service))
 	devwikiCmd.AddCommand(newSearchCmd(service))
+	devwikiCmd.AddCommand(newGlossaryCmd(service))
 	devwikiCmd.AddCommand(newRepoCmd(service))
 	devwikiCmd.AddCommand(newCheckCmd(service))
 	devwikiCmd.AddCommand(newGraphCmd(service))
@@ -114,6 +115,38 @@ func newSearchCmd(service *devwikiapp.Service) *cobra.Command {
 			opts.QueryTerms = args[1:]
 			opts.Stdout = cmd.OutOrStdout()
 			return service.Search(cmd.Context(), opts)
+		},
+	}
+	cmd.Flags().StringVar(&opts.Root, "root", ".", copy.FlagDevwikiRoot)
+	cmd.Flags().StringVar(&opts.Project, "project", "", copy.FlagDevwikiProject)
+	return cmd
+}
+
+func newGlossaryCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	cmd := &cobra.Command{
+		Use:   "glossary",
+		Short: copy.DevwikiGlossaryShort,
+		Run: func(cmd *cobra.Command, args []string) {
+			_ = cmd.Help()
+		},
+	}
+	cmd.AddCommand(newGlossaryKeywordsCmd(service))
+	return cmd
+}
+
+func newGlossaryKeywordsCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	var opts devwikiapp.GlossaryKeywordsOptions
+
+	cmd := &cobra.Command{
+		Use:         "keywords",
+		Short:       copy.DevwikiGlossaryKeywordsShort,
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{SuppressLogoAnnotation: "true"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.Stdout = cmd.OutOrStdout()
+			return service.GlossaryKeywords(cmd.Context(), opts)
 		},
 	}
 	cmd.Flags().StringVar(&opts.Root, "root", ".", copy.FlagDevwikiRoot)
