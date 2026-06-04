@@ -150,6 +150,12 @@ zatools devwiki glossary keywords --project <project>
 
 单主题问题通常选择 1 个 `primary` 和 0-2 个 `supporting`。关系、联动、比较、排障和跨流程问题允许多个 Topic / Workflow / Troubleshooting 联合回答，但每个页面必须有明确角色，禁止把无角色的零散命中拼成新主题、新能力或推荐口径。
 
+#### 用户可见候选展示
+
+用户可见的候选名称必须优先使用页面 title、glossary 术语或业务中文名。不要写成 `拨测工具 / dial-test`、`Root Hint 监控配置 / root-hint-monitoring` 这类“名称 / slug”格式。
+
+`slug` 只用于内部定位、证据路径记录和执行 `devwiki read` 命令；除非用户明确询问页面路径、slug、维护定位或命令参数，否则不要把 slug 混入普通功能解释、候选列表或确认问题。
+
 ### Step 7: Confirmation Actions
 
 根据证据路径置信等级分流：
