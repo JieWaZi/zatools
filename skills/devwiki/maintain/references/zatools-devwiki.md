@@ -89,15 +89,15 @@ zatools devwiki glossary keywords --project <project>
 
 ### Step 3: Card Scoring
 
-候选摘要必须合并 search 结果和 card 信息：`type/slug/title/score/description` 来自搜索结果，`status/summary/confidence/适合回答/不适合回答` 来自 card。card 信息不足时不得把候选视为 high confidence。
+候选摘要必须合并 search 结果和 card 信息：`type/slug/title/score/description` 来自搜索结果，`status/summary/confidence/命中意图/关键边界/summary` 来自 card。旧页面可能仍使用 `适合回答/不适合回答`，读取时要兼容。card 信息不足时不得把候选视为 high confidence。
 
 对每个准备采用的候选执行 Card Scoring，并记录以下维度：
 
 - `intent_match` / `subject_match` / `authority_match` / `card_fit` / `status_quality` / `ambiguity_penalty`
-- `intent_match`：card 的“适合回答”是否覆盖当前 `intent_type`
+- `intent_match`：card 的“命中意图”或旧字段“适合回答”是否覆盖当前 `intent_type`
 - `subject_match`：标题、description、summary 是否覆盖用户核心对象，而不是只命中同名词
 - `authority_match`：Topic 是否用于功能边界，Workflow 是否用于实现入口，Troubleshooting 是否用于排障路径
-- `card_fit`：summary、适合回答、不适合回答是否支持或排斥当前问题
+- `card_fit`：summary、命中意图、关键边界是否支持或排斥当前问题；旧页面兼容读取适合回答、不适合回答
 - `status_quality`：active / deprecated / report / proposal / troubleshooting 是否适合作为事实依据
 - `ambiguity_penalty`：短词、宽泛词、同名配置项、同名接口路径、多候选相似、关系/比较问题被单点候选覆盖不全等风险
 
@@ -129,7 +129,8 @@ zatools devwiki glossary keywords --project <project>
 
 命中 Hard Veto 的候选不得作为 `primary`：
 
-- card 的“不适合回答”明确包含当前 `intent_type` 或 `focus`
+- card 的旧字段“不适合回答”明确包含当前 `intent_type` 或 `focus`
+- card 的“关键边界”明确排除当前 `intent_type`、`subject` 或 `focus`
 - 用户问 `explain_topic`，候选只是 Workflow、report 或 proposal，且没有独立 Topic 支撑
 - 用户问 `troubleshoot`，候选没有 troubleshooting 或诊断信息，只是功能说明
 - 用户问 `compare` / `relationship`，候选只能回答单点，且没有 supporting 集合
