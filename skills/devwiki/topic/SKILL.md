@@ -47,7 +47,6 @@ Topic 解释功能机制和规则；Workflow 解释代码如何实现；Troubles
 - `references/knowledge-placement.md`：判断内容应该进入 card、core、explain 还是保留 raw 时读取；
 - `references/mutation-safety.md`：任何写入、重命名、拆分、合并或关系调整前读取；
 - `references/zatools-devwiki.md`：本地 Wiki 命中低置信、需要结构化搜索或读取关联页面时读取。
-- `references/zatools-qmd.md`：需要直接执行 qmd 命令时读取。
 - `references/common-file-format.md`：新建 Topic 后检查或更新 `wiki/glossary.md` 时读取。
 
 不要读取 `workflow_template.md`。如果任务需要写 Workflow 正文，转交或加载 `devwiki-workflow`。

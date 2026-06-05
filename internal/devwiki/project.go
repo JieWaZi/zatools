@@ -105,11 +105,6 @@ func ProjectSlugFromRoot(root string) (string, error) {
 	return slug, nil
 }
 
-// BuiltinSkillsPath 返回内置技能模板在嵌入文件系统中的路径。
-func BuiltinSkillsPath(_ string) string {
-	return path.Join("template", "skills")
-}
-
 // GenerateProject 把内置模板渲染到指定 DevWiki 工程目录。
 func GenerateProject(target string, spec ProjectSpec) error {
 	if strings.TrimSpace(target) == "" {
@@ -139,53 +134,6 @@ func GenerateProject(target string, spec ProjectSpec) error {
 		return err
 	}
 	return nil
-}
-
-// ExtractBuiltinSkills 将内置技能模板解压到临时目录，供现有发现/安装流程复用。
-func ExtractBuiltinSkills(lang string) (string, func(), error) {
-	root := BuiltinSkillsPath(lang)
-	tempRoot, err := os.MkdirTemp("", "zatools-devwiki-skills-*")
-	if err != nil {
-		return "", nil, err
-	}
-	cleanup := func() { _ = os.RemoveAll(tempRoot) }
-
-	err = fs.WalkDir(templateFS, root, func(name string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if name == root {
-			return nil
-		}
-		rel := strings.TrimPrefix(name, root+"/")
-		if rel == "shared-references" || strings.HasPrefix(rel, "shared-references/") {
-			if d.IsDir() {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		dest := filepath.Join(tempRoot, filepath.FromSlash(rel))
-		if d.IsDir() {
-			return os.MkdirAll(dest, 0o755)
-		}
-		data, err := fs.ReadFile(templateFS, name)
-		if err != nil {
-			return err
-		}
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return err
-		}
-		return os.WriteFile(dest, data, 0o644)
-	})
-	if err != nil {
-		cleanup()
-		return "", nil, err
-	}
-	if err := materializeSharedReferences(tempRoot, lang); err != nil {
-		cleanup()
-		return "", nil, err
-	}
-	return tempRoot, cleanup, nil
 }
 
 func ensureRepoLayout(root string) error {
@@ -510,45 +458,4 @@ func upsertDelimitedBlock(content string, block string, startMarker string, endM
 		parts = append(parts, suffix)
 	}
 	return strings.Join(parts, "\n\n") + "\n"
-}
-
-func materializeSharedReferences(skillsRoot string, lang string) error {
-	_ = lang
-	sharedRoot := path.Join(BuiltinSkillsPath(lang), "shared-references")
-	entries, err := os.ReadDir(skillsRoot)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		targetRoot := filepath.Join(skillsRoot, entry.Name(), "references")
-		err := fs.WalkDir(templateFS, sharedRoot, func(name string, d fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if name == sharedRoot {
-				return nil
-			}
-			rel := strings.TrimPrefix(name, sharedRoot+"/")
-			dest := filepath.Join(targetRoot, filepath.FromSlash(rel))
-			if d.IsDir() {
-				return os.MkdirAll(dest, 0o755)
-			}
-			data, err := fs.ReadFile(templateFS, name)
-			if err != nil {
-				return err
-			}
-			if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-				return err
-			}
-			return os.WriteFile(dest, data, 0o644)
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

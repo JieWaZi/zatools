@@ -21,6 +21,7 @@ func TestRepoAddInfoIncludesCodeReposAsJSON(t *testing.T) {
 	codeRoot := filepath.Join(t.TempDir(), "zddiv3")
 	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
 	service := NewService()
+	useLocalDevwikiSkills(t, service)
 
 	if err := service.RepoAdd(context.Background(), RepoAddOptions{
 		ProjectSlug: "huawei-zddi",
@@ -64,6 +65,7 @@ func TestRepoLinkWritesProjectNameIntoCodeRepoAgents(t *testing.T) {
 	codeRoot := filepath.Join(t.TempDir(), "zddiv3")
 	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
 	service := NewService()
+	useLocalDevwikiSkills(t, service)
 
 	if err := service.RepoAdd(context.Background(), RepoAddOptions{
 		ProjectSlug: "huawei-zddi",
@@ -97,6 +99,7 @@ func TestRepoLinkWritesCodeRepoAgentsForRemoteProjectConfig(t *testing.T) {
 	codeRoot := filepath.Join(t.TempDir(), "zddiv3")
 	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
 	service := NewService()
+	useLocalDevwikiSkills(t, service)
 
 	if err := service.RepoAdd(context.Background(), RepoAddOptions{
 		ProjectSlug: "huawei-zddi",
@@ -131,6 +134,7 @@ func TestRepoLinkInstallsCodeRepoSkills(t *testing.T) {
 	codeRoot := filepath.Join(t.TempDir(), "zddiv3")
 	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
 	service := NewService()
+	useLocalDevwikiSkills(t, service)
 
 	if err := service.RepoAdd(context.Background(), RepoAddOptions{
 		ProjectSlug: "huawei-zddi",
@@ -168,6 +172,7 @@ func TestRepoLinkInstallsCodeRepoSkills(t *testing.T) {
 func TestRepoAddRemoteWritesRemoteSource(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	service := NewService()
+	useLocalDevwikiSkills(t, service)
 	var addOut bytes.Buffer
 
 	if err := service.RepoAdd(context.Background(), RepoAddOptions{
@@ -209,6 +214,7 @@ func TestRepoAddStoresLocalAndRemoteSourcesAndRepoUseSwitchesActiveSource(t *tes
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	root := t.TempDir()
 	service := NewService()
+	useLocalDevwikiSkills(t, service)
 
 	if err := service.RepoAdd(context.Background(), RepoAddOptions{
 		ProjectSlug: "huawei-zddi",
@@ -271,6 +277,7 @@ func TestRepoAddLocalWritesReadableSuccess(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	root := t.TempDir()
 	service := NewService()
+	useLocalDevwikiSkills(t, service)
 	var out bytes.Buffer
 
 	if err := service.RepoAdd(context.Background(), RepoAddOptions{
@@ -293,6 +300,7 @@ func TestRepoLinkWritesReadableSuccess(t *testing.T) {
 	codeRoot := filepath.Join(t.TempDir(), "zddiv3")
 	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
 	service := NewService()
+	useLocalDevwikiSkills(t, service)
 	if err := service.RepoAdd(context.Background(), RepoAddOptions{
 		ProjectSlug: "huawei-zddi",
 		LocalPath:   root,
@@ -340,8 +348,9 @@ func TestInstallRepoInitDocSkillsInstallsAllDevwikiSkillsForAgents(t *testing.T)
 		Workspace: skills.NewWorkspace(docRoot),
 		IsTTY:     false,
 	})
+	useLocalDevwikiSkills(t, service)
 
-	if err := service.installRepoInitDocSkills(docRoot, []string{"codex", "cursor"}, "zh"); err != nil {
+	if err := service.installRepoInitDocSkills(context.Background(), docRoot, []string{"codex", "cursor"}); err != nil {
 		t.Fatalf("installRepoInitDocSkills() error = %v", err)
 	}
 
@@ -398,6 +407,7 @@ func TestRepoLinkInstallsCodeRepoSkillsForAgentsOnly(t *testing.T) {
 	codeRoot := filepath.Join(t.TempDir(), "zddiv3")
 	mustWriteFileDevwikiApp(t, filepath.Join(codeRoot, "go.mod"), "module example\n")
 	service := NewService()
+	useLocalDevwikiSkills(t, service)
 
 	if err := service.RepoAdd(context.Background(), RepoAddOptions{
 		ProjectSlug: "huawei-zddi",
@@ -441,6 +451,7 @@ func TestRepoLinkInstallsCodeRepoSkillsForAgentsOnly(t *testing.T) {
 func TestRepoInfoWithoutProjectPrintsOnlyProjectNames(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	service := NewService()
+	useLocalDevwikiSkills(t, service)
 
 	for _, project := range []string{"zeta", "alpha"} {
 		if err := service.RepoAdd(context.Background(), RepoAddOptions{

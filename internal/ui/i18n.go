@@ -32,6 +32,10 @@ type Catalog struct {
 	DevwikiGlossaryShort          string
 	DevwikiGlossaryKeywordsShort  string
 	DevwikiRepoShort              string
+	DevwikiSkillShort             string
+	DevwikiSkillRefsShort         string
+	DevwikiSkillRefsCheckShort    string
+	DevwikiSkillRefsFixShort      string
 	DevwikiRepoInitShort          string
 	DevwikiRepoAddShort           string
 	DevwikiRepoLinkShort          string
@@ -143,6 +147,10 @@ type Catalog struct {
 	DevwikiInstalledSkillsFmt     string
 	DevwikiNoSkillsTracked        string
 	DevwikiQMDRefreshFailedFmt    string
+	DevwikiSkillRefsOK            string
+	DevwikiSkillRefsCheckFailed   string
+	DevwikiSkillRefsNoChanges     string
+	DevwikiSkillRefsFixedFmt      string
 	DevwikiRepoAddSuccessFmt      string
 	DevwikiRepoLinkSuccessFmt     string
 	DevwikiRepoUseSuccessFmt      string
@@ -237,6 +245,10 @@ var catalogs = map[string]Catalog{
 		DevwikiGlossaryShort:          "查看 DevWiki glossary 术语",
 		DevwikiGlossaryKeywordsShort:  "逐行列出 DevWiki glossary 关键词",
 		DevwikiRepoShort:              "管理 DevWiki 项目配置",
+		DevwikiSkillShort:             "维护 DevWiki skills",
+		DevwikiSkillRefsShort:         "维护 DevWiki skill references",
+		DevwikiSkillRefsCheckShort:    "检查 DevWiki skill reference 一致性",
+		DevwikiSkillRefsFixShort:      "用 canonical reference 修复副本",
 		DevwikiRepoInitShort:          "交互式添加 DevWiki 项目并关联代码库",
 		DevwikiRepoAddShort:           "添加 DevWiki 本地或远端项目",
 		DevwikiRepoLinkShort:          "绑定本地代码仓路径",
@@ -348,6 +360,10 @@ var catalogs = map[string]Catalog{
 		DevwikiInstalledSkillsFmt:     "已安装 %d 个 DevWiki skills",
 		DevwikiNoSkillsTracked:        "锁文件中没有记录任何 DevWiki skills。",
 		DevwikiQMDRefreshFailedFmt:    "%s 失败：%v",
+		DevwikiSkillRefsOK:            "DevWiki skill references 一致。",
+		DevwikiSkillRefsCheckFailed:   "DevWiki skill references 不一致",
+		DevwikiSkillRefsNoChanges:     "DevWiki skill references 无需修复。",
+		DevwikiSkillRefsFixedFmt:      "已修复 %s\n",
 		DevwikiRepoAddSuccessFmt:      "已添加 DevWiki project `%s`\nsource: %s\nconfig: %s\n",
 		DevwikiRepoLinkSuccessFmt:     "已绑定代码仓 `%s` 到 DevWiki project `%s`\nrepo: %s\nconfig: %s\ninstalled skills: devwiki-code, devwiki-code-to-doc, devwiki-query\n",
 		DevwikiRepoUseSuccessFmt:      "已切换 DevWiki project `%s` 当前来源为 `%s`\nconfig: %s\n",
@@ -440,6 +456,10 @@ var catalogs = map[string]Catalog{
 		DevwikiGlossaryShort:          "Inspect DevWiki glossary terms",
 		DevwikiGlossaryKeywordsShort:  "List DevWiki glossary keywords line by line",
 		DevwikiRepoShort:              "Manage DevWiki project configuration",
+		DevwikiSkillShort:             "Maintain DevWiki skills",
+		DevwikiSkillRefsShort:         "Maintain DevWiki skill references",
+		DevwikiSkillRefsCheckShort:    "Check DevWiki skill reference consistency",
+		DevwikiSkillRefsFixShort:      "Fix copies from canonical references",
 		DevwikiRepoInitShort:          "Interactively add a DevWiki project and link code repositories",
 		DevwikiRepoAddShort:           "Add a local or remote DevWiki project",
 		DevwikiRepoLinkShort:          "Bind a local code repository path",
@@ -551,6 +571,10 @@ var catalogs = map[string]Catalog{
 		DevwikiInstalledSkillsFmt:     "Installed %d DevWiki skills",
 		DevwikiNoSkillsTracked:        "No DevWiki skills are tracked in the lock file.",
 		DevwikiQMDRefreshFailedFmt:    "%s failed: %v",
+		DevwikiSkillRefsOK:            "DevWiki skill references are consistent.",
+		DevwikiSkillRefsCheckFailed:   "DevWiki skill references are inconsistent",
+		DevwikiSkillRefsNoChanges:     "DevWiki skill references need no changes.",
+		DevwikiSkillRefsFixedFmt:      "fixed %s\n",
 		DevwikiRepoAddSuccessFmt:      "Added DevWiki project `%s`\nsource: %s\nconfig: %s\n",
 		DevwikiRepoLinkSuccessFmt:     "Linked code repo `%s` to DevWiki project `%s`\nrepo: %s\nconfig: %s\ninstalled skills: devwiki-code, devwiki-code-to-doc, devwiki-query\n",
 		DevwikiRepoUseSuccessFmt:      "Switched DevWiki project `%s` active source to `%s`\nconfig: %s\n",

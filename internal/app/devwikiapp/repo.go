@@ -334,7 +334,7 @@ func (s *Service) applyRepoInitSource(ctx context.Context, opts RepoInitSource) 
 		if err != nil {
 			return devwiki.RepoConfig{}, err
 		}
-		if err := s.installRepoInitDocSkills(activeSource.Path, agentKeys, cfg.Language); err != nil {
+		if err := s.installRepoInitDocSkills(ctx, activeSource.Path, agentKeys); err != nil {
 			return devwiki.RepoConfig{}, err
 		}
 	}
@@ -408,7 +408,7 @@ func (s *Service) runRepoLink(ctx context.Context, opts RepoLinkOptions) error {
 	if err != nil {
 		return err
 	}
-	if err := s.installCodeRepoDevwikiSkills(absPath, agentKeys, cfg.Language); err != nil {
+	if err := s.installCodeRepoDevwikiSkills(ctx, absPath, agentKeys); err != nil {
 		return err
 	}
 	configPath, err := devwiki.RepoConfigPath(cfg.ProjectSlug)
@@ -472,37 +472,34 @@ func hasDefaultCodeRepo(repos []devwiki.CodeRepo) bool {
 	return false
 }
 
-func (s *Service) installRepoInitDocSkills(docRoot string, agentKeys []string, lang string) error {
-	return s.installBuiltinDevwikiSkillsForAgents(docRoot, agentKeys, lang, nil)
+func (s *Service) installRepoInitDocSkills(ctx context.Context, docRoot string, agentKeys []string) error {
+	return s.installDevwikiSkillsForAgents(ctx, docRoot, agentKeys, nil)
 }
 
-func (s *Service) installCodeRepoDevwikiSkills(codeRoot string, agentKeys []string, lang string) error {
-	return s.installBuiltinDevwikiSkillsForAgents(codeRoot, agentKeys, lang, []string{
+func (s *Service) installCodeRepoDevwikiSkills(ctx context.Context, codeRoot string, agentKeys []string) error {
+	return s.installDevwikiSkillsForAgents(ctx, codeRoot, agentKeys, []string{
 		"devwiki-code",
 		"devwiki-code-to-doc",
 		"devwiki-query",
 	})
 }
 
-func (s *Service) installBuiltinDevwikiSkillsForAgents(projectRoot string, agentKeys []string, lang string, names []string) error {
-	skillsRoot, cleanup, err := devwiki.ExtractBuiltinSkills(lang)
+func (s *Service) installDevwikiSkillsForAgents(ctx context.Context, projectRoot string, agentKeys []string, names []string) error {
+	bundle, err := s.resolveDevwikiSkills(ctx)
 	if err != nil {
 		return err
 	}
-	defer cleanup()
-
-	found, err := skills.Discover(skillsRoot)
-	if err != nil {
-		return err
+	if bundle.cleanup != nil {
+		defer bundle.cleanup()
 	}
-	selected := found
+	selected := bundle.skills
 	if len(names) > 0 {
-		selected = selectDevwikiSkillsByName(found, names...)
+		selected = selectDevwikiSkillsByName(bundle.skills, names...)
 		if len(selected) != len(names) {
-			return fmt.Errorf("missing built-in DevWiki skills: %s", strings.Join(names, ", "))
+			return fmt.Errorf("missing DevWiki skills: %s", strings.Join(names, ", "))
 		}
 	}
-	if err := s.installSelectedSkillsForAgents(projectRoot, agentKeys, false, lang, selected); err != nil {
+	if err := s.installSelectedSkillsForAgents(projectRoot, agentKeys, false, bundle.source, selected); err != nil {
 		return err
 	}
 	return ensureProjectInstallGitignoreForAgents(projectRoot, agentKeys)

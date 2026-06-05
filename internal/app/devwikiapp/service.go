@@ -4,6 +4,7 @@ import (
 	"context"
 
 	common "zatools/internal/app/common"
+	"zatools/internal/skills"
 )
 
 // InitOptions 描述 `devwiki init` 的命令参数。
@@ -19,7 +20,16 @@ type InitOptions struct {
 
 // Service 编排 DevWiki 工程初始化与 runtime skill 安装。
 type Service struct {
-	runtime common.Runtime
+	runtime               common.Runtime
+	devwikiSkillsResolver devwikiSkillsResolver
+}
+
+type devwikiSkillsResolver func(ctx context.Context) (devwikiSkillsBundle, error)
+
+type devwikiSkillsBundle struct {
+	source  skills.Source
+	skills  []skills.Skill
+	cleanup func() error
 }
 
 // NewService 构建使用当前终端环境的 DevWiki 应用服务。
@@ -30,7 +40,8 @@ func NewService() *Service {
 // NewServiceWithRuntime 允许测试注入自定义运行环境。
 func NewServiceWithRuntime(runtime common.Runtime) *Service {
 	return &Service{
-		runtime: runtime,
+		runtime:               runtime,
+		devwikiSkillsResolver: defaultDevwikiSkillsResolver,
 	}
 }
 
@@ -67,4 +78,34 @@ func (s *Service) Read(ctx context.Context, opts ReadOptions) error {
 // Search searches DevWiki entries and prints compact pipe-table hits.
 func (s *Service) Search(ctx context.Context, opts SearchOptions) error {
 	return s.runSearch(ctx, opts)
+}
+
+func defaultDevwikiSkillsResolver(ctx context.Context) (devwikiSkillsBundle, error) {
+	source := skills.NewDevwikiSkillsSource("")
+	resolved, err := skills.ResolveSource(ctx, source)
+	if err != nil {
+		return devwikiSkillsBundle{}, err
+	}
+	searchRoot, err := resolved.SearchRoot()
+	if err != nil {
+		_ = resolved.Cleanup()
+		return devwikiSkillsBundle{}, err
+	}
+	found, err := skills.Discover(searchRoot)
+	if err != nil {
+		_ = resolved.Cleanup()
+		return devwikiSkillsBundle{}, err
+	}
+	return devwikiSkillsBundle{
+		source:  source,
+		skills:  found,
+		cleanup: resolved.Cleanup,
+	}, nil
+}
+
+func (s *Service) resolveDevwikiSkills(ctx context.Context) (devwikiSkillsBundle, error) {
+	if s.devwikiSkillsResolver == nil {
+		s.devwikiSkillsResolver = defaultDevwikiSkillsResolver
+	}
+	return s.devwikiSkillsResolver(ctx)
 }

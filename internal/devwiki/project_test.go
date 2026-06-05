@@ -1,7 +1,6 @@
 package devwiki
 
 import (
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +8,15 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+func devwikiSkillsRoot(t *testing.T) string {
+	t.Helper()
+	root := filepath.Clean(filepath.Join("..", "..", "skills", "devwiki"))
+	if _, err := os.Stat(filepath.Join(root, "query", "SKILL.md")); err != nil {
+		t.Fatalf("missing root DevWiki skills: %v", err)
+	}
+	return root
+}
 
 func TestGenerateProjectCreatesExpectedFiles(t *testing.T) {
 	t.Parallel()
@@ -405,28 +413,16 @@ func TestSlugifyProducesStableDirectoryNames(t *testing.T) {
 	}
 }
 
-func TestExtractBuiltinSkillsMaterializesSharedReferencesIntoEachSkill(t *testing.T) {
+func TestRootDevwikiSkillsContainSelfContainedReferences(t *testing.T) {
 	t.Parallel()
 
-	if got := BuiltinSkillsPath("zh"); got != "template/skills" {
-		t.Fatalf("BuiltinSkillsPath = %q, want template/skills", got)
-	}
-	if _, err := fs.Stat(TemplateFS(), "template/skills/shared-references/code-tracing.md"); err != nil {
-		t.Fatalf("missing flat shared reference path: %v", err)
-	}
-
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
-
+	root := devwikiSkillsRoot(t)
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		t.Fatalf("ReadDir(%q) error = %v", root, err)
 	}
 	if len(entries) == 0 {
-		t.Fatal("expected extracted builtin skills")
+		t.Fatal("expected root DevWiki skills")
 	}
 	gotNames := make([]string, 0, len(entries))
 
@@ -435,35 +431,28 @@ func TestExtractBuiltinSkillsMaterializesSharedReferencesIntoEachSkill(t *testin
 			continue
 		}
 		if entry.Name() == "shared-references" {
-			t.Fatal("extracted builtin skills should not include shared-references as an installable directory")
+			t.Fatal("root DevWiki skills should not include shared-references as an installable directory")
 		}
 		gotNames = append(gotNames, entry.Name())
-		for _, shared := range []string{"code-tracing.md", "common-file-format.md", "zatools-devwiki.md", "zatools-qmd.md"} {
-			target := filepath.Join(root, entry.Name(), "references", shared)
-			if _, err := os.Stat(target); err != nil {
-				t.Fatalf("missing shared reference %s for %s: %v", shared, entry.Name(), err)
-			}
+		if _, err := os.Stat(filepath.Join(root, entry.Name(), "SKILL.md")); err != nil {
+			t.Fatalf("missing SKILL.md for %s: %v", entry.Name(), err)
 		}
 	}
 
 	if _, err := os.Stat(filepath.Join(root, "qmd-sync", "SKILL.md")); err == nil {
-		t.Fatal("qmd-sync should not be extracted as an installable builtin skill")
+		t.Fatal("qmd-sync should not be extracted as an installable root DevWiki skill")
 	}
 
 	wantNames := []string{"code", "code-to-doc", "ingest", "maintain", "query", "topic", "workflow"}
 	if strings.Join(gotNames, ",") != strings.Join(wantNames, ",") {
-		t.Fatalf("builtin skill dirs = %#v, want %#v", gotNames, wantNames)
+		t.Fatalf("root DevWiki skill dirs = %#v, want %#v", gotNames, wantNames)
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesCodeGuidance(t *testing.T) {
+func TestRootDevwikiSkillsIncludesCodeGuidance(t *testing.T) {
 	t.Parallel()
 
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
+	root := devwikiSkillsRoot(t)
 
 	data, err := os.ReadFile(filepath.Join(root, "code", "SKILL.md"))
 	if err != nil {
@@ -497,14 +486,10 @@ func TestExtractBuiltinSkillsIncludesCodeGuidance(t *testing.T) {
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesMaintainGuidance(t *testing.T) {
+func TestRootDevwikiSkillsIncludesMaintainGuidance(t *testing.T) {
 	t.Parallel()
 
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
+	root := devwikiSkillsRoot(t)
 
 	data, err := os.ReadFile(filepath.Join(root, "maintain", "SKILL.md"))
 	if err != nil {
@@ -554,14 +539,10 @@ func TestExtractBuiltinSkillsIncludesMaintainGuidance(t *testing.T) {
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
+func TestRootDevwikiSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 	t.Parallel()
 
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
+	root := devwikiSkillsRoot(t)
 
 	data, err := os.ReadFile(filepath.Join(root, "ingest", "SKILL.md"))
 	if err != nil {
@@ -652,14 +633,10 @@ func TestExtractBuiltinSkillsIncludesStructuredIngestGuidance(t *testing.T) {
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesCommonFileFormatGuidance(t *testing.T) {
+func TestRootDevwikiSkillsIncludesCommonFileFormatGuidance(t *testing.T) {
 	t.Parallel()
 
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
+	root := devwikiSkillsRoot(t)
 
 	data, err := os.ReadFile(filepath.Join(root, "ingest", "references", "common-file-format.md"))
 	if err != nil {
@@ -691,14 +668,10 @@ func TestExtractBuiltinSkillsIncludesCommonFileFormatGuidance(t *testing.T) {
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesHardMutationSafetyGate(t *testing.T) {
+func TestRootDevwikiSkillsIncludesHardMutationSafetyGate(t *testing.T) {
 	t.Parallel()
 
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
+	root := devwikiSkillsRoot(t)
 
 	data, err := os.ReadFile(filepath.Join(root, "ingest", "references", "mutation-safety.md"))
 	if err != nil {
@@ -721,14 +694,10 @@ func TestExtractBuiltinSkillsIncludesHardMutationSafetyGate(t *testing.T) {
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesPageWritingSkillsAndPlacementRules(t *testing.T) {
+func TestRootDevwikiSkillsIncludesPageWritingSkillsAndPlacementRules(t *testing.T) {
 	t.Parallel()
 
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
+	root := devwikiSkillsRoot(t)
 
 	checks := []struct {
 		relative string
@@ -793,7 +762,7 @@ func TestExtractBuiltinSkillsIncludesPageWritingSkillsAndPlacementRules(t *testi
 			rejects: []string{"<!-- engwiki:section", "section id=code", "### 代码引用", "| 逻辑点 | 对应代码 | 说明 |"},
 		},
 		{
-			relative: filepath.Join("query", "references", "knowledge-placement.md"),
+			relative: filepath.Join("ingest", "references", "knowledge-placement.md"),
 			wants: []string{
 				"# 知识经济学放置规则",
 				"高频、高价值、低体积 -> card",
@@ -826,14 +795,10 @@ func TestExtractBuiltinSkillsIncludesPageWritingSkillsAndPlacementRules(t *testi
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
+func TestRootDevwikiSkillsIncludesQueryGuidance(t *testing.T) {
 	t.Parallel()
 
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
+	root := devwikiSkillsRoot(t)
 
 	data, err := os.ReadFile(filepath.Join(root, "query", "SKILL.md"))
 	if err != nil {
@@ -877,6 +842,8 @@ func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
 		"先阅读通用约束",
 		"`references/evidence-grounding.md`",
 		"`references/knowledge-placement.md`",
+		"`references/mutation-safety.md`",
+		"`references/code-tracing.md`",
 		"## DevWiki Interaction",
 		"## Query Principles",
 		"## 目录选择规则",
@@ -904,14 +871,10 @@ func TestExtractBuiltinSkillsIncludesQueryGuidance(t *testing.T) {
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesZatoolsDevwikiSharedGuidance(t *testing.T) {
+func TestRootDevwikiSkillsIncludesZatoolsDevwikiSharedGuidance(t *testing.T) {
 	t.Parallel()
 
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
+	root := devwikiSkillsRoot(t)
 
 	data, err := os.ReadFile(filepath.Join(root, "query", "references", "zatools-devwiki.md"))
 	if err != nil {
@@ -999,14 +962,10 @@ func TestExtractBuiltinSkillsIncludesZatoolsDevwikiSharedGuidance(t *testing.T) 
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesQmdCommandGuidance(t *testing.T) {
+func TestRootDevwikiSkillsIncludesQmdCommandGuidance(t *testing.T) {
 	t.Parallel()
 
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
+	root := devwikiSkillsRoot(t)
 
 	data, err := os.ReadFile(filepath.Join(root, "query", "references", "zatools-qmd.md"))
 	if err != nil {
@@ -1043,14 +1002,10 @@ func TestExtractBuiltinSkillsIncludesQmdCommandGuidance(t *testing.T) {
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesCodeRefsFileLevelGuidance(t *testing.T) {
+func TestRootDevwikiSkillsIncludesCodeRefsFileLevelGuidance(t *testing.T) {
 	t.Parallel()
 
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
+	root := devwikiSkillsRoot(t)
 
 	checks := []struct {
 		relative string
@@ -1058,7 +1013,7 @@ func TestExtractBuiltinSkillsIncludesCodeRefsFileLevelGuidance(t *testing.T) {
 		rejects  []string
 	}{
 		{
-			relative: filepath.Join("query", "references", "evidence-grounding.md"),
+			relative: filepath.Join("maintain", "references", "evidence-grounding.md"),
 			wants: []string{
 				"每个重要结论必须能回溯到真实来源",
 				"`qmd` 只是召回加速器，不是真相源",
@@ -1111,7 +1066,7 @@ func TestExtractBuiltinSkillsIncludesCodeRefsFileLevelGuidance(t *testing.T) {
 			},
 		},
 		{
-			relative: filepath.Join("query", "references", "code-tracing.md"),
+			relative: filepath.Join("code", "references", "code-tracing.md"),
 			wants: []string{
 				"按代码文件归并",
 				"按 Workflow 模板的 `关键代码与逻辑` 规则归并",
@@ -1128,7 +1083,7 @@ func TestExtractBuiltinSkillsIncludesCodeRefsFileLevelGuidance(t *testing.T) {
 			},
 		},
 		{
-			relative: filepath.Join("query", "references", "evidence-grounding.md"),
+			relative: filepath.Join("maintain", "references", "evidence-grounding.md"),
 			wants: []string{
 				"DevWiki 输出必须落到真实来源、已核对代码证据，或被明确标注为推断",
 				"不要虚构来源或代码证据",
@@ -1233,14 +1188,10 @@ func TestGenerateProjectRuntimeDocsStayProjectLevel(t *testing.T) {
 	}
 }
 
-func TestExtractBuiltinSkillsIncludesCodeToDocGuidance(t *testing.T) {
+func TestRootDevwikiSkillsIncludesCodeToDocGuidance(t *testing.T) {
 	t.Parallel()
 
-	root, cleanup, err := ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
+	root := devwikiSkillsRoot(t)
 
 	data, err := os.ReadFile(filepath.Join(root, "code-to-doc", "SKILL.md"))
 	if err != nil {
@@ -1252,7 +1203,7 @@ func TestExtractBuiltinSkillsIncludesCodeToDocGuidance(t *testing.T) {
 		"直接转交对应页面 Skill",
 		"加载 `devwiki-topic`",
 		"加载 `devwiki-workflow`",
-		"内容放置必须遵守 `references/knowledge-placement.md`",
+		"内容放置由对应页面 Skill 依据页面模板处理",
 		"普通文档改写或用户已贴出完整文档片段和明确改法时，不自动转交 `devwiki-code`",
 		"默认写入 `wiki/workflows/<slug>.md`",
 		"wiki/topics/",

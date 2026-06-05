@@ -15,8 +15,6 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
-
-	"zatools/internal/devwiki"
 )
 
 // Source 表示一条技能来源配置。
@@ -37,9 +35,6 @@ type Source struct {
 	// Ref 是用户指定的远端引用名，例如分支、标签或提交哈希。
 	// ResolveSource 会尽量把仓库定位到这个引用对应的内容。
 	Ref string
-	// Builtin 是内置库标识，例如 devwiki。
-	// 仅 Type=builtin 时使用。
-	Builtin string
 	// Subpath 是仓库中技能所在的子目录。
 	// 它表示“搜索技能时从仓库根往下进入的相对路径”，不是最终安装目录。
 	Subpath string
@@ -86,12 +81,17 @@ const builtinSourceNamespace = "zatools"
 
 var sourceAliases = map[string]string{
 	"coinbase/agentWallet": "coinbase/agentic-wallet-skills",
-	"devwiki":              "zatools/devwiki",
 }
 
 // cloneTimeout 限制远端 clone 的最长时间，避免命令无限阻塞。
 const cloneTimeout = 60 * time.Second
-const defaultBuiltinDevwikiLang = "zh"
+
+const (
+	defaultDevwikiSkillsRef = "main"
+	devwikiSkillsRepoURL    = "https://github.com/JieWaZi/zatools.git"
+	devwikiSkillsSubpath    = "skills/devwiki"
+	devwikiSkillsRefEnv     = "ZATOOLS_DEVWIKI_SKILLS_REF"
+)
 
 // ParseSource 把用户输入的来源字符串解析为统一的 Source 结构。
 func ParseSource(input string) (Source, error) {
@@ -102,12 +102,12 @@ func ParseSource(input string) (Source, error) {
 
 	input, ref := parseFragmentRef(input)
 
-	if alias, ok := sourceAliases[input]; ok {
-		input = alias
+	if source, ok := parseDevwikiAliasSource(input, ref); ok {
+		return source, nil
 	}
 
-	if builtin, ok, err := parseBuiltinSource(input, ref); ok || err != nil {
-		return builtin, err
+	if alias, ok := sourceAliases[input]; ok {
+		input = alias
 	}
 
 	if isLocalPath(input) {
@@ -167,19 +167,30 @@ func ParseSource(input string) (Source, error) {
 	return Source{}, fmt.Errorf("unsupported source %q", input)
 }
 
-// NewBuiltinSource 构造一个稳定的内置库来源描述。
-func NewBuiltinSource(library string, variant string) Source {
-	library = strings.TrimSpace(library)
-	if library == "devwiki" || variant == "" {
-		variant = defaultBuiltinDevwikiLang
+// NewDevwikiSkillsSource constructs the canonical URL source for DevWiki skills.
+func NewDevwikiSkillsSource(ref string) Source {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		ref = strings.TrimSpace(os.Getenv(devwikiSkillsRefEnv))
 	}
-	base := builtinSourceNamespace + "/" + library
+	if ref == "" {
+		ref = defaultDevwikiSkillsRef
+	}
+	original := appendFragmentRef("JieWaZi/zatools/"+devwikiSkillsSubpath, ref)
 	return Source{
-		Original: appendFragmentRef(base, variant),
-		Type:     "builtin",
-		Ref:      variant,
-		Builtin:  library,
+		Original: original,
+		Type:     "github",
+		RepoURL:  devwikiSkillsRepoURL,
+		Ref:      ref,
+		Subpath:  devwikiSkillsSubpath,
 	}
+}
+
+// IsDevwikiSkillsSource reports whether source points at the canonical DevWiki skills URL.
+func IsDevwikiSkillsSource(source Source) bool {
+	return source.Type == "github" &&
+		strings.EqualFold(strings.TrimSuffix(source.RepoURL, ".git"), strings.TrimSuffix(devwikiSkillsRepoURL, ".git")) &&
+		filepath.ToSlash(filepath.Clean(source.Subpath)) == devwikiSkillsSubpath
 }
 
 func stableSourceString(source Source) string {
@@ -194,10 +205,6 @@ func stableSourceString(source Source) string {
 func ResolveSource(ctx context.Context, source Source) (ResolvedSource, error) {
 	if ctx == nil {
 		ctx = context.Background()
-	}
-
-	if source.Type == "builtin" {
-		return resolveBuiltinSource(source)
 	}
 
 	if source.Type == "local" {
@@ -232,30 +239,6 @@ func ResolveSource(ctx context.Context, source Source) (ResolvedSource, error) {
 		RootDir: tempDir,
 		cleanup: func() error { return os.RemoveAll(tempDir) },
 	}, nil
-}
-
-func resolveBuiltinSource(source Source) (ResolvedSource, error) {
-	switch source.Builtin {
-	case "devwiki":
-		variant := source.Ref
-		if variant != defaultBuiltinDevwikiLang {
-			variant = defaultBuiltinDevwikiLang
-		}
-		root, cleanup, err := devwiki.ExtractBuiltinSkills(variant)
-		if err != nil {
-			return ResolvedSource{}, err
-		}
-		return ResolvedSource{
-			Source:  source,
-			RootDir: root,
-			cleanup: func() error {
-				cleanup()
-				return nil
-			},
-		}, nil
-	default:
-		return ResolvedSource{}, fmt.Errorf("unsupported builtin source %q", source.Builtin)
-	}
 }
 
 // SearchRoot 返回真正用于技能发现的根目录。
@@ -423,21 +406,6 @@ func parseGitHubURL(input, ref string) (Source, error) {
 	return source, nil
 }
 
-func parseBuiltinSource(input, ref string) (Source, bool, error) {
-	if !strings.HasPrefix(input, builtinSourceNamespace+"/") {
-		return Source{}, false, nil
-	}
-
-	parts := strings.Split(strings.Trim(input, "/"), "/")
-	if len(parts) != 2 {
-		return Source{}, true, fmt.Errorf("builtin source %q does not support nested paths", input)
-	}
-	if ref == "" {
-		ref = defaultBuiltinDevwikiLang
-	}
-	return NewBuiltinSource(parts[1], ref), true, nil
-}
-
 func parseGitLabURL(input, ref string) (Source, error) {
 	u, err := url.Parse(input)
 	if err != nil {
@@ -505,7 +473,7 @@ func parseFragmentRef(input string) (string, string) {
 
 	base := input[:hashIndex]
 	fragment := input[hashIndex+1:]
-	if fragment == "" || !looksLikeGitSource(base) {
+	if fragment == "" || (!looksLikeGitSource(base) && !isDevwikiAliasSource(base)) {
 		return input, ""
 	}
 
@@ -513,6 +481,22 @@ func parseFragmentRef(input string) (string, string) {
 		fragment = fragment[:atIndex]
 	}
 	return base, decodeFragmentValue(fragment)
+}
+
+func parseDevwikiAliasSource(input, ref string) (Source, bool) {
+	if !isDevwikiAliasSource(input) {
+		return Source{}, false
+	}
+	return NewDevwikiSkillsSource(ref), true
+}
+
+func isDevwikiAliasSource(input string) bool {
+	switch strings.TrimSpace(input) {
+	case "devwiki", builtinSourceNamespace + "/devwiki":
+		return true
+	default:
+		return false
+	}
 }
 
 func appendFragmentRef(input, ref string) string {

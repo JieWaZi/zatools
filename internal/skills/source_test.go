@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-func TestParseSourceRecognizesBuiltinDevwikiLibrary(t *testing.T) {
-	t.Setenv("ZATOOLS_LANG", "en")
+func TestParseSourceRecognizesDevwikiURLAlias(t *testing.T) {
+	t.Setenv("ZATOOLS_DEVWIKI_SKILLS_REF", "")
 
 	for _, input := range []string{"zatools/devwiki", "devwiki"} {
 		source, err := ParseSource(input)
@@ -17,71 +17,45 @@ func TestParseSourceRecognizesBuiltinDevwikiLibrary(t *testing.T) {
 			t.Fatalf("ParseSource(%q) returned error: %v", input, err)
 		}
 
-		if source.Type != "builtin" {
-			t.Fatalf("ParseSource(%q) Type = %q, want %q", input, source.Type, "builtin")
+		if source.Type != "github" {
+			t.Fatalf("ParseSource(%q) Type = %q, want %q", input, source.Type, "github")
 		}
-		if source.Builtin != "devwiki" {
-			t.Fatalf("ParseSource(%q) Builtin = %q, want %q", input, source.Builtin, "devwiki")
+		if source.RepoURL != "https://github.com/JieWaZi/zatools.git" {
+			t.Fatalf("ParseSource(%q) RepoURL = %q", input, source.RepoURL)
 		}
-		if source.Ref != "zh" {
-			t.Fatalf("ParseSource(%q) Ref = %q, want zh", input, source.Ref)
+		if source.Subpath != "skills/devwiki" {
+			t.Fatalf("ParseSource(%q) Subpath = %q, want skills/devwiki", input, source.Subpath)
 		}
-		if source.Original != "zatools/devwiki#zh" {
-			t.Fatalf("ParseSource(%q) Original = %q, want zatools/devwiki#zh", input, source.Original)
+		if source.Ref != "main" {
+			t.Fatalf("ParseSource(%q) Ref = %q, want main", input, source.Ref)
+		}
+		if source.Original != "JieWaZi/zatools/skills/devwiki#main" {
+			t.Fatalf("ParseSource(%q) Original = %q, want JieWaZi/zatools/skills/devwiki#main", input, source.Original)
 		}
 	}
 }
 
-func TestResolveSourceBuiltinDevwikiExtractsEmbeddedSkills(t *testing.T) {
-	t.Parallel()
-
-	source := NewBuiltinSource("devwiki", "zh")
-	resolved, err := ResolveSource(t.Context(), source)
-	if err != nil {
-		t.Fatalf("ResolveSource returned error: %v", err)
-	}
-	defer func() {
-		if cleanupErr := resolved.Cleanup(); cleanupErr != nil {
-			t.Fatalf("cleanup resolved source: %v", cleanupErr)
-		}
-	}()
-
-	searchRoot, err := resolved.SearchRoot()
-	if err != nil {
-		t.Fatalf("SearchRoot returned error: %v", err)
-	}
-
-	if _, err := os.Stat(filepath.Join(searchRoot, "qmd-sync", "SKILL.md")); err == nil {
-		t.Fatal("builtin devwiki should not include qmd-sync skill")
-	}
-}
-
-func TestBuiltinDevwikiIgnoresLegacyLanguageVariant(t *testing.T) {
-	t.Parallel()
-
-	source, err := ParseSource("zatools/devwiki#en")
+func TestParseSourceKeepsExplicitDevwikiAliasRef(t *testing.T) {
+	source, err := ParseSource("zatools/devwiki#v1.2.3")
 	if err != nil {
 		t.Fatalf("ParseSource returned error: %v", err)
 	}
-	if source.Ref != "zh" || source.Original != "zatools/devwiki#zh" {
-		t.Fatalf("source = %#v, want zh builtin source", source)
+	if source.Ref != "v1.2.3" {
+		t.Fatalf("Ref = %q, want v1.2.3", source.Ref)
 	}
+	if source.Original != "JieWaZi/zatools/skills/devwiki#v1.2.3" {
+		t.Fatalf("Original = %q, want JieWaZi/zatools/skills/devwiki#v1.2.3", source.Original)
+	}
+}
 
-	resolved, err := ResolveSource(t.Context(), source)
+func TestParseSourceDevwikiAliasUsesEnvRef(t *testing.T) {
+	t.Setenv("ZATOOLS_DEVWIKI_SKILLS_REF", "v0.1.0")
+	source, err := ParseSource("devwiki")
 	if err != nil {
-		t.Fatalf("ResolveSource returned error: %v", err)
+		t.Fatalf("ParseSource returned error: %v", err)
 	}
-	defer func() {
-		if cleanupErr := resolved.Cleanup(); cleanupErr != nil {
-			t.Fatalf("cleanup resolved source: %v", cleanupErr)
-		}
-	}()
-	searchRoot, err := resolved.SearchRoot()
-	if err != nil {
-		t.Fatalf("SearchRoot returned error: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(searchRoot, "query", "SKILL.md")); err != nil {
-		t.Fatalf("missing builtin query skill: %v", err)
+	if source.Ref != "v0.1.0" || source.Original != "JieWaZi/zatools/skills/devwiki#v0.1.0" {
+		t.Fatalf("source = %#v, want env-ref devwiki URL source", source)
 	}
 }
 

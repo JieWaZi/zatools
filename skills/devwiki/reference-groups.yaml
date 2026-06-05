@@ -1,0 +1,72 @@
+groups:
+  zatools-devwiki.md:
+    canonical: query/references/zatools-devwiki.md
+    files:
+      - query/references/zatools-devwiki.md
+      - code/references/zatools-devwiki.md
+      - code-to-doc/references/zatools-devwiki.md
+      - ingest/references/zatools-devwiki.md
+      - maintain/references/zatools-devwiki.md
+      - topic/references/zatools-devwiki.md
+      - workflow/references/zatools-devwiki.md
+
+  zatools-qmd.md:
+    canonical: query/references/zatools-qmd.md
+    files:
+      - query/references/zatools-qmd.md
+      - code-to-doc/references/zatools-qmd.md
+      - ingest/references/zatools-qmd.md
+      - maintain/references/zatools-qmd.md
+
+  code-tracing.md:
+    canonical: code/references/code-tracing.md
+    files:
+      - code/references/code-tracing.md
+      - code-to-doc/references/code-tracing.md
+      - ingest/references/code-tracing.md
+      - maintain/references/code-tracing.md
+      - workflow/references/code-tracing.md
+
+  knowledge-placement.md:
+    canonical: ingest/references/knowledge-placement.md
+    files:
+      - ingest/references/knowledge-placement.md
+      - topic/references/knowledge-placement.md
+      - workflow/references/knowledge-placement.md
+
+  mutation-safety.md:
+    canonical: ingest/references/mutation-safety.md
+    files:
+      - ingest/references/mutation-safety.md
+      - code-to-doc/references/mutation-safety.md
+      - maintain/references/mutation-safety.md
+      - topic/references/mutation-safety.md
+      - workflow/references/mutation-safety.md
+
+  common-file-format.md:
+    canonical: ingest/references/common-file-format.md
+    files:
+      - ingest/references/common-file-format.md
+      - code-to-doc/references/common-file-format.md
+      - maintain/references/common-file-format.md
+      - topic/references/common-file-format.md
+      - workflow/references/common-file-format.md
+
+  evidence-grounding.md:
+    canonical: maintain/references/evidence-grounding.md
+    files:
+      - maintain/references/evidence-grounding.md
+      - code-to-doc/references/evidence-grounding.md
+      - ingest/references/evidence-grounding.md
+      - topic/references/evidence-grounding.md
+      - workflow/references/evidence-grounding.md
+
+  topic_template.md:
+    canonical: topic/references/topic_template.md
+    files:
+      - topic/references/topic_template.md
+
+  workflow_template.md:
+    canonical: workflow/references/workflow_template.md
+    files:
+      - workflow/references/workflow_template.md

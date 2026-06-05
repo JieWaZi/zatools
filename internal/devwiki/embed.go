@@ -4,7 +4,7 @@ import "embed"
 
 // templateFS 保存 DevWiki 工程模板。
 //
-//go:embed template/**
+//go:embed template/docs/**
 var templateFS embed.FS
 
 // TemplateFS 返回 DevWiki 的内置模板文件系统。

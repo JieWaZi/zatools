@@ -14,7 +14,6 @@ argument-hint: "<问题>"
 - **按需加载参考文档**：
   - 查询或读取 DevWiki 项目知识前 → 读 `references/zatools-devwiki.md`
   - 仅本地搜索低置信、需 qmd 升档时 → 读 `references/zatools-qmd.md`
-  - 仅用户要求保存回答、沉淀结论、写入文件时 → 读 `references/mutation-safety.md`
 
 不要凭空回答项目事实；先查 DevWiki 文档，优先基于 topic / workflow / troubleshooting / raw 总结；每个关键结论都要能追溯来源。
 
@@ -87,7 +86,7 @@ glossary keywords → index → glossary → topic/workflow → qmd query
 
 - 已基于 DevWiki 文档确认了哪些入口、模块职责、状态流/数据流或副作用；
 - 哪些结论仍需要当前代码核查；
-- 缺少代码锚点且需要 DevWiki 定位入口时，建议显式使用 `$devwiki-code` 继续，并让 `devwiki-code` 按 workflow 锚点读取 `references/code-tracing.md` 后定向搜索代码；
+- 缺少代码锚点且需要 DevWiki 定位入口时，建议显式使用 `$devwiki-code` 继续，并让 `devwiki-code` 按 workflow 锚点定向搜索代码；
 - 已有具体文件、函数、代码块、当前 diff、完整 patch 或明确替换方式时，按普通代码查看或编辑任务处理，不转 `devwiki-code`；
 - 如果没有查代码，明确说明：本轮基于 DevWiki 文档总结，未展开当前代码核查。
 
@@ -113,4 +112,4 @@ compare 回答重点：比较对象、相同点、差异点、适用场景、依
 
 ### Step 5: 按需沉淀答案
 
-只有用户明确要求保存回答、沉淀结论、写入报告，且 `repo info <project>` 显示 `active_source=local` 时，才先读 `references/mutation-safety.md`，再创建 `wiki/outputs/<query-slug>.md` 并追加 `wiki/log.md`。如果 `active_source=remote`，只输出报告正文和建议保存位置。
+只有用户明确要求保存回答、沉淀结论、写入报告，且 `repo info <project>` 显示 `active_source=local` 时，才创建 `wiki/outputs/<query-slug>.md` 并追加 `wiki/log.md`。如果 `active_source=remote`，只输出报告正文和建议保存位置。

@@ -163,7 +163,8 @@ func TestInstallSelectedSkillsWritesIntoCurrentProjectRootByDefault(t *testing.T
 	}
 	mustWriteFileDevwikiApp(t, filepath.Join(sourceDir, "SKILL.md"), "---\nname: devwiki-query\ndescription: query\n---\n")
 
-	err := service.installSelectedSkills(root, "codex", false, "zh", []skills.Skill{
+	source := skills.NewDevwikiSkillsSource("")
+	err := service.installSelectedSkills(root, "codex", false, source, []skills.Skill{
 		{Name: "devwiki-query", Description: "query", Dir: sourceDir, RelativeDir: "."},
 	})
 	if err != nil {
@@ -182,8 +183,8 @@ func TestInstallSelectedSkillsWritesIntoCurrentProjectRootByDefault(t *testing.T
 		t.Fatalf("LoadLock error = %v", err)
 	}
 	entry := lock.Entries(skills.SkillAsset)["devwiki-query"]
-	if entry.Source != "zatools/devwiki#zh" {
-		t.Fatalf("Source = %q, want %q", entry.Source, "zatools/devwiki#zh")
+	if entry.Source != "JieWaZi/zatools/skills/devwiki#main" {
+		t.Fatalf("Source = %q, want %q", entry.Source, "JieWaZi/zatools/skills/devwiki#main")
 	}
 }
 
@@ -196,6 +197,7 @@ func TestInitCreatesProjectAndInstallsCodexSkillsIntoCurrentProjectRoot(t *testi
 		Workspace: skills.NewWorkspace(docRoot),
 		IsTTY:     false,
 	})
+	useLocalDevwikiSkills(t, service)
 
 	err := service.Init(context.Background(), InitOptions{
 		ProjectName: "Sample Project",
@@ -260,8 +262,8 @@ func TestInitCreatesProjectAndInstallsCodexSkillsIntoCurrentProjectRoot(t *testi
 		t.Fatalf("LoadLock error = %v", err)
 	}
 	entry := lock.Entries(skills.SkillAsset)["devwiki-query"]
-	if entry.Source != "zatools/devwiki#zh" {
-		t.Fatalf("Source = %q, want %q", entry.Source, "zatools/devwiki#zh")
+	if entry.Source != "JieWaZi/zatools/skills/devwiki#main" {
+		t.Fatalf("Source = %q, want %q", entry.Source, "JieWaZi/zatools/skills/devwiki#main")
 	}
 }
 
@@ -274,6 +276,7 @@ func TestInitCreatesProjectAndInstallsCursorSkillsIntoCurrentProjectRoot(t *test
 		Workspace: skills.NewWorkspace(docRoot),
 		IsTTY:     false,
 	})
+	useLocalDevwikiSkills(t, service)
 
 	err := service.Init(context.Background(), InitOptions{
 		ProjectName: "Sample Project",
@@ -319,6 +322,7 @@ func TestInitDoesNotRequireFinalConfirmationPrompt(t *testing.T) {
 		Workspace: skills.NewWorkspace(docRoot),
 		IsTTY:     false,
 	})
+	useLocalDevwikiSkills(t, service)
 
 	err := service.Init(context.Background(), InitOptions{
 		ProjectName: "No Prompt Project",
@@ -347,6 +351,7 @@ func TestInitDoesNotWarmQMDModelsAndPrintsManualDownloadHint(t *testing.T) {
 		Workspace: skills.NewWorkspace(root),
 		IsTTY:     false,
 	})
+	useLocalDevwikiSkills(t, service)
 
 	var output string
 	err := captureDevwikiStdoutText(t, func() error {
@@ -375,17 +380,9 @@ func TestUpdateRefreshesDevwikiSourcesAndLeavesOtherSkillsUntouched(t *testing.T
 		Workspace: skills.NewWorkspace(root),
 		IsTTY:     false,
 	})
+	source := useLocalDevwikiSkills(t, service)
 
-	builtinRoot, cleanup, err := devwiki.ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
-
-	found, err := skills.Discover(builtinRoot)
-	if err != nil {
-		t.Fatalf("Discover builtin skills error = %v", err)
-	}
+	found := rootDevwikiSkills(t)
 	var selected []skills.Skill
 	for _, skill := range found {
 		if skill.Name == "devwiki-ingest" {
@@ -394,10 +391,10 @@ func TestUpdateRefreshesDevwikiSourcesAndLeavesOtherSkillsUntouched(t *testing.T
 		}
 	}
 	if len(selected) != 1 {
-		t.Fatalf("selected builtin skills = %#v, want devwiki-ingest", selected)
+		t.Fatalf("selected DevWiki skills = %#v, want devwiki-ingest", selected)
 	}
 
-	if err := service.installSelectedSkills(root, "codex", false, "zh", selected); err != nil {
+	if err := service.installSelectedSkills(root, "codex", false, source, selected); err != nil {
 		t.Fatalf("installSelectedSkills error = %v", err)
 	}
 
@@ -443,8 +440,8 @@ func TestUpdateRefreshesDevwikiSourcesAndLeavesOtherSkillsUntouched(t *testing.T
 		t.Fatalf("LoadLock(updated) error = %v", err)
 	}
 	updatedDevEntry := updatedLock.Entries(skills.SkillAsset)["devwiki-ingest"]
-	if updatedDevEntry.Source != "zatools/devwiki#zh" {
-		t.Fatalf("updated devwiki source = %q, want %q", updatedDevEntry.Source, "zatools/devwiki#zh")
+	if updatedDevEntry.Source != "JieWaZi/zatools/skills/devwiki#main" {
+		t.Fatalf("updated devwiki source = %q, want %q", updatedDevEntry.Source, "JieWaZi/zatools/skills/devwiki#main")
 	}
 	if updatedDevEntry.Hash == "stale-devwiki" {
 		t.Fatal("expected devwiki hash to refresh")
@@ -461,7 +458,7 @@ func TestUpdateRefreshesDevwikiSourcesAndLeavesOtherSkillsUntouched(t *testing.T
 	}
 }
 
-func TestUpdateInstallsMissingBuiltinSkillsInDevwikiRoot(t *testing.T) {
+func TestUpdateInstallsMissingDevwikiSkillsInDevwikiRoot(t *testing.T) {
 	root := t.TempDir()
 	codeRoot := t.TempDir()
 	if err := devwiki.GenerateProject(root, devwiki.ProjectSpec{
@@ -480,17 +477,9 @@ func TestUpdateInstallsMissingBuiltinSkillsInDevwikiRoot(t *testing.T) {
 		Workspace: skills.NewWorkspace(root),
 		IsTTY:     false,
 	})
+	source := useLocalDevwikiSkills(t, service)
 
-	builtinRoot, cleanup, err := devwiki.ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
-
-	found, err := skills.Discover(builtinRoot)
-	if err != nil {
-		t.Fatalf("Discover builtin skills error = %v", err)
-	}
+	found := rootDevwikiSkills(t)
 	selected := make([]skills.Skill, 0, len(found)-1)
 	for _, skill := range found {
 		if skill.Name == "devwiki-maintain" {
@@ -501,7 +490,7 @@ func TestUpdateInstallsMissingBuiltinSkillsInDevwikiRoot(t *testing.T) {
 	if len(selected) != len(found)-1 {
 		t.Fatalf("selected skills = %d, found = %d; expected only maintain to be omitted", len(selected), len(found))
 	}
-	if err := service.installSelectedSkills(root, "codex", false, "zh", selected); err != nil {
+	if err := service.installSelectedSkills(root, "codex", false, source, selected); err != nil {
 		t.Fatalf("installSelectedSkills error = %v", err)
 	}
 
@@ -529,8 +518,8 @@ func TestUpdateInstallsMissingBuiltinSkillsInDevwikiRoot(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected devwiki update to install missing devwiki-maintain, got %#v", afterLock.Entries(skills.SkillAsset))
 	}
-	if entry.Source != "zatools/devwiki#zh" {
-		t.Fatalf("maintain Source = %q, want %q", entry.Source, "zatools/devwiki#zh")
+	if entry.Source != "JieWaZi/zatools/skills/devwiki#main" {
+		t.Fatalf("maintain Source = %q, want %q", entry.Source, "JieWaZi/zatools/skills/devwiki#main")
 	}
 	if _, err := os.Stat(filepath.Join(root, ".agents", "skills", "devwiki-maintain", "SKILL.md")); err != nil {
 		t.Fatalf("missing installed devwiki-maintain skill: %v", err)
@@ -556,17 +545,10 @@ func TestUpdateRefreshesQMDIndexAfterSkillUpdate(t *testing.T) {
 		Workspace: skills.NewWorkspace(root),
 		IsTTY:     false,
 	})
+	source := useLocalDevwikiSkills(t, service)
 
-	builtinRoot, cleanup, err := devwiki.ExtractBuiltinSkills("zh")
-	if err != nil {
-		t.Fatalf("ExtractBuiltinSkills error = %v", err)
-	}
-	defer cleanup()
-	found, err := skills.Discover(builtinRoot)
-	if err != nil {
-		t.Fatalf("Discover builtin skills error = %v", err)
-	}
-	if err := service.installSelectedSkills(root, "codex", false, "zh", found); err != nil {
+	found := rootDevwikiSkills(t)
+	if err := service.installSelectedSkills(root, "codex", false, source, found); err != nil {
 		t.Fatalf("installSelectedSkills error = %v", err)
 	}
 

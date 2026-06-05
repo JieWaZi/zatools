@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	common "zatools/internal/app/common"
-	"zatools/internal/app/skillapp"
 	"zatools/internal/devwiki"
 	"zatools/internal/platform/agents"
 	"zatools/internal/qmd"
@@ -20,8 +19,6 @@ import (
 )
 
 func (s *Service) runProject(ctx context.Context, opts InitOptions, installSkills bool) error {
-	_ = ctx
-
 	copy := ui.Messages()
 
 	resolved, err := s.collectInitOptions(opts, installSkills)
@@ -71,24 +68,21 @@ func (s *Service) runProject(ctx context.Context, opts InitOptions, installSkill
 	spinner.Stop(fmt.Sprintf(copy.CreatedFmt, targetDir))
 
 	if installSkills {
-		skillsRoot, cleanup, err := devwiki.ExtractBuiltinSkills(resolved.Lang)
+		bundle, err := s.resolveDevwikiSkills(ctx)
 		if err != nil {
 			return err
 		}
-		defer cleanup()
-
-		found, err := skills.Discover(skillsRoot)
-		if err != nil {
-			return err
+		if bundle.cleanup != nil {
+			defer bundle.cleanup()
 		}
 
-		selected, err := s.resolveSelectedSkills(found, resolved)
+		selected, err := s.resolveSelectedSkills(bundle.skills, resolved)
 		if err != nil {
 			return err
 		}
 		if selected != nil && len(selected) > 0 {
 			spinner.Start(copy.StepInstallingDevwikiSkills)
-			if err := s.installSelectedSkills(targetDir, resolved.Agent, resolved.Global, resolved.Lang, selected); err != nil {
+			if err := s.installSelectedSkills(targetDir, resolved.Agent, resolved.Global, bundle.source, selected); err != nil {
 				return err
 			}
 			spinner.Stop(fmt.Sprintf(copy.DevwikiInstalledSkillsFmt, len(selected)))
@@ -303,11 +297,11 @@ func ensureProjectInstallGitignore(projectRoot, agent string) error {
 	return common.EnsureProjectGitignore(projectRoot, filepath.Join(projectRoot, ".cache"), installDir, lockPath)
 }
 
-func (s *Service) installSelectedSkills(projectRoot, agent string, global bool, lang string, selected []skills.Skill) error {
-	return s.installSelectedSkillsForAgents(projectRoot, []string{agent}, global, lang, selected)
+func (s *Service) installSelectedSkills(projectRoot, agent string, global bool, source skills.Source, selected []skills.Skill) error {
+	return s.installSelectedSkillsForAgents(projectRoot, []string{agent}, global, source, selected)
 }
 
-func (s *Service) installSelectedSkillsForAgents(projectRoot string, agentKeys []string, global bool, lang string, selected []skills.Skill) error {
+func (s *Service) installSelectedSkillsForAgents(projectRoot string, agentKeys []string, global bool, source skills.Source, selected []skills.Skill) error {
 	lockPath, err := devwikiLockPath(projectRoot, global)
 	if err != nil {
 		return err
@@ -317,7 +311,6 @@ func (s *Service) installSelectedSkillsForAgents(projectRoot string, agentKeys [
 		return err
 	}
 
-	source := skills.NewBuiltinSource("devwiki", lang)
 	entries := lock.Entries(skills.SkillAsset)
 	for _, skill := range selected {
 		var merged skills.InstalledAsset
@@ -356,24 +349,29 @@ func (s *Service) updateSkills(ctx context.Context) error {
 		return err
 	}
 
-	skillService := skillapp.NewServiceWithRuntime(s.runtime)
-	results, err := skillService.CheckInstalled(ctx, global)
+	devwikiEntries, err := s.installedDevwikiEntries(global)
 	if err != nil {
 		return err
 	}
-
-	var devwikiResults []skills.CheckResult
-	for _, result := range results {
-		if isDevwikiInstalledSkill(result.Asset) {
-			devwikiResults = append(devwikiResults, result)
-		}
-	}
-	if len(devwikiResults) == 0 {
+	if len(devwikiEntries) == 0 {
 		fmt.Printf("%s%s%s\n", ui.Dim, copy.DevwikiNoSkillsTracked, ui.Reset)
 		return s.refreshDevwikiQMD(ctx)
 	}
 
-	installedMissing, err := s.installMissingDevwikiBuiltinSkills(global, devwikiResults)
+	bundle, err := s.resolveDevwikiSkills(ctx)
+	if err != nil {
+		return err
+	}
+	if bundle.cleanup != nil {
+		defer bundle.cleanup()
+	}
+
+	devwikiResults, err := s.checkInstalledDevwikiSkills(ctx, devwikiEntries, bundle)
+	if err != nil {
+		return err
+	}
+
+	installedMissing, err := s.installMissingDevwikiSkills(global, devwikiResults, bundle)
 	if err != nil {
 		return err
 	}
@@ -403,7 +401,7 @@ func (s *Service) updateSkills(ctx context.Context) error {
 		return nil
 	}
 
-	updated, err := skillService.UpdateResults(ctx, global, selected)
+	updated, err := s.updateDevwikiResults(ctx, global, selected, bundle)
 	if err != nil {
 		return err
 	}
@@ -446,26 +444,117 @@ func (s *Service) refreshDevwikiQMD(ctx context.Context) error {
 	return nil
 }
 
+func (s *Service) installedDevwikiEntries(global bool) ([]skills.CheckResult, error) {
+	lockPath, err := s.runtime.Workspace.LockFilePath(global)
+	if err != nil {
+		return nil, err
+	}
+	lock, err := skills.LoadLock(lockPath)
+	if err != nil {
+		return nil, err
+	}
+	var results []skills.CheckResult
+	for _, entry := range common.SortedInstalledAssets(lock, skills.SkillAsset) {
+		if isDevwikiInstalledSkill(entry) {
+			results = append(results, skills.CheckResult{Asset: entry})
+		}
+	}
+	return results, nil
+}
+
+func (s *Service) checkInstalledDevwikiSkills(ctx context.Context, entries []skills.CheckResult, bundle devwikiSkillsBundle) ([]skills.CheckResult, error) {
+	byName := make(map[string]skills.Skill, len(bundle.skills))
+	for _, skill := range bundle.skills {
+		byName[skill.Name] = skill
+	}
+	results := make([]skills.CheckResult, 0, len(entries))
+	for _, result := range entries {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		skill, ok := byName[result.Asset.Name]
+		if !ok {
+			result.Status = "source-error"
+			result.Message = fmt.Sprintf(ui.Messages().SourceNoLongerContainsFmt, bundle.source.Original, result.Asset.Name)
+			results = append(results, result)
+			continue
+		}
+		hash, err := skills.HashDir(skill.Dir)
+		if err != nil {
+			result.Status = "hash-error"
+			result.Message = err.Error()
+			results = append(results, result)
+			continue
+		}
+		result.LatestHash = hash
+		result.Status = "current"
+		if hash != result.Asset.Hash {
+			result.Status = "outdated"
+		}
+		results = append(results, result)
+	}
+	return results, nil
+}
+
+func (s *Service) updateDevwikiResults(ctx context.Context, global bool, results []skills.CheckResult, bundle devwikiSkillsBundle) (int, error) {
+	lockPath, err := s.runtime.Workspace.LockFilePath(global)
+	if err != nil {
+		return 0, err
+	}
+	lock, err := skills.LoadLock(lockPath)
+	if err != nil {
+		return 0, err
+	}
+	byName := make(map[string]skills.Skill, len(bundle.skills))
+	for _, skill := range bundle.skills {
+		byName[skill.Name] = skill
+	}
+	entries := lock.Entries(skills.SkillAsset)
+	updated := 0
+	for _, result := range results {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+		if result.Status != "outdated" {
+			continue
+		}
+		skill, ok := byName[result.Asset.Name]
+		if !ok {
+			return 0, fmt.Errorf(ui.Messages().SourceNoLongerContainsFmt, bundle.source.Original, result.Asset.Name)
+		}
+		agentKeys, err := common.RequiredAgentKeys(result.Asset)
+		if err != nil {
+			return 0, err
+		}
+		if err := s.installSelectedSkillsForAgents(s.runtime.Workspace.ProjectDir(), agentKeys, global, bundle.source, []skills.Skill{skill}); err != nil {
+			return 0, err
+		}
+		updatedLock, err := skills.LoadLock(lockPath)
+		if err != nil {
+			return 0, err
+		}
+		entries = updatedLock.Entries(skills.SkillAsset)
+		lock = updatedLock
+		if entry, ok := entries[result.Asset.Name]; ok {
+			entries[result.Asset.Name] = entry
+		}
+		updated++
+		fmt.Printf(ui.Messages().UpdatedFmt, ui.Green, ui.Reset, result.Asset.Name)
+	}
+	if err := skills.SaveLock(lockPath, lock); err != nil {
+		return 0, err
+	}
+	return updated, nil
+}
+
 func printDevwikiQMDWarning(step string, err error) {
 	fmt.Printf("%s!%s %s\n", ui.Yellow, ui.Reset, fmt.Sprintf(ui.Messages().DevwikiQMDRefreshFailedFmt, step, err))
 }
 
-func (s *Service) installMissingDevwikiBuiltinSkills(global bool, devwikiResults []skills.CheckResult) (int, error) {
+func (s *Service) installMissingDevwikiSkills(global bool, devwikiResults []skills.CheckResult, bundle devwikiSkillsBundle) (int, error) {
 	projectRoot := s.runtime.Workspace.ProjectDir()
 	if !isDevwikiDocumentRoot(projectRoot) {
 		return 0, nil
-	}
-
-	lang := inferDevwikiUpdateLang(devwikiResults)
-	skillsRoot, cleanup, err := devwiki.ExtractBuiltinSkills(lang)
-	if err != nil {
-		return 0, err
-	}
-	defer cleanup()
-
-	found, err := skills.Discover(skillsRoot)
-	if err != nil {
-		return 0, err
 	}
 
 	installedNames := make(map[string]struct{}, len(devwikiResults))
@@ -473,7 +562,7 @@ func (s *Service) installMissingDevwikiBuiltinSkills(global bool, devwikiResults
 		installedNames[result.Asset.Name] = struct{}{}
 	}
 	missing := make([]skills.Skill, 0)
-	for _, skill := range found {
+	for _, skill := range bundle.skills {
 		if _, ok := installedNames[skill.Name]; ok {
 			continue
 		}
@@ -493,7 +582,6 @@ func (s *Service) installMissingDevwikiBuiltinSkills(global bool, devwikiResults
 		return 0, err
 	}
 	entries := lock.Entries(skills.SkillAsset)
-	source := skills.NewBuiltinSource("devwiki", lang)
 	for _, skill := range missing {
 		var merged skills.InstalledAsset
 		for i, agentKey := range agentKeys {
@@ -504,7 +592,7 @@ func (s *Service) installMissingDevwikiBuiltinSkills(global bool, devwikiResults
 			if err := skills.EnsureDir(installDir); err != nil {
 				return 0, err
 			}
-			entry, err := skills.InstallSkill(installDir, source, skill)
+			entry, err := skills.InstallSkill(installDir, bundle.source, skill)
 			if err != nil {
 				return 0, err
 			}
@@ -540,11 +628,8 @@ func isDevwikiDocumentRoot(root string) bool {
 func inferDevwikiUpdateLang(results []skills.CheckResult) string {
 	for _, result := range results {
 		source, err := skills.ParseSource(result.Asset.Source)
-		if err == nil && source.Type == "builtin" && source.Builtin == "devwiki" {
-			switch source.Ref {
-			case "zh":
-				return source.Ref
-			}
+		if err == nil && skills.IsDevwikiSkillsSource(source) {
+			return ui.DefaultLang
 		}
 	}
 	return ui.DefaultLang
@@ -638,11 +723,10 @@ func (s *Service) migrateLegacyDevwikiSources(global bool) error {
 	changed := false
 	entries := lock.Entries(skills.SkillAsset)
 	for name, entry := range entries {
-		if !isDevwikiInstalledSkill(entry) || strings.HasPrefix(entry.Source, "zatools/devwiki") {
+		if !isDevwikiInstalledSkill(entry) || isCurrentDevwikiSource(entry.Source) {
 			continue
 		}
-		lang := inferDevwikiSkillLang(entry.Path)
-		entry.Source = skills.NewBuiltinSource("devwiki", lang).Original
+		entry.Source = skills.NewDevwikiSkillsSource("").Original
 		entries[name] = entry
 		changed = true
 	}
@@ -653,11 +737,12 @@ func (s *Service) migrateLegacyDevwikiSources(global bool) error {
 }
 
 func isDevwikiInstalledSkill(entry skills.InstalledAsset) bool {
-	return strings.HasPrefix(entry.Name, "devwiki-") || strings.HasPrefix(entry.Source, "zatools/devwiki")
+	return strings.HasPrefix(entry.Name, "devwiki-") || strings.HasPrefix(entry.Source, "zatools/devwiki") || isCurrentDevwikiSource(entry.Source)
 }
 
-func inferDevwikiSkillLang(_ string) string {
-	return ui.DefaultLang
+func isCurrentDevwikiSource(sourceText string) bool {
+	source, err := skills.ParseSource(sourceText)
+	return err == nil && skills.IsDevwikiSkillsSource(source) && !strings.HasPrefix(sourceText, "zatools/devwiki")
 }
 
 func devwikiLockPath(targetDir string, global bool) (string, error) {

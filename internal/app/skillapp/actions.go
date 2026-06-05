@@ -338,7 +338,11 @@ func filterUpdateResults(results []skills.CheckResult, targets []string) ([]skil
 func updateTargetMatches(entry skills.InstalledAsset, target string) bool {
 	switch target {
 	case "devwiki", "zatools/devwiki":
-		return strings.HasPrefix(entry.Name, "devwiki-") || strings.HasPrefix(entry.Source, "zatools/devwiki")
+		if strings.HasPrefix(entry.Name, "devwiki-") || strings.HasPrefix(entry.Source, "zatools/devwiki") {
+			return true
+		}
+		source, err := skills.ParseSource(entry.Source)
+		return err == nil && skills.IsDevwikiSkillsSource(source)
 	default:
 		return entry.Name == target
 	}

@@ -311,6 +311,20 @@ func newTestService(t *testing.T) *Service {
 	})
 }
 
+func rootDevwikiSkillsForSkillApp(t *testing.T) string {
+	t.Helper()
+
+	root := filepath.Clean(filepath.Join("..", "..", "..", "skills", "devwiki"))
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		t.Fatalf("Abs(root DevWiki skills) error = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(abs, "query", "SKILL.md")); err != nil {
+		t.Fatalf("missing root DevWiki skills: %v", err)
+	}
+	return abs
+}
+
 func mustWriteFileApp(t *testing.T, path string, content string) {
 	t.Helper()
 
@@ -447,19 +461,19 @@ func TestServiceLifecycleCommands(t *testing.T) {
 	}
 }
 
-func TestServiceAddBuiltinDevwikiLibrary(t *testing.T) {
+func TestServiceAddRootDevwikiSkills(t *testing.T) {
 	service := newTestService(t)
-	t.Setenv("ZATOOLS_LANG", "en")
+	root := rootDevwikiSkillsForSkillApp(t)
 
 	err := captureStdout(t, func() error {
-		return service.Add(context.Background(), "devwiki", AddOptions{
+		return service.Add(context.Background(), root, AddOptions{
 			Yes:           true,
 			ScopeProvided: true,
 			Agents:        []string{"codex"},
 		})
 	})
 	if err != nil {
-		t.Fatalf("Service.Add(builtin devwiki) error = %v", err)
+		t.Fatalf("Service.Add(root DevWiki skills) error = %v", err)
 	}
 
 	lockPath, err := service.runtime.Workspace.LockFilePath(false)
@@ -476,8 +490,8 @@ func TestServiceAddBuiltinDevwikiLibrary(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected %s in lock, got %#v", name, lock.Entries(skills.SkillAsset))
 		}
-		if entry.Source != "zatools/devwiki#zh" {
-			t.Fatalf("%s Source = %q, want %q", name, entry.Source, "zatools/devwiki#zh")
+		if entry.Source != root {
+			t.Fatalf("%s Source = %q, want %q", name, entry.Source, root)
 		}
 		wantSubdir := strings.TrimPrefix(name, "devwiki-")
 		if !strings.HasSuffix(entry.SourceSubdir, wantSubdir) {
@@ -486,18 +500,19 @@ func TestServiceAddBuiltinDevwikiLibrary(t *testing.T) {
 	}
 }
 
-func TestServiceUpdateCanTargetDevwikiBuiltinSkills(t *testing.T) {
+func TestServiceUpdateCanTargetDevwikiSkills(t *testing.T) {
 	service := newTestService(t)
 	projectDir := service.runtime.Workspace.ProjectDir()
+	root := rootDevwikiSkillsForSkillApp(t)
 
 	if err := captureStdout(t, func() error {
-		return service.Add(context.Background(), "devwiki", AddOptions{
+		return service.Add(context.Background(), root, AddOptions{
 			Yes:           true,
 			ScopeProvided: true,
 			Agents:        []string{"codex"},
 		})
 	}); err != nil {
-		t.Fatalf("Service.Add(devwiki) error = %v", err)
+		t.Fatalf("Service.Add(root DevWiki skills) error = %v", err)
 	}
 
 	localSource := filepath.Join(projectDir, "custom-skill")

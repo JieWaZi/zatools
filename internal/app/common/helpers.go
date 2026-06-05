@@ -42,9 +42,6 @@ func FormatSourceSummary(source skills.Source) string {
 	if source.Type == "local" {
 		location = source.LocalDir
 	}
-	if source.Type == "builtin" {
-		location = source.Original
-	}
 
 	var extra []string
 	if source.Ref != "" {

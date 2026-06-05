@@ -41,6 +41,9 @@ func TestNewCommandIncludesInitAndToolSubcommands(t *testing.T) {
 	if sub, _, err := cmd.Find([]string{"repo"}); err != nil || sub == nil {
 		t.Fatalf("missing subcommand %q: %v", "repo", err)
 	}
+	if sub, _, err := cmd.Find([]string{"skill"}); err != nil || sub == nil {
+		t.Fatalf("missing subcommand %q: %v", "skill", err)
+	}
 }
 
 func TestDevwikiInitFlags(t *testing.T) {
@@ -86,6 +89,27 @@ func TestDevwikiRepoIncludesUseSubcommand(t *testing.T) {
 	}
 	if useCmd.Use != "use <project> <local|remote>" {
 		t.Fatalf("repo use Use = %q", useCmd.Use)
+	}
+}
+
+func TestDevwikiSkillRefsCommands(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCommand()
+	checkCmd, _, err := cmd.Find([]string{"skill", "refs", "check"})
+	if err != nil {
+		t.Fatalf("Find(skill refs check) error = %v", err)
+	}
+	if checkCmd == nil || checkCmd.Use != "check" {
+		t.Fatalf("skill refs check command = %#v", checkCmd)
+	}
+
+	fixCmd, _, err := cmd.Find([]string{"skill", "refs", "fix"})
+	if err != nil {
+		t.Fatalf("Find(skill refs fix) error = %v", err)
+	}
+	if fixCmd == nil || fixCmd.Use != "fix" {
+		t.Fatalf("skill refs fix command = %#v", fixCmd)
 	}
 }
 

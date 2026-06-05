@@ -158,9 +158,13 @@ zatools skill add owner/repo#main
 # 全局安装
 zatools skill add ./examples/skills --global --yes
 
-# 安装或更新 DevWiki 内置 skills
+# 安装或更新 DevWiki skills（devwiki 是 URL alias，需要网络）
 zatools skill add devwiki
 zatools skill update devwiki
+
+# 显式使用 DevWiki skills URL 或本地目录
+zatools skill add JieWaZi/zatools/skills/devwiki#main
+zatools skill add ./skills/devwiki
 ```
 
 ---
@@ -212,9 +216,11 @@ zatools devwiki tool log --wiki-root <dir> --message "<text>"
 
 说明：
 
-- `devwiki init`：初始化 DevWiki 文档库，并安装运行时所需 skills
-- `devwiki update`：更新当前作用域内的 DevWiki 内置 skills，并尽力执行 qmd 注册、索引和向量刷新；qmd 失败只提示告警
+- `devwiki init`：初始化 DevWiki 文档库，并通过 DevWiki skills URL source 安装运行时所需 skills
+- `devwiki update`：更新当前作用域内的 DevWiki skills，并尽力执行 qmd 注册、索引和向量刷新；qmd 失败只提示告警
 - `devwiki repo`：维护用户级 DevWiki 项目配置，支持交互式 `repo init` 引导注册本地/远程文档库、选择 Agent、安装 DevWiki skills 并关联代码仓；同一 project 可同时保存本地和远端来源，`repo add` 更新对应来源并设为当前来源，`repo use <project> <local|remote>` 在两者之间切换；输出默认 JSON，`repo info` 无参数时只列出 project 名称，有 project 时包含 `active_source`、全部 `sources` 和已绑定代码仓路径
+- `devwiki skill refs check`：检查 `skills/devwiki/reference-groups.yaml` 中声明的重复 reference 是否一致
+- `devwiki skill refs fix`：用 canonical reference 覆盖不一致副本，不自动提交
 - `devwiki read`：按 topic / workflow 的 `card`、`core`、`explain` 视图读取结构化页面内容
 - `devwiki glossary keywords`：逐行输出 `wiki/glossary.md` 的 `glossary` 列，供 Agent 做项目术语对齐和语义纠偏
 - `devwiki search`：`index` / `glossary` 本地解析结构化表格并输出 pipe table；`topic` / `workflow` 调用 `qmd search` 后过滤并输出 `file`、`slug`、`title` 和 `score` pipe table，减少重复 JSON key 带来的 token 消耗
@@ -274,7 +280,7 @@ zatools qmd query "payment retry policy"
 | GitLab tree URL | `https://gitlab.com/group/repo/-/tree/main/rules/demo` |
 | 直接 git URL | `https://example.com/repo.git` |
 | 指定 ref | `owner/repo#main` |
-| 内置 DevWiki skills | `devwiki` 或 `zatools/devwiki` |
+| DevWiki skills URL alias | `devwiki` 或 `zatools/devwiki` |
 
 约束：
 
@@ -283,6 +289,25 @@ zatools qmd query "payment retry policy"
 - `#` 后内容会作为分支、标签或提交哈希
 - `github:owner/repo` 会转成 GitHub shorthand
 - `gitlab:group/repo` 会转成 GitLab URL
+- `devwiki` 和 `zatools/devwiki` 等价于 `JieWaZi/zatools/skills/devwiki#main`，需要网络；离线使用 `zatools skill add ./skills/devwiki`
+- `ZATOOLS_DEVWIKI_SKILLS_REF` 可覆盖 DevWiki skills URL alias 的默认 ref，例如 `ZATOOLS_DEVWIKI_SKILLS_REF=v0.1.0 zatools skill add devwiki`
+
+---
+
+## DevWiki Skill Reference 维护
+
+DevWiki skills 位于仓库根目录 `skills/devwiki/`。重复 reference 由 `skills/devwiki/reference-groups.yaml` 声明 canonical 和副本：
+
+```bash
+zatools devwiki skill refs check
+zatools devwiki skill refs fix
+```
+
+可启用仓库内 pre-commit hook，在提交前检查 reference 一致性：
+
+```bash
+git config core.hooksPath .githooks
+```
 
 ---
 

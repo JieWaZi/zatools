@@ -37,11 +37,67 @@ func NewCommand() *cobra.Command {
 	devwikiCmd.AddCommand(newSearchCmd(service))
 	devwikiCmd.AddCommand(newGlossaryCmd(service))
 	devwikiCmd.AddCommand(newRepoCmd(service))
+	devwikiCmd.AddCommand(newSkillCmd(service))
 	devwikiCmd.AddCommand(newCheckCmd(service))
 	devwikiCmd.AddCommand(newGraphCmd(service))
 	devwikiCmd.AddCommand(newServerCmd(service))
 	devwikiCmd.AddCommand(newToolCmd())
 	return devwikiCmd
+}
+
+func newSkillCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	cmd := &cobra.Command{
+		Use:           "skill",
+		Short:         copy.DevwikiSkillShort,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			_ = cmd.Help()
+		},
+	}
+	cmd.AddCommand(newSkillRefsCmd(service))
+	return cmd
+}
+
+func newSkillRefsCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	cmd := &cobra.Command{
+		Use:           "refs",
+		Short:         copy.DevwikiSkillRefsShort,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			_ = cmd.Help()
+		},
+	}
+	cmd.AddCommand(newSkillRefsCheckCmd(service))
+	cmd.AddCommand(newSkillRefsFixCmd(service))
+	return cmd
+}
+
+func newSkillRefsCheckCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	return &cobra.Command{
+		Use:   "check",
+		Short: copy.DevwikiSkillRefsCheckShort,
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return service.SkillRefsCheck(cmd.Context(), devwikiapp.SkillRefsOptions{Stdout: cmd.OutOrStdout()})
+		},
+	}
+}
+
+func newSkillRefsFixCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	return &cobra.Command{
+		Use:   "fix",
+		Short: copy.DevwikiSkillRefsFixShort,
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return service.SkillRefsFix(cmd.Context(), devwikiapp.SkillRefsOptions{Stdout: cmd.OutOrStdout()})
+		},
+	}
 }
 
 func newInitCmd(service *devwikiapp.Service) *cobra.Command {
