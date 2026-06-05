@@ -11,7 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"zatools/internal/devwiki/stats"
 	"zatools/internal/qmd"
 )
 
@@ -198,6 +200,237 @@ func TestAPIHandlerServesDevwikiGlossaryKeywordsWithBasicAuth(t *testing.T) {
 	}
 	if got.Text != "VIP\n网关配置\n" {
 		t.Fatalf("glossary keywords response = %q", got.Text)
+	}
+}
+
+func TestAPIHandlerRecordsSearchStats(t *testing.T) {
+	root := t.TempDir()
+	writeGraphFile(t, root, "wiki/index.md", `# Wiki Index
+
+| type | description | slug |
+|---|---|---|
+| topic | VIP 业务规则入口 | vip |
+`)
+
+	ctx := context.Background()
+	recorder := stats.NewRecorder(root)
+	handler := APIHandlerWithContextAndRecorder(ctx, root, recorder)
+	body := bytes.NewBufferString(`{"kind":"index","query":["VIP"]}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/devwiki/search", body)
+	req.SetBasicAuth(DefaultAPIUsername, DefaultAPIPassword)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
+	}
+
+	deadline := time.After(2 * time.Second)
+	logPath := filepath.Join(root, stats.DirName)
+	for {
+		matches, _ := filepath.Glob(filepath.Join(logPath, "queries-*.jsonl"))
+		if len(matches) > 0 {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("timed out waiting for search stats JSONL")
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
+	recorder.Flush()
+
+	summaryData, err := os.ReadFile(filepath.Join(root, stats.DirName, "summary.json"))
+	if err != nil {
+		t.Fatalf("ReadFile(summary.json) error = %v", err)
+	}
+	if !strings.Contains(string(summaryData), `"today_search_count": 1`) {
+		t.Fatalf("summary = %s", string(summaryData))
+	}
+}
+
+func TestAPIHandlerRecordsReadStatsAfterFlush(t *testing.T) {
+	root := t.TempDir()
+	writeGraphFile(t, root, "wiki/topics/vip.md", `---
+title: VIP
+slug: vip
+kind: topic
+status: active
+summary: VIP topic
+formatter: markdown
+confidence: high
+---
+# VIP
+
+<!-- devwiki:section id=card -->
+card body
+<!-- /devwiki:section -->
+`)
+
+	ctx := context.Background()
+	recorder := stats.NewRecorder(root)
+	handler := APIHandlerWithContextAndRecorder(ctx, root, recorder)
+	body := bytes.NewBufferString(`{"kind":"topic","slug":"vip","view":"card"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/devwiki/read", body)
+	req.SetBasicAuth(DefaultAPIUsername, DefaultAPIPassword)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
+	}
+
+	recorder.Flush()
+
+	documentsData, err := os.ReadFile(filepath.Join(root, stats.DirName, "documents.json"))
+	if err != nil {
+		t.Fatalf("ReadFile(documents.json) error = %v", err)
+	}
+	if !strings.Contains(string(documentsData), `"read_count": 1`) {
+		t.Fatalf("documents = %s", string(documentsData))
+	}
+}
+
+func TestGraphHandlerServesStatsSummary(t *testing.T) {
+	root := t.TempDir()
+	outDir := filepath.Join(root, ".devwiki", "graph")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	statsDir := filepath.Join(root, stats.DirName)
+	if err := os.MkdirAll(statsDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	if err := os.WriteFile(filepath.Join(statsDir, "summary.json"), []byte(`{
+  "updated_at": "2026-06-05T10:00:00Z",
+  "today": "`+today+`",
+  "today_search_count": 7,
+  "total_search_count": 70,
+  "total_read_count": 12
+}
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile(summary.json) error = %v", err)
+	}
+	logPath := filepath.Join(statsDir, "queries-"+today+".jsonl")
+	file, err := os.Create(logPath)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	encoder := json.NewEncoder(file)
+	for i := 0; i < 3; i++ {
+		if err := encoder.Encode(stats.Event{
+			Timestamp:   now,
+			Endpoint:    "search",
+			Kind:        "index",
+			Queries:     []string{"VIP"},
+			ResultCount: 1,
+		}); err != nil {
+			t.Fatalf("Encode() error = %v", err)
+		}
+	}
+	if err := encoder.Encode(stats.Event{
+		Timestamp: now,
+		Endpoint:  "read",
+		Kind:      "topic",
+		Slug:      "vip",
+		View:      "card",
+	}); err != nil {
+		t.Fatalf("Encode(read) error = %v", err)
+	}
+	file.Close()
+
+	handler := graphHandler(ServerOptions{Dir: outDir, Root: root})
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/summary", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"today_search_count":3`) {
+		t.Fatalf("body = %s", body)
+	}
+	if !strings.Contains(body, `"today_read_count":1`) || !strings.Contains(body, `"today_api_count":4`) {
+		t.Fatalf("body = %s", body)
+	}
+	if !strings.Contains(body, `"total_search_count":70`) || !strings.Contains(body, `"total_api_count":82`) {
+		t.Fatalf("body = %s", body)
+	}
+}
+
+func TestGraphHandlerDisablesBrowserCacheForStaticWebAssets(t *testing.T) {
+	root := t.TempDir()
+	outDir := filepath.Join(root, ".devwiki", "graph")
+	if err := os.MkdirAll(filepath.Join(outDir, "assets"), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(outDir, "index.html"), []byte("<html></html>"), 0o644); err != nil {
+		t.Fatalf("WriteFile(index.html) error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(outDir, "assets", "app.js"), []byte("console.log('ok')"), 0o644); err != nil {
+		t.Fatalf("WriteFile(app.js) error = %v", err)
+	}
+
+	handler := graphHandler(ServerOptions{Dir: outDir, Root: root})
+	for _, path := range []string{"/index.html", "/assets/app.js"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want 200; body = %s", path, rec.Code, rec.Body.String())
+		}
+		if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+			t.Fatalf("%s Cache-Control = %q, want no-store", path, got)
+		}
+	}
+}
+
+func TestServeAPIStartsKeywordUpdates(t *testing.T) {
+	root := t.TempDir()
+	statsDir := filepath.Join(root, stats.DirName)
+	if err := os.MkdirAll(statsDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	now := time.Now()
+	logPath := filepath.Join(statsDir, "queries-"+now.Format("2006-01-02")+".jsonl")
+	file, err := os.Create(logPath)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if err := json.NewEncoder(file).Encode(stats.Event{
+		Timestamp:   now,
+		Endpoint:    "search",
+		Kind:        "topic",
+		Queries:     []string{"VIP"},
+		ResultCount: 1,
+	}); err != nil {
+		t.Fatalf("Encode() error = %v", err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if _, err := ServeAPI(ctx, ServerOptions{Root: root, Host: "127.0.0.1", Port: 0}); err != nil {
+		t.Fatalf("ServeAPI() error = %v", err)
+	}
+
+	keywordsPath := filepath.Join(statsDir, "keywords.json")
+	deadline := time.After(2 * time.Second)
+	for {
+		data, err := os.ReadFile(keywordsPath)
+		if err == nil && strings.Contains(string(data), `"VIP"`) {
+			return
+		}
+		select {
+		case <-deadline:
+			t.Fatal("timed out waiting for server keyword update")
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
 	}
 }
 

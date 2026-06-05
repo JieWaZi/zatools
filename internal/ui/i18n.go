@@ -32,6 +32,8 @@ type Catalog struct {
 	DevwikiSearchShort            string
 	DevwikiGlossaryShort          string
 	DevwikiGlossaryKeywordsShort  string
+	DevwikiStatsShort             string
+	DevwikiStatsKeywordsShort     string
 	DevwikiRepoShort              string
 	DevwikiSkillShort             string
 	DevwikiSkillRefsShort         string
@@ -248,6 +250,8 @@ var catalogs = map[string]Catalog{
 		DevwikiSearchShort:            "搜索 DevWiki 索引、术语、Topic 或 Workflow",
 		DevwikiGlossaryShort:          "查看 DevWiki glossary 术语",
 		DevwikiGlossaryKeywordsShort:  "逐行列出 DevWiki glossary 关键词",
+		DevwikiStatsShort:             "维护 DevWiki 查询统计数据",
+		DevwikiStatsKeywordsShort:     "从 queries 日志增量生成 keywords.json（Top 100）",
 		DevwikiRepoShort:              "管理 DevWiki 项目配置",
 		DevwikiSkillShort:             "维护 DevWiki skills",
 		DevwikiSkillRefsShort:         "维护 DevWiki skill references",
@@ -462,6 +466,8 @@ var catalogs = map[string]Catalog{
 		DevwikiSearchShort:            "Search DevWiki index, glossary, Topic, or Workflow entries",
 		DevwikiGlossaryShort:          "Inspect DevWiki glossary terms",
 		DevwikiGlossaryKeywordsShort:  "List DevWiki glossary keywords line by line",
+		DevwikiStatsShort:             "Maintain DevWiki query statistics",
+		DevwikiStatsKeywordsShort:     "Incrementally build keywords.json from query logs (Top 100)",
 		DevwikiRepoShort:              "Manage DevWiki project configuration",
 		DevwikiSkillShort:             "Maintain DevWiki skills",
 		DevwikiSkillRefsShort:         "Maintain DevWiki skill references",

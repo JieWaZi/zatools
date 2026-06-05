@@ -27,8 +27,10 @@ func TestStaticAssetsRespectMarkdownPreviewContract(t *testing.T) {
 	}
 	assets := map[string]string{
 		"index.html":       indexHTML,
+		"stats.html":       statsHTML,
 		"assets/app.js":    appJS,
 		"assets/style.css": styleCSS,
+		"assets/stats.css": statsCSS,
 	}
 	for name, content := range assets {
 		for _, token := range forbidden {
@@ -39,6 +41,38 @@ func TestStaticAssetsRespectMarkdownPreviewContract(t *testing.T) {
 	}
 	if !strings.Contains(indexHTML, `id="previewCurrentBtn"`) {
 		t.Fatal("index.html missing previewCurrentBtn")
+	}
+	if !strings.Contains(statsHTML, `href="/assets/style.css"`) {
+		t.Fatal("stats.html should load the shared graph stylesheet")
+	}
+	if !strings.Contains(statsHTML, `class="page-nav"`) {
+		t.Fatal("stats.html should use the shared page navigation")
+	}
+	for _, token := range []string{
+		`class="main stats-layout"`,
+		`class="left-panel"`,
+		`class="left-summary-card stats-left-card"`,
+		`class="canvas-wrap"`,
+		`class="graph-card stats-center-card"`,
+		`class="right-panel"`,
+		`class="detail-body stats-right-body"`,
+	} {
+		if !strings.Contains(statsHTML, token) {
+			t.Fatalf("stats.html should reuse graph shell token %q", token)
+		}
+	}
+	for _, token := range []string{`class="sidebar"`, `class="side-card`, `class="aside-card`} {
+		if strings.Contains(statsHTML, token) {
+			t.Fatalf("stats.html should not use separate stats shell token %q", token)
+		}
+	}
+	if strings.Contains(statsCSS, ".topbar") || strings.Contains(statsCSS, ".brand") || strings.Contains(statsCSS, ".app") {
+		t.Fatal("stats.css should not redefine shared graph shell styles")
+	}
+	for _, token := range []string{".sidebar", ".side-card", ".aside-card"} {
+		if strings.Contains(statsCSS, token) {
+			t.Fatalf("stats.css should not redefine old stats shell selector %q", token)
+		}
 	}
 	if !strings.Contains(indexHTML, `id="markdownModal"`) {
 		t.Fatal("index.html missing markdownModal")

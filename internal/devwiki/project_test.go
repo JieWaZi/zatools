@@ -50,6 +50,7 @@ func TestGenerateProjectCreatesExpectedFiles(t *testing.T) {
 		"wiki/index.md",
 		"wiki/glossary.md",
 		"wiki/log.md",
+		".devwiki/stats/.gitkeep",
 	} {
 		if _, err := os.Stat(filepath.Join(target, rel)); err != nil {
 			t.Fatalf("missing %s: %v", rel, err)

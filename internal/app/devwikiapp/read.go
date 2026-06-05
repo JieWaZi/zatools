@@ -78,6 +78,7 @@ func (s *Service) runRead(ctx context.Context, opts ReadOptions) error {
 	if err != nil {
 		return err
 	}
+	recordReadStats(absRoot, kind, opts.Slug, view)
 	_, err = stdout.Write([]byte(text))
 	return err
 }

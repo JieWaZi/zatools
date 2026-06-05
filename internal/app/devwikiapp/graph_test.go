@@ -40,7 +40,7 @@ func TestGraphBuildWritesOutputsWithoutServingWhenNoServe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Graph(build) error = %v", err)
 	}
-	for _, rel := range []string{".devwiki/graph/graph.json", ".devwiki/graph/manifest.json", ".devwiki/graph/index.html"} {
+	for _, rel := range []string{".devwiki/graph/graph.json", ".devwiki/graph/manifest.json", ".devwiki/graph/index.html", ".devwiki/graph/stats.html", ".devwiki/graph/assets/stats.js", ".devwiki/graph/assets/stats.css", ".devwiki/graph/assets/wordcloud2.js"} {
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
 			t.Fatalf("missing %s: %v", rel, err)
 		}

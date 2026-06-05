@@ -63,12 +63,14 @@ func (s *Service) runSearch(ctx context.Context, opts SearchOptions) error {
 		if err != nil {
 			return err
 		}
+		recordSearchStats(absRoot, kind, queries, len(results), indexSearchHits(results))
 		return writeIndexSearchTable(stdout, results)
 	case "glossary":
 		results, err := retrieval.SearchGlossaryTable(absRoot, queries)
 		if err != nil {
 			return err
 		}
+		recordSearchStats(absRoot, kind, queries, len(results), glossarySearchHits(results))
 		return writeGlossarySearchTable(stdout, results)
 	case page.KindTopic, page.KindWorkflow:
 	default:
@@ -79,6 +81,7 @@ func (s *Service) runSearch(ctx context.Context, opts SearchOptions) error {
 	if err != nil {
 		return err
 	}
+	recordSearchStats(absRoot, kind, queries, len(results), pageSearchHits(results))
 	return writePageSearchTable(stdout, results)
 }
 

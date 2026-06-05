@@ -163,7 +163,14 @@ func ensureRepoLayout(root string) error {
 	if err := os.WriteFile(filepath.Join(root, "wiki", "glossary.md"), []byte(glossary), 0o644); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(root, "wiki", "log.md"), []byte("# Wiki Log\n\n> Append-only chronological log.\n"), 0o644)
+	if err := os.WriteFile(filepath.Join(root, "wiki", "log.md"), []byte("# Wiki Log\n\n> Append-only chronological log.\n"), 0o644); err != nil {
+		return err
+	}
+	statsDir := filepath.Join(root, ".devwiki", "stats")
+	if err := os.MkdirAll(statsDir, 0o755); err != nil {
+		return err
+	}
+	return ensureGitkeep(statsDir)
 }
 
 func ensureGitkeep(dir string) error {

@@ -12,9 +12,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	devwikipage "zatools/internal/devwiki/page"
 	"zatools/internal/devwiki/retrieval"
+	"zatools/internal/devwiki/stats"
 
 	"gopkg.in/yaml.v3"
 )
@@ -49,7 +51,9 @@ func ServeAPI(ctx context.Context, opts ServerOptions) (string, error) {
 	if host == "" {
 		host = "0.0.0.0"
 	}
-	return serveHTTP(ctx, host, opts.Port, APIHandlerWithContext(ctx, opts.Root))
+	recorder := stats.NewRecorder(opts.Root)
+	recorder.Start(ctx)
+	return serveHTTP(ctx, host, opts.Port, APIHandlerWithContextAndRecorder(ctx, opts.Root, recorder))
 }
 
 func serveHTTP(ctx context.Context, host string, port int, handler http.Handler) (string, error) {
@@ -82,20 +86,62 @@ func serveHTTP(ctx context.Context, host string, port int, handler http.Handler)
 }
 
 func graphHandler(opts ServerOptions) http.Handler {
-	static := http.FileServer(http.Dir(opts.Dir))
+	dir := filepath.Clean(opts.Dir)
 	root := opts.Root
 	if root == "" {
-		root = opts.Dir
+		root = dir
 	}
 	root = filepath.Clean(root)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/stats/summary" {
+			if r.Method != http.MethodGet {
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			handleStatsSummary(w, root)
+			return
+		}
 		cleanPath := filepath.Clean(strings.TrimPrefix(r.URL.Path, "/"))
 		if strings.HasPrefix(cleanPath, "wiki/") && strings.HasSuffix(cleanPath, ".md") {
+			setNoStore(w)
 			http.ServeFile(w, r, filepath.Join(root, filepath.FromSlash(cleanPath)))
 			return
 		}
-		static.ServeHTTP(w, r)
+		serveGraphWebAsset(w, r, dir)
 	})
+}
+
+func serveGraphWebAsset(w http.ResponseWriter, r *http.Request, dir string) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	cleanPath := filepath.Clean(strings.TrimPrefix(r.URL.Path, "/"))
+	if cleanPath == "." {
+		cleanPath = "index.html"
+	}
+	if cleanPath == ".." || strings.HasPrefix(cleanPath, "../") || filepath.IsAbs(cleanPath) {
+		http.NotFound(w, r)
+		return
+	}
+	path := filepath.Join(dir, filepath.FromSlash(cleanPath))
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		http.NotFound(w, r)
+		return
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer file.Close()
+	setNoStore(w)
+	http.ServeContent(w, r, info.Name(), info.ModTime(), file)
+}
+
+func setNoStore(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store")
 }
 
 // APIHandler returns the read-only DevWiki HTTP API handler with Basic Auth.
@@ -105,10 +151,15 @@ func APIHandler(root string) http.Handler {
 
 // APIHandlerWithContext returns the read-only DevWiki HTTP API handler with Basic Auth and shared command context.
 func APIHandlerWithContext(ctx context.Context, root string) http.Handler {
+	return APIHandlerWithContextAndRecorder(ctx, root, stats.NewRecorder(root))
+}
+
+// APIHandlerWithContextAndRecorder returns the DevWiki HTTP API handler using the provided stats recorder.
+func APIHandlerWithContextAndRecorder(ctx context.Context, root string, recorder *stats.Recorder) http.Handler {
 	root = filepath.Clean(root)
 	return requireAPIBasicAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/devwiki/") {
-			handleAPI(ctx, w, r, root)
+			handleAPI(ctx, w, r, root, recorder)
 			return
 		}
 		http.NotFound(w, r)
@@ -149,7 +200,7 @@ type apiProjectInfo struct {
 	Language    string `json:"language"`
 }
 
-func handleAPI(ctx context.Context, w http.ResponseWriter, r *http.Request, root string) {
+func handleAPI(ctx context.Context, w http.ResponseWriter, r *http.Request, root string, recorder *stats.Recorder) {
 	if r.URL.Path == "/api/devwiki/project" {
 		handleAPIProject(w, r, root)
 		return
@@ -160,9 +211,9 @@ func handleAPI(ctx context.Context, w http.ResponseWriter, r *http.Request, root
 	}
 	switch r.URL.Path {
 	case "/api/devwiki/read":
-		handleAPIRead(w, r, root)
+		handleAPIRead(w, r, root, recorder)
 	case "/api/devwiki/search":
-		handleAPISearch(ctx, w, r, root)
+		handleAPISearch(ctx, w, r, root, recorder)
 	case "/api/devwiki/glossary/keywords":
 		handleAPIGlossaryKeywords(w, root)
 	default:
@@ -199,7 +250,7 @@ func handleAPIProject(w http.ResponseWriter, r *http.Request, root string) {
 	writeAPIJSON(w, info)
 }
 
-func handleAPIRead(w http.ResponseWriter, r *http.Request, root string) {
+func handleAPIRead(w http.ResponseWriter, r *http.Request, root string, recorder *stats.Recorder) {
 	var request apiReadRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -225,10 +276,13 @@ func handleAPIRead(w http.ResponseWriter, r *http.Request, root string) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
+	if recorder != nil {
+		recorder.RecordRead(request.Kind, request.Slug, view)
+	}
 	writeAPIJSON(w, apiTextResponse{Text: text})
 }
 
-func handleAPISearch(ctx context.Context, w http.ResponseWriter, r *http.Request, root string) {
+func handleAPISearch(ctx context.Context, w http.ResponseWriter, r *http.Request, root string, recorder *stats.Recorder) {
 	var request apiSearchRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -246,12 +300,18 @@ func handleAPISearch(ctx context.Context, w http.ResponseWriter, r *http.Request
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if recorder != nil {
+			recorder.RecordSearch(request.Kind, queries, normalizeIndexSearchHits(results), len(results))
+		}
 		writeAPIJSON(w, results)
 	case "glossary":
 		results, err := retrieval.SearchGlossaryTable(root, queries)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+		if recorder != nil {
+			recorder.RecordSearch(request.Kind, queries, normalizeGlossarySearchHits(results), len(results))
 		}
 		writeAPIJSON(w, results)
 	case devwikipage.KindTopic, devwikipage.KindWorkflow:
@@ -260,10 +320,55 @@ func handleAPISearch(ctx context.Context, w http.ResponseWriter, r *http.Request
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if recorder != nil {
+			recorder.RecordSearch(request.Kind, queries, normalizePageSearchHits(results), len(results))
+		}
 		writeAPIJSON(w, results)
 	default:
 		http.Error(w, "unsupported devwiki search kind", http.StatusBadRequest)
 	}
+}
+
+func handleStatsSummary(w http.ResponseWriter, root string) {
+	dashboard, err := stats.LoadDashboard(root, time.Now())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeAPIJSON(w, dashboard)
+}
+
+func normalizePageSearchHits(results []retrieval.SearchResult) []stats.SearchHit {
+	hits := make([]stats.SearchHit, 0, len(results))
+	for _, result := range results {
+		hits = append(hits, stats.SearchHit{
+			Slug:  result.Slug,
+			Score: result.Score,
+		})
+	}
+	return hits
+}
+
+func normalizeIndexSearchHits(results []retrieval.IndexSearchResult) []stats.SearchHit {
+	hits := make([]stats.SearchHit, 0, len(results))
+	for _, result := range results {
+		hits = append(hits, stats.SearchHit{
+			Slug: result.Slug,
+			Type: result.Type,
+		})
+	}
+	return hits
+}
+
+func normalizeGlossarySearchHits(results []retrieval.GlossarySearchResult) []stats.SearchHit {
+	hits := make([]stats.SearchHit, 0, len(results))
+	for _, result := range results {
+		hits = append(hits, stats.SearchHit{
+			Slug: result.Slug,
+			Type: result.Type,
+		})
+	}
+	return hits
 }
 
 func handleAPIGlossaryKeywords(w http.ResponseWriter, root string) {

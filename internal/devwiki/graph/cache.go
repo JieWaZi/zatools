@@ -15,6 +15,7 @@ type Manifest struct {
 	SchemaVersion  int            `json:"schema_version"`
 	BuilderVersion int            `json:"builder_version"`
 	InputHash      string         `json:"input_hash"`
+	AssetHash      string         `json:"asset_hash"`
 	BuiltAt        time.Time      `json:"built_at"`
 	Files          []ManifestFile `json:"files"`
 	Outputs        ManifestOutput `json:"outputs"`
@@ -31,13 +32,15 @@ type ManifestFile struct {
 type ManifestOutput struct {
 	Graph string `json:"graph"`
 	Index string `json:"index"`
+	Stats string `json:"stats"`
 }
 
 // IsFresh reports whether the old manifest is fresh for the current inputs.
 func (m Manifest) IsFresh(current Manifest) bool {
 	return m.SchemaVersion == current.SchemaVersion &&
 		m.BuilderVersion == current.BuilderVersion &&
-		m.InputHash == current.InputHash
+		m.InputHash == current.InputHash &&
+		m.AssetHash == current.AssetHash
 }
 
 // BuildManifest computes the current graph input manifest for a DevWiki root.
@@ -53,8 +56,14 @@ func BuildManifest(root string) (Manifest, error) {
 		Outputs: ManifestOutput{
 			Graph: ".devwiki/graph/graph.json",
 			Index: ".devwiki/graph/index.html",
+			Stats: ".devwiki/graph/stats.html",
 		},
 	}
+	assetHash, err := AssetHash()
+	if err != nil {
+		return Manifest{}, err
+	}
+	manifest.AssetHash = assetHash
 	hash := sha256.New()
 	for _, rel := range files {
 		path := filepath.Join(root, filepath.FromSlash(rel))

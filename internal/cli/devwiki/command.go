@@ -41,6 +41,7 @@ func NewCommand() *cobra.Command {
 	devwikiCmd.AddCommand(newCheckCmd(service))
 	devwikiCmd.AddCommand(newGraphCmd(service))
 	devwikiCmd.AddCommand(newServerCmd(service))
+	devwikiCmd.AddCommand(newStatsCmd(service))
 	devwikiCmd.AddCommand(newToolCmd())
 	return devwikiCmd
 }
@@ -409,6 +410,39 @@ func newServerCmd(service *devwikiapp.Service) *cobra.Command {
 	cmd.Flags().StringVar(&opts.Project, "project", "", copy.FlagDevwikiProject)
 	cmd.Flags().StringVar(&opts.Host, "host", "0.0.0.0", copy.FlagDevwikiGraphHost)
 	cmd.Flags().IntVar(&opts.Port, "port", 5697, copy.FlagDevwikiGraphPort)
+	return cmd
+}
+
+func newStatsCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	cmd := &cobra.Command{
+		Use:           "stats",
+		Short:         copy.DevwikiStatsShort,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			_ = cmd.Help()
+		},
+	}
+	cmd.AddCommand(newStatsKeywordsCmd(service))
+	return cmd
+}
+
+func newStatsKeywordsCmd(service *devwikiapp.Service) *cobra.Command {
+	copy := ui.Messages()
+	var opts devwikiapp.StatsKeywordsOptions
+
+	cmd := &cobra.Command{
+		Use:         "keywords",
+		Short:       copy.DevwikiStatsKeywordsShort,
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{SuppressLogoAnnotation: "true"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.Stdout = cmd.OutOrStdout()
+			return service.StatsKeywords(cmd.Context(), opts)
+		},
+	}
+	cmd.Flags().StringVar(&opts.Root, "root", ".", copy.FlagDevwikiRoot)
 	return cmd
 }
 
