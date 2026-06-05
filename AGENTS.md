@@ -10,7 +10,7 @@ This repository is a Go CLI project. The executable entrypoint lives in `cmd/zat
 - `internal/app/devwikiapp/`: application-layer orchestration for `devwiki init`, `devwiki update`, and runtime skill installation.
 - `internal/skills/`: core domain logic for source parsing, installation, lock files, and workspace resolution.
 - `internal/rules/`: rule discovery and metadata parsing.
-- `internal/devwiki/`: DevWiki project generation, runtime bridge, and reset/log tooling.
+- `internal/devwiki/`: DevWiki project generation, code-repo linking, and reset/log tooling.
 - `internal/qmd/`: `zatools qmd` config parsing, environment injection, command execution, and collection sync helpers.
 - `internal/cli/qmd/`: top-level `zatools qmd` Cobra wiring and passthrough argument parsing.
 - `internal/platform/agents/`: agent-specific installation path rules.

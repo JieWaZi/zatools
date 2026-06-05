@@ -1233,74 +1233,6 @@ func TestRootDevwikiSkillsIncludesCodeToDocGuidance(t *testing.T) {
 	}
 }
 
-func TestEnsureProjectRuntimeBridgeCreatesSelectedRootRuntimeFile(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	workspaceDir := filepath.Join(root, "devwiki-sample")
-	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll error = %v", err)
-	}
-
-	err := EnsureProjectRuntimeBridge(root, workspaceDir, "codex", "zh")
-	if err != nil {
-		t.Fatalf("EnsureProjectRuntimeBridge error = %v", err)
-	}
-
-	data, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
-	if err != nil {
-		t.Fatalf("ReadFile(AGENTS.md) error = %v", err)
-	}
-	content := string(data)
-	if !containsAll(content,
-		"./devwiki-sample/AGENTS.md",
-		runtimeBridgeStartMarker,
-		runtimeBridgeEndMarker,
-	) {
-		t.Fatalf("AGENTS.md missing runtime bridge block:\n%s", content)
-	}
-	if _, err := os.Stat(filepath.Join(root, "CLAUDE.md")); err == nil {
-		t.Fatal("codex bridge should not create CLAUDE.md")
-	}
-}
-
-func TestEnsureProjectRuntimeBridgePreservesExistingContentAndUpdatesManagedBlock(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	workspaceDir := filepath.Join(root, "devwiki-sample")
-	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll error = %v", err)
-	}
-
-	original := "# Existing Rules\n\nKeep this content.\n"
-	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(original), 0o644); err != nil {
-		t.Fatalf("WriteFile(existing AGENTS.md) error = %v", err)
-	}
-
-	if err := EnsureProjectRuntimeBridge(root, workspaceDir, "codex", "zh"); err != nil {
-		t.Fatalf("EnsureProjectRuntimeBridge first call error = %v", err)
-	}
-	if err := EnsureProjectRuntimeBridge(root, workspaceDir, "codex", "zh"); err != nil {
-		t.Fatalf("EnsureProjectRuntimeBridge second call error = %v", err)
-	}
-
-	data, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
-	if err != nil {
-		t.Fatalf("ReadFile(AGENTS.md) error = %v", err)
-	}
-	content := string(data)
-	if !strings.Contains(content, "Keep this content.") {
-		t.Fatalf("existing content should be preserved:\n%s", content)
-	}
-	if strings.Count(content, runtimeBridgeStartMarker) != 1 {
-		t.Fatalf("managed block should appear once:\n%s", content)
-	}
-	if !strings.Contains(content, "./devwiki-sample/AGENTS.md") {
-		t.Fatalf("managed block missing runtime path:\n%s", content)
-	}
-}
-
 func TestEnsureCodeRepoDevwikiLinkCreatesAgentsWhenMissing(t *testing.T) {
 	t.Parallel()
 
@@ -1323,7 +1255,6 @@ func TestEnsureCodeRepoDevwikiLinkCreatesAgentsWhenMissing(t *testing.T) {
 		codeLinkStartMarker,
 		codeLinkEndMarker,
 		devwikiRoot,
-		filepath.Join(devwikiRoot, "AGENTS.md"),
 		"DevWiki project：`linked-project`",
 		"--project linked-project",
 		"devwiki-query",
@@ -1338,6 +1269,9 @@ func TestEnsureCodeRepoDevwikiLinkCreatesAgentsWhenMissing(t *testing.T) {
 		"必须写入关联 DevWiki 文档库",
 	) {
 		t.Fatalf("code AGENTS.md missing DevWiki link block:\n%s", agents)
+	}
+	if strings.Contains(agents, "必须先阅读") || strings.Contains(agents, filepath.Join(devwikiRoot, "AGENTS.md")) {
+		t.Fatalf("code AGENTS.md should not load DevWiki runtime file:\n%s", agents)
 	}
 }
 
@@ -1371,8 +1305,8 @@ func TestEnsureCodeRepoDevwikiLinkUpdatesAgentsAndClaudeIdempotently(t *testing.
 		if strings.Count(content, codeLinkStartMarker) != 1 {
 			t.Fatalf("%s managed block should appear once:\n%s", filename, content)
 		}
-		if !strings.Contains(content, filepath.Join(devwikiRoot, "CLAUDE.md")) {
-			t.Fatalf("%s missing Claude runtime path:\n%s", filename, content)
+		if strings.Contains(content, "必须先阅读") || strings.Contains(content, filepath.Join(devwikiRoot, "CLAUDE.md")) {
+			t.Fatalf("%s should not load DevWiki runtime file:\n%s", filename, content)
 		}
 	}
 

@@ -89,8 +89,11 @@ func TestRepoLinkWritesProjectNameIntoCodeRepoAgents(t *testing.T) {
 	if !strings.Contains(content, "DevWiki project：`huawei-zddi`") || !strings.Contains(content, "--project huawei-zddi") {
 		t.Fatalf("AGENTS.md missing project guidance:\n%s", content)
 	}
-	if !strings.Contains(content, "DevWiki 文档库根目录：`"+root+"`") || !strings.Contains(content, "必须先阅读 `"+filepath.Join(root, "AGENTS.md")+"`") {
+	if !strings.Contains(content, "DevWiki 文档库根目录：`"+root+"`") {
 		t.Fatalf("AGENTS.md missing local DevWiki root guidance:\n%s", content)
+	}
+	if strings.Contains(content, "必须先阅读") || strings.Contains(content, filepath.Join(root, "AGENTS.md")) {
+		t.Fatalf("AGENTS.md should not load local DevWiki runtime file:\n%s", content)
 	}
 }
 

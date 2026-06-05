@@ -19,10 +19,8 @@ import (
 var slugPattern = regexp.MustCompile(`[^a-z0-9]+`)
 
 const (
-	runtimeBridgeStartMarker = "<!-- zatools:devwiki-runtime:start -->"
-	runtimeBridgeEndMarker   = "<!-- zatools:devwiki-runtime:end -->"
-	codeLinkStartMarker      = "<!-- zatools:devwiki-link:start -->"
-	codeLinkEndMarker        = "<!-- zatools:devwiki-link:end -->"
+	codeLinkStartMarker = "<!-- zatools:devwiki-link:start -->"
+	codeLinkEndMarker   = "<!-- zatools:devwiki-link:end -->"
 )
 
 // CodeRepo 描述一个注册到 DevWiki 配置中的代码仓条目。
@@ -281,14 +279,14 @@ func renderProjectDoc(spec ProjectSpec, name string) (string, error) {
 
 // EnsureCodeRepoDevwikiLink writes managed DevWiki association text into a code repository.
 func EnsureCodeRepoDevwikiLink(codeRoot string, devwikiRoot string, projectSlug string, agent string, lang string) error {
-	runtimeFile, err := runtimeFilenameForAgent(agent)
-	if err != nil {
+	if _, err := runtimeFilenameForAgent(agent); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(codeRoot, 0o755); err != nil {
 		return err
 	}
 
+	var err error
 	codeRoot, err = filepath.Abs(codeRoot)
 	if err != nil {
 		return err
@@ -300,11 +298,7 @@ func EnsureCodeRepoDevwikiLink(codeRoot string, devwikiRoot string, projectSlug 
 			return err
 		}
 	}
-	runtimePath := ""
-	if devwikiRoot != "" {
-		runtimePath = filepath.Join(devwikiRoot, runtimeFile)
-	}
-	block := renderCodeRepoDevwikiLinkBlock(devwikiRoot, runtimePath, projectSlug, lang)
+	block := renderCodeRepoDevwikiLinkBlock(devwikiRoot, projectSlug, lang)
 	wrote := false
 	for _, filename := range []string{"AGENTS.md", "CLAUDE.md"} {
 		targetPath := filepath.Join(codeRoot, filename)
@@ -313,7 +307,7 @@ func EnsureCodeRepoDevwikiLink(codeRoot string, devwikiRoot string, projectSlug 
 				return err
 			}
 			wrote = true
-		} else if err != nil && !os.IsNotExist(err) {
+		} else if !os.IsNotExist(err) {
 			return err
 		}
 	}
@@ -323,7 +317,7 @@ func EnsureCodeRepoDevwikiLink(codeRoot string, devwikiRoot string, projectSlug 
 	return upsertManagedFileBlock(filepath.Join(codeRoot, "AGENTS.md"), block, lang)
 }
 
-func renderCodeRepoDevwikiLinkBlock(devwikiRoot string, runtimePath string, projectSlug string, lang string) string {
+func renderCodeRepoDevwikiLinkBlock(devwikiRoot string, projectSlug string, lang string) string {
 	_ = lang
 
 	lines := []string{
@@ -335,7 +329,6 @@ func renderCodeRepoDevwikiLinkBlock(devwikiRoot string, runtimePath string, proj
 	if strings.TrimSpace(devwikiRoot) != "" {
 		lines = append(lines,
 			fmt.Sprintf("DevWiki 文档库根目录：`%s`。", devwikiRoot),
-			fmt.Sprintf("在本代码库回答项目知识问题、修改代码，或使用 `devwiki-query` / `devwiki-code` / `devwiki-code-to-doc` 前，必须先阅读 `%s`。", runtimePath),
 			"查询时以关联 DevWiki 根目录下的 `wiki/`、`raw/`、`config/search.yaml` 为知识来源。",
 			"`devwiki-code-to-doc` 生成的 workflow / topic 相关页面必须写入关联 DevWiki 文档库，不要写入本代码库。",
 		)
@@ -363,36 +356,6 @@ func upsertManagedFileBlock(targetPath string, block string, lang string) error 
 	return os.WriteFile(targetPath, []byte(updated), 0o644)
 }
 
-// EnsureProjectRuntimeBridge ensures the project root runtime file points agents at the generated DevWiki runtime file.
-func EnsureProjectRuntimeBridge(projectRoot string, workspaceDir string, agent string, lang string) error {
-	runtimeFile, err := runtimeFilenameForAgent(agent)
-	if err != nil {
-		return err
-	}
-
-	relativePath, err := filepath.Rel(projectRoot, filepath.Join(workspaceDir, runtimeFile))
-	if err != nil {
-		return err
-	}
-	relativePath = filepath.ToSlash(relativePath)
-	if !strings.HasPrefix(relativePath, ".") {
-		relativePath = "./" + relativePath
-	}
-
-	targetPath := filepath.Join(projectRoot, runtimeFile)
-	block := renderRuntimeBridgeBlock(relativePath, lang)
-	data, err := os.ReadFile(targetPath)
-	if os.IsNotExist(err) {
-		return os.WriteFile(targetPath, []byte(renderNewRuntimeBridgeFile(block, lang)), 0o644)
-	}
-	if err != nil {
-		return err
-	}
-
-	updated := upsertRuntimeBridgeBlock(string(data), block)
-	return os.WriteFile(targetPath, []byte(updated), 0o644)
-}
-
 func runtimeFilenameForAgent(agent string) (string, error) {
 	switch agent {
 	case "codex", "cursor":
@@ -402,28 +365,6 @@ func runtimeFilenameForAgent(agent string) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported agent %q", agent)
 	}
-}
-
-func renderRuntimeBridgeBlock(relativePath string, lang string) string {
-	_ = lang
-
-	return strings.Join([]string{
-		runtimeBridgeStartMarker,
-		"## DevWiki Runtime",
-		fmt.Sprintf("处理本仓库中的 DevWiki 相关任务前，必须先阅读并遵守 `%s`。", relativePath),
-		"如果该 DevWiki 运行时文件与当前仓库中的其他说明冲突，在 DevWiki 工作中以它为准。",
-		runtimeBridgeEndMarker,
-		"",
-	}, "\n")
-}
-
-func renderNewRuntimeBridgeFile(block string, lang string) string {
-	_ = lang
-	return "# 仓库运行时入口\n\n" + block
-}
-
-func upsertRuntimeBridgeBlock(content string, block string) string {
-	return upsertDelimitedBlock(content, block, runtimeBridgeStartMarker, runtimeBridgeEndMarker)
 }
 
 func upsertDelimitedBlock(content string, block string, startMarker string, endMarker string) string {
