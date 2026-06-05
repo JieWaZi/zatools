@@ -19,10 +19,20 @@ function Resolve-BaseUrl {
 }
 
 function Resolve-Arch {
-    $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+    $arch = if ($env:PROCESSOR_ARCHITEW6432) {
+        $env:PROCESSOR_ARCHITEW6432
+    } else {
+        $env:PROCESSOR_ARCHITECTURE
+    }
+
+    if ([string]::IsNullOrEmpty($arch)) {
+        throw "Unable to determine Windows architecture"
+    }
+
+    $arch = $arch.ToUpperInvariant()
     switch ($arch) {
-        "X64" { return "amd64" }
-        "Arm64" { return "arm64" }
+        "AMD64" { return "amd64" }
+        "ARM64" { return "arm64" }
         default { throw "Unsupported architecture: $arch" }
     }
 }
@@ -61,6 +71,18 @@ function Resolve-AssetFromChecksums {
     }
 
     return $matchingAssets[0]
+}
+
+function Split-PathEntries {
+    param(
+        [string]$PathValue
+    )
+
+    if ([string]::IsNullOrEmpty($PathValue)) {
+        return @()
+    }
+
+    return $PathValue.Split(';', [System.StringSplitOptions]::RemoveEmptyEntries)
 }
 
 $ResolvedArch = Resolve-Arch
@@ -113,10 +135,7 @@ try {
 
     $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
     $NormalizedInstallDir = $InstallDir.TrimEnd('\')
-    $PathEntries = @()
-    if ($UserPath) {
-        $PathEntries = $UserPath.Split(';', [System.StringSplitOptions]::RemoveEmptyEntries)
-    }
+    $PathEntries = Split-PathEntries -PathValue $UserPath
 
     $HasUserPath = $false
     foreach ($entry in $PathEntries) {
@@ -131,7 +150,7 @@ try {
         [Environment]::SetEnvironmentVariable("Path", $NewUserPath, "User")
     }
 
-    $SessionEntries = $env:Path.Split(';', [System.StringSplitOptions]::RemoveEmptyEntries)
+    $SessionEntries = Split-PathEntries -PathValue $env:Path
     $HasSessionPath = $false
     foreach ($entry in $SessionEntries) {
         if ($entry.TrimEnd('\') -ieq $NormalizedInstallDir) {
@@ -141,7 +160,7 @@ try {
     }
 
     if (-not $HasSessionPath) {
-        $env:Path = "$InstallDir;$env:Path"
+        $env:Path = if ($env:Path) { "$InstallDir;$env:Path" } else { $InstallDir }
     }
 
     Write-Host "Installed $BinaryName to $InstallDir"
