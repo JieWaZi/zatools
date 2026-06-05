@@ -9,6 +9,7 @@
 - 初始化和维护 DevWiki 工程
 - 封装 qmd 检索命令
 - 将资产安装到不同 Agent 的约定目录
+- 更新 `zatools` 自身到最新 Release
 
 当前支持的 Agent：
 
@@ -26,6 +27,7 @@
 | `rule` | 已支持 | `zatools rule ...` | 支持发现、安装、删除、检查更新、更新 |
 | `devwiki` | 已支持 | `zatools devwiki ...` | 支持初始化、项目配置、查询、图谱、只读服务、更新和内置维护工具 |
 | `qmd` | 已支持 | `zatools qmd ...` | 封装 qmd，统一注入模型和缓存配置 |
+| `update` | 已支持 | `zatools update` | 下载、校验并安装 GitHub Release 最新版本 |
 | `agent` | 已支持 | `--agent` | 作为安装目标使用，不是独立资产类型 |
 | `command` | 未实现 | 无 | 暂无安装逻辑 |
 | `hook` | 未实现 | 无 | 暂无安装逻辑 |
@@ -82,6 +84,14 @@ Windows PowerShell：
 iwr https://github.com/JieWaZi/zatools/releases/latest/download/install.ps1 -UseBasicParsing | iex
 ```
 
+安装完成后，后续可直接更新 `zatools` 自身：
+
+```bash
+zatools update
+```
+
+`zatools update` 会从 GitHub Release 下载 `checksums.txt`，按当前系统和架构选择匹配的压缩包，校验 SHA256 后替换当前正在运行的 `zatools`。Windows 会在当前进程退出后延迟替换，请重新打开终端后继续使用。
+
 发布新版本时，创建并推送 `vX.Y.Z` tag 即可触发 GitHub Actions 自动构建和更新 Release：
 
 ```bash
@@ -121,6 +131,7 @@ zatools
 │       ├── reset
 │       └── log
 ├── qmd
+├── update
 └── completion
 ```
 

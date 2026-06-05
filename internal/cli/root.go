@@ -12,6 +12,7 @@ import (
 	qmdcmd "zatools/internal/cli/qmd"
 	rulecmd "zatools/internal/cli/rule"
 	skillcmd "zatools/internal/cli/skill"
+	updatecmd "zatools/internal/cli/update"
 	"zatools/internal/ui"
 )
 
@@ -48,6 +49,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(rulecmd.NewCommand())
 	rootCmd.AddCommand(devwikicmd.NewCommand())
 	rootCmd.AddCommand(qmdcmd.NewCommand())
+	rootCmd.AddCommand(updatecmd.NewCommand())
 	rootCmd.AddCommand(newCompletionCmd(rootCmd))
 	ui.ApplyHelpLocalization(rootCmd)
 	return rootCmd

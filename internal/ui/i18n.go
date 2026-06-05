@@ -20,6 +20,7 @@ type Catalog struct {
 	RuleShort                     string
 	DevwikiShort                  string
 	QMDShort                      string
+	SelfUpdateShort               string
 	AddShort                      string
 	ListShort                     string
 	InitShort                     string
@@ -156,6 +157,8 @@ type Catalog struct {
 	DevwikiRepoUseSuccessFmt      string
 	DevwikiRepoFailureFmt         string
 	DevwikiGraphOpenFailedFmt     string
+	SelfUpdateDoneFmt             string
+	SelfUpdateDeferredFmt         string
 	Cancelled                     string
 	InstallationCancelled         string
 	RemovalCancelled              string
@@ -233,6 +236,7 @@ var catalogs = map[string]Catalog{
 		RuleShort:                     "管理 Agent 规则",
 		DevwikiShort:                  "创建和初始化 DevWiki 工程",
 		QMDShort:                      "使用 zatools 管理的环境执行 qmd",
+		SelfUpdateShort:               "更新 zatools 到最新 Release",
 		AddShort:                      "安装技能包",
 		ListShort:                     "列出已安装技能",
 		InitShort:                     "创建新的 SKILL.md 模板",
@@ -369,6 +373,8 @@ var catalogs = map[string]Catalog{
 		DevwikiRepoUseSuccessFmt:      "已切换 DevWiki project `%s` 当前来源为 `%s`\nconfig: %s\n",
 		DevwikiRepoFailureFmt:         "%s 失败：%v\n",
 		DevwikiGraphOpenFailedFmt:     "%s!%s 无法自动打开浏览器：%v；服务已继续运行，可手动打开 %s\n",
+		SelfUpdateDoneFmt:             "%s✓%s 已更新 zatools\nasset: %s\npath: %s\n",
+		SelfUpdateDeferredFmt:         "%s✓%s 已下载 zatools 更新\nasset: %s\npath: %s\n请重新打开终端后继续使用。\n",
 		Cancelled:                     "已取消",
 		InstallationCancelled:         "安装已取消",
 		RemovalCancelled:              "删除已取消",
@@ -444,6 +450,7 @@ var catalogs = map[string]Catalog{
 		RuleShort:                     "Manage agent rules",
 		DevwikiShort:                  "Create and initialize DevWiki projects",
 		QMDShort:                      "Run qmd with zatools-managed environment",
+		SelfUpdateShort:               "Update zatools to the latest release",
 		AddShort:                      "Add a skill package",
 		ListShort:                     "List installed skills",
 		InitShort:                     "Create a new SKILL.md template",
@@ -580,6 +587,8 @@ var catalogs = map[string]Catalog{
 		DevwikiRepoUseSuccessFmt:      "Switched DevWiki project `%s` active source to `%s`\nconfig: %s\n",
 		DevwikiRepoFailureFmt:         "%s failed: %v\n",
 		DevwikiGraphOpenFailedFmt:     "%s!%s unable to open browser automatically: %v; the server is still running, open %s manually\n",
+		SelfUpdateDoneFmt:             "%s✓%s updated zatools\nasset: %s\npath: %s\n",
+		SelfUpdateDeferredFmt:         "%s✓%s downloaded zatools update\nasset: %s\npath: %s\nRestart your terminal before continuing.\n",
 		Cancelled:                     "Cancelled",
 		InstallationCancelled:         "Installation cancelled",
 		RemovalCancelled:              "Removal cancelled",

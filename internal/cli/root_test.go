@@ -40,6 +40,9 @@ func TestNewRootCmdIncludesExpectedSubcommands(t *testing.T) {
 	if sub, _, err := cmd.Find([]string{"qmd"}); err != nil || sub == nil {
 		t.Fatalf("root command missing qmd subcommand: %v", err)
 	}
+	if sub, _, err := cmd.Find([]string{"update"}); err != nil || sub == nil {
+		t.Fatalf("root command missing update subcommand: %v", err)
+	}
 	if sub, _, err := cmd.Find([]string{"completion"}); err != nil || sub == nil {
 		t.Fatalf("root command missing completion subcommand: %v", err)
 	}
